@@ -23,6 +23,7 @@ import SupplierQuotationsPage from "./pages/SupplierQuotationsPage";
 import SupplierOrdersPage from "./pages/SupplierOrdersPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
 import AdminSuppliersPage from "./pages/admin/AdminSuppliersPage";
+import SheetCenterPage from "./pages/SheetCenterPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -82,6 +83,11 @@ const App = () => (
               <ProtectedRoute>
                 <QuotationsPage />
               </ProtectedRoute>
+            } />
+            <Route path="/sheets" element={
+              <PublicRoute>
+                <SheetCenterPage />
+              </PublicRoute>
             } />
             <Route path="/profile" element={
               <ProtectedRoute>

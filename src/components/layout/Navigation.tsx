@@ -51,10 +51,10 @@ const navigationItems = [
     description: "产品展示视频"
   },
   {
-    title: "报价",
-    href: "/quotations",
+    title: "货单",
+    href: "/sheets",
     icon: FileText,
-    description: "询价与报价管理"
+    description: "货单分享与返利"
   },
   {
     title: "管理",
