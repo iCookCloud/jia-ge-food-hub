@@ -40,106 +40,147 @@ export const handleApiError = (error: PostgrestError | Error): string => {
   return error.message || '未知错误';
 };
 
-// 统一的查询构建器
-export class QueryBuilder {
-  private query: any;
+// 专用的服务函数，避免动态表名的类型问题
 
-  constructor(tableName: string) {
-    this.query = supabase.from(tableName);
+// 产品相关操作
+export const productService = {
+  async getAll(filters: FilterParams = {}, pagination: PaginationParams = {}) {
+    let query = supabase
+      .from('products')
+      .select('*')
+      .eq('is_active', true);
+
+    // 应用过滤器
+    if (filters.category) {
+      query = query.eq('category_chinese', filters.category);
+    }
+    if (filters.search) {
+      query = query.or(`standard_chinese_name.ilike.%${filters.search}%,standard_english_name.ilike.%${filters.search}%`);
+    }
+
+    // 应用分页
+    if (pagination.page && pagination.limit) {
+      const offset = (pagination.page - 1) * pagination.limit;
+      query = query.range(offset, offset + pagination.limit - 1);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+    return { data, error };
+  },
+
+  async getById(id: string) {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', id)
+      .single();
+    return { data, error };
+  },
+
+  async create(productData: any) {
+    const { data, error } = await supabase
+      .from('products')
+      .insert(productData)
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  async update(id: string, productData: any) {
+    const { data, error } = await supabase
+      .from('products')
+      .update({ ...productData, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id);
+    return { data: null, error };
   }
+};
 
-  select(columns: string = '*') {
-    this.query = this.query.select(columns);
-    return this;
-  }
+// 供应商相关操作
+export const supplierService = {
+  async getAll(filters: FilterParams = {}, pagination: PaginationParams = {}) {
+    let query = supabase
+      .from('supplier_credentials')
+      .select(`
+        *,
+        profiles!supplier_credentials_user_id_fkey (
+          nickname,
+          avatar_url
+        )
+      `)
+      .eq('verification_status', 'verified');
 
-  filter(filters: FilterParams) {
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        if (key === 'search') {
-          // 实现搜索逻辑
-          return;
-        }
-        this.query = this.query.eq(key, value);
-      }
-    });
-    return this;
-  }
+    if (filters.search) {
+      query = query.or(`company_name.ilike.%${filters.search}%,contact_person.ilike.%${filters.search}%`);
+    }
 
-  paginate(pagination: PaginationParams) {
-    const { page = 1, limit = 20 } = pagination;
-    const offset = (page - 1) * limit;
-    this.query = this.query.range(offset, offset + limit - 1);
-    return this;
-  }
+    if (pagination.page && pagination.limit) {
+      const offset = (pagination.page - 1) * pagination.limit;
+      query = query.range(offset, offset + pagination.limit - 1);
+    }
 
-  order(column: string, ascending: boolean = true) {
-    this.query = this.query.order(column, { ascending });
-    return this;
-  }
+    const { data, error } = await query.order('created_at', { ascending: false });
+    return { data, error };
+  },
 
-  async execute<T>(): Promise<ApiResponse<T[]>> {
-    const { data, error } = await this.query;
+  async getById(id: string) {
+    const { data, error } = await supabase
+      .from('supplier_credentials')
+      .select(`
+        *,
+        profiles!supplier_credentials_user_id_fkey (
+          nickname,
+          avatar_url
+        )
+      `)
+      .eq('id', id)
+      .single();
+    return { data, error };
+  },
+
+  async create(supplierData: any) {
+    const { data, error } = await supabase
+      .from('supplier_credentials')
+      .insert(supplierData)
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  async update(id: string, supplierData: any) {
+    const { data, error } = await supabase
+      .from('supplier_credentials')
+      .update({ ...supplierData, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
     return { data, error };
   }
+};
 
-  async executeSingle<T>(): Promise<ApiResponse<T>> {
-    const { data, error } = await this.query.single();
-    return { data, error };
+// 通用分页辅助函数
+export const applePagination = (query: any, pagination: PaginationParams) => {
+  if (pagination.page && pagination.limit) {
+    const offset = (pagination.page - 1) * pagination.limit;
+    return query.range(offset, offset + pagination.limit - 1);
   }
-}
-
-// 基础CRUD操作
-export const createRecord = async <T>(
-  tableName: string, 
-  data: Partial<T>
-): Promise<ApiResponse<T>> => {
-  const { data: result, error } = await supabase
-    .from(tableName)
-    .insert(data)
-    .select()
-    .single();
-  
-  return { data: result, error };
+  return query;
 };
 
-export const updateRecord = async <T>(
-  tableName: string,
-  id: string,
-  data: Partial<T>
-): Promise<ApiResponse<T>> => {
-  const { data: result, error } = await supabase
-    .from(tableName)
-    .update(data)
-    .eq('id', id)
-    .select()
-    .single();
-  
-  return { data: result, error };
-};
-
-export const deleteRecord = async (
-  tableName: string,
-  id: string
-): Promise<ApiResponse<null>> => {
-  const { error } = await supabase
-    .from(tableName)
-    .delete()
-    .eq('id', id);
-  
-  return { data: null, error };
-};
-
-export const getRecord = async <T>(
-  tableName: string,
-  id: string,
-  select: string = '*'
-): Promise<ApiResponse<T>> => {
-  const { data, error } = await supabase
-    .from(tableName)
-    .select(select)
-    .eq('id', id)
-    .single();
-  
-  return { data, error };
+// 通用搜索辅助函数
+export const applyTextSearch = (query: any, searchTerm: string, columns: string[]) => {
+  if (searchTerm && columns.length > 0) {
+    const searchConditions = columns.map(col => `${col}.ilike.%${searchTerm}%`).join(',');
+    return query.or(searchConditions);
+  }
+  return query;
 };
