@@ -38,8 +38,24 @@ import {
   MessageCircle
 } from "lucide-react";
 
+// Types
+interface Quotation {
+  id: string;
+  productName: string;
+  supplierName: string;
+  quantity: number;
+  unit: string;
+  requestedDelivery: string;
+  status: string;
+  createdAt: string;
+  urgency: string;
+  estimatedAmount?: string;
+  quotedAmount?: string;
+  finalAmount?: string;
+}
+
 // Mock quotations data
-const mockQuotations = [
+const mockQuotations: Quotation[] = [
   {
     id: "Q001",
     productName: "新鲜三文鱼片 挪威进口",
@@ -115,11 +131,16 @@ const QuotationsPage = () => {
 
   const handleCreateQuotation = () => {
     const newId = `Q${String(quotations.length + 1).padStart(3, '0')}`;
-    const quotation = {
-      ...newQuotation,
+    const quotation: Quotation = {
       id: newId,
+      productName: newQuotation.productName,
+      supplierName: newQuotation.supplierName,
+      quantity: parseInt(newQuotation.quantity),
+      unit: newQuotation.unit,
+      requestedDelivery: newQuotation.requestedDelivery,
       status: "待报价",
       createdAt: new Date().toISOString().split('T')[0],
+      urgency: newQuotation.urgency,
       estimatedAmount: (parseFloat(newQuotation.quantity) * 100).toFixed(2) // Mock calculation
     };
     

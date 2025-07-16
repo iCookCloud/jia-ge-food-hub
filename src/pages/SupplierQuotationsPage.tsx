@@ -35,8 +35,25 @@ import {
   Eye
 } from "lucide-react";
 
+// Types
+interface SupplierQuotation {
+  id: string;
+  customerName: string;
+  productName: string;
+  quantity: number;
+  unit: string;
+  requestedDelivery: string;
+  status: string;
+  createdAt: string;
+  urgency: string;
+  requirements: string;
+  quotedPrice?: string;
+  quotedTotal?: string;
+  quotedAt?: string;
+}
+
 // Mock supplier quotations data
-const mockSupplierQuotations = [
+const mockSupplierQuotations: SupplierQuotation[] = [
   {
     id: "Q001",
     customerName: "美食餐厅",
@@ -70,6 +87,8 @@ const mockSupplierQuotations = [
     requestedDelivery: "2024-01-25", 
     status: "已报价",
     createdAt: "2024-01-12",
+    urgency: "普通",
+    requirements: "肥瘦比例3:7",
     quotedPrice: "89.00",
     quotedTotal: "2670.00",
     quotedAt: "2024-01-16"
@@ -77,9 +96,9 @@ const mockSupplierQuotations = [
 ];
 
 const SupplierQuotationsPage = () => {
-  const [quotations, setQuotations] = useState(mockSupplierQuotations);
+  const [quotations, setQuotations] = useState<SupplierQuotation[]>(mockSupplierQuotations);
   const [selectedStatus, setSelectedStatus] = useState("全部");
-  const [quotingItem, setQuotingItem] = useState<any>(null);
+  const [quotingItem, setQuotingItem] = useState<SupplierQuotation | null>(null);
   const [quotePrice, setQuotePrice] = useState("");
   const [quoteNotes, setQuoteNotes] = useState("");
 
@@ -122,7 +141,7 @@ const SupplierQuotationsPage = () => {
             quotedPrice: quotePrice,
             quotedTotal: (parseFloat(quotePrice) * q.quantity).toFixed(2),
             quotedAt: new Date().toISOString().split('T')[0]
-          }
+          } as SupplierQuotation
         : q
     );
     
