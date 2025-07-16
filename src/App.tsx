@@ -43,7 +43,7 @@ const App = () => (
             {/* Public routes */}
             <Route path="/" element={
               <PublicRoute>
-                <Index />
+                <SheetCenterPage />
               </PublicRoute>
             } />
             <Route path="/auth" element={

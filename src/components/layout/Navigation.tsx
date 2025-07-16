@@ -36,7 +36,7 @@ import {
 const navigationItems = [
   {
     title: "货单",
-    href: "/sheets",
+    href: "/",
     icon: FileText,
     description: "货单分享与返利"
   },
@@ -51,12 +51,6 @@ const navigationItems = [
     href: "/materials",
     icon: Video,
     description: "产品展示视频"
-  },
-  {
-    title: "商品",
-    href: "/products",
-    icon: Package,
-    description: "浏览采购商品"
   },
   {
     title: "订单",
@@ -91,8 +85,9 @@ export function DesktopNavigation() {
         {/* Navigation Items */}
         <nav className="flex items-center space-x-1 flex-1">
           {navigationItems.map((item) => {
-            const isActive = location.pathname === item.href || 
-              (item.href !== "/" && location.pathname.startsWith(item.href));
+            const isActive = item.href === "/" 
+              ? location.pathname === "/" 
+              : location.pathname.startsWith(item.href);
             
             return (
               <Link key={item.href} to={item.href}>
@@ -286,8 +281,9 @@ export function MobileNavigation() {
           <div className="absolute top-full left-0 right-0 bg-card border-b border-border shadow-lg">
             <nav className="px-4 py-2 space-y-1">
               {navigationItems.map((item) => {
-                const isActive = location.pathname === item.href || 
-                  (item.href !== "/" && location.pathname.startsWith(item.href));
+                const isActive = item.href === "/" 
+                  ? location.pathname === "/" 
+                  : location.pathname.startsWith(item.href);
                 
                 return (
                   <Link 
@@ -347,8 +343,9 @@ export function MobileNavigation() {
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border lg:hidden">
         <div className="flex items-center justify-around px-2 py-2">
           {navigationItems.map((item) => {
-            const isActive = location.pathname === item.href || 
-              (item.href !== "/" && location.pathname.startsWith(item.href));
+            const isActive = item.href === "/" 
+              ? location.pathname === "/" 
+              : location.pathname.startsWith(item.href);
             
             return (
               <Link 
