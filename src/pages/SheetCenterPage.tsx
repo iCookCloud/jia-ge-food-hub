@@ -200,9 +200,11 @@ const SheetCenterPage = () => {
 
         {/* 操作按钮 */}
         <div className="flex space-x-2 pt-2">
-          <Button variant="outline" size="sm" className="flex-1">
-            <Eye className="h-4 w-4 mr-1" />
-            查看详情
+          <Button variant="outline" size="sm" className="flex-1" asChild>
+            <Link to={`/sheets/${sheet.id}`}>
+              <Eye className="h-4 w-4 mr-1" />
+              查看详情
+            </Link>
           </Button>
           <Button size="sm" className="flex-1">
             <Share2 className="h-4 w-4 mr-1" />

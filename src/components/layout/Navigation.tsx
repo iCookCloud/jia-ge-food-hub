@@ -21,6 +21,7 @@ import {
   Video, 
   FileText, 
   User, 
+  Users,
   Search, 
   Bell,
   Menu,
@@ -33,16 +34,16 @@ import {
 
 const navigationItems = [
   {
-    title: "商品",
-    href: "/products",
-    icon: Package,
-    description: "浏览采购商品"
+    title: "货单",
+    href: "/sheets",
+    icon: FileText,
+    description: "货单分享与返利"
   },
   {
-    title: "供应商",
-    href: "/suppliers", 
-    icon: Building2,
-    description: "寻找优质供应商"
+    title: "网络",
+    href: "/network", 
+    icon: Users,
+    description: "用户网络与关系"
   },
   {
     title: "视频",
@@ -51,10 +52,10 @@ const navigationItems = [
     description: "产品展示视频"
   },
   {
-    title: "货单",
-    href: "/sheets",
-    icon: FileText,
-    description: "货单分享与返利"
+    title: "商品",
+    href: "/products",
+    icon: Package,
+    description: "浏览采购商品"
   },
   {
     title: "管理",

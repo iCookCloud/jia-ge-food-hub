@@ -24,6 +24,8 @@ import SupplierOrdersPage from "./pages/SupplierOrdersPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
 import AdminSuppliersPage from "./pages/admin/AdminSuppliersPage";
 import SheetCenterPage from "./pages/SheetCenterPage";
+import SheetDetailPage from "./pages/SheetDetailPage";
+import NetworkCenterPage from "./pages/NetworkCenterPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -87,6 +89,16 @@ const App = () => (
             <Route path="/sheets" element={
               <PublicRoute>
                 <SheetCenterPage />
+              </PublicRoute>
+            } />
+            <Route path="/sheets/:id" element={
+              <PublicRoute>
+                <SheetDetailPage />
+              </PublicRoute>
+            } />
+            <Route path="/network" element={
+              <PublicRoute>
+                <NetworkCenterPage />
               </PublicRoute>
             } />
             <Route path="/profile" element={
