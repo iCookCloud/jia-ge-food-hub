@@ -29,7 +29,8 @@ import {
   LogOut,
   Settings,
   UserPlus,
-  LogIn
+  LogIn,
+  ShoppingCart
 } from "lucide-react";
 
 const navigationItems = [
@@ -56,6 +57,12 @@ const navigationItems = [
     href: "/products",
     icon: Package,
     description: "浏览采购商品"
+  },
+  {
+    title: "订单",
+    href: "/orders",
+    icon: ShoppingCart,
+    description: "订单与返利管理"
   },
   {
     title: "管理",

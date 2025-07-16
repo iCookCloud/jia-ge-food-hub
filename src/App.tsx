@@ -16,6 +16,7 @@ import SupplierDetailPage from "./pages/SupplierDetailPage";
 import MaterialsPage from "./pages/MaterialsPage";
 import MaterialDetailPage from "./pages/MaterialDetailPage";
 import QuotationsPage from "./pages/QuotationsPage";
+import OrdersPage from "./pages/OrdersPage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import SupplierProductsPage from "./pages/SupplierProductsPage";
@@ -84,6 +85,11 @@ const App = () => (
             <Route path="/quotations" element={
               <ProtectedRoute>
                 <QuotationsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/orders" element={
+              <ProtectedRoute>
+                <OrdersPage />
               </ProtectedRoute>
             } />
             <Route path="/sheets" element={
