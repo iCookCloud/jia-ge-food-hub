@@ -23,7 +23,7 @@ interface VideoUploadProps {
 interface UploadingVideo {
   file: File;
   progress: number;
-  status: 'uploading' | 'processing' | 'success' | 'error';
+  status: 'pending' | 'uploading' | 'processing' | 'success' | 'error';
   error?: string;
   result?: VideoUploadResult;
   title: string;
@@ -76,11 +76,20 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
 
     const fileArray = Array.from(files);
     
-    // 验证文件类型
-    const validTypes = ['video/mp4', 'video/mov', 'video/avi', 'video/wmv', 'video/webm'];
-    const invalidFiles = fileArray.filter(file => !validTypes.includes(file.type));
+    // 验证文件类型 - 使用更宽松的检测
+    const validTypes = ['video/mp4', 'video/mov', 'video/avi', 'video/wmv', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
+    const validExtensions = ['.mp4', '.mov', '.avi', '.wmv', '.webm', '.qt'];
+    
+    const invalidFiles = fileArray.filter(file => {
+      const hasValidType = validTypes.includes(file.type);
+      const hasValidExtension = validExtensions.some(ext => 
+        file.name.toLowerCase().endsWith(ext)
+      );
+      return !hasValidType && !hasValidExtension;
+    });
     
     if (invalidFiles.length > 0) {
+      console.log('无效文件:', invalidFiles.map(f => ({ name: f.name, type: f.type })));
       toast({
         title: '文件类型不支持',
         description: '请上传 MP4、MOV、AVI、WMV 或 WebM 格式的视频文件',
@@ -102,11 +111,11 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
       return;
     }
 
-    // 创建上传视频状态
+    // 创建上传视频状态 - 初始状态为 pending，不自动开始上传
     const newUploadingVideos: UploadingVideo[] = fileArray.map(file => ({
       file,
       progress: 0,
-      status: 'uploading',
+      status: 'pending', // 等待用户填写信息
       title: file.name.replace(/\.[^/.]+$/, ''), // 去掉文件扩展名作为默认标题
       description: '',
       content: '',
@@ -117,13 +126,23 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
 
     setUploadingVideos(prev => [...prev, ...newUploadingVideos]);
 
-    // 开始上传
-    uploadVideos(fileArray);
+    // 不自动开始上传，等待用户点击上传按钮
+  };
+
+  const startUpload = (file: File) => {
+    uploadVideos([file]);
   };
 
   const uploadVideos = async (files: File[]) => {
     for (const file of files) {
       try {
+        // 更新状态为上传中
+        setUploadingVideos(prev => 
+          prev.map(uv => 
+            uv.file === file ? { ...uv, status: 'uploading', progress: 0 } : uv
+          )
+        );
+
         // 模拟进度更新
         const progressInterval = setInterval(() => {
           setUploadingVideos(prev => 
@@ -376,8 +395,9 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
                           uploadingVideo.status === 'success' ? 'default' :
                           uploadingVideo.status === 'error' ? 'destructive' : 'secondary'
                         }
-                      >
-                        {uploadingVideo.status === 'uploading' ? '上传中' :
+                       >
+                         {uploadingVideo.status === 'pending' ? '等待上传' :
+                          uploadingVideo.status === 'uploading' ? '上传中' :
                          uploadingVideo.status === 'processing' ? '处理中' :
                          uploadingVideo.status === 'success' ? '完成' : '失败'}
                       </Badge>
@@ -411,7 +431,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
                     )}
                   </div>
 
-                  {uploadingVideo.status !== 'success' && (
+                  {(uploadingVideo.status === 'pending' || uploadingVideo.status === 'uploading' || uploadingVideo.status === 'processing') && (
                     <div className="space-y-6">
                       {/* 基础信息 */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -570,10 +590,24 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
                           </div>
                         )}
                       </div>
+
+                      {/* 上传按钮 */}
+                      {uploadingVideo.status === 'pending' && (
+                        <div className="flex justify-end">
+                          <Button 
+                            onClick={() => startUpload(uploadingVideo.file)}
+                            className="flex items-center gap-2"
+                            disabled={!uploadingVideo.title.trim()}
+                          >
+                            <Upload className="h-4 w-4" />
+                            开始上传
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {uploadingVideo.status !== 'error' && uploadingVideo.status !== 'success' && (
+                  {(uploadingVideo.status === 'uploading' || uploadingVideo.status === 'processing') && (
                     <Progress value={uploadingVideo.progress} className="h-2" />
                   )}
 
