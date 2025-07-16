@@ -7,3 +7,4 @@ export * from '../useMaterials';
 export * from '../useAuth';
 export * from '../useRole';
 export * from '../useNotifications';
+export * from '../useRealtime';
