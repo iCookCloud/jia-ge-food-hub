@@ -48,6 +48,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { AIChat } from "@/components/chat/AIChat";
 
 // Types
 interface NetworkUser {
@@ -95,6 +96,8 @@ const NetworkCenterPage = () => {
   const [selectedRelation, setSelectedRelation] = useState("全部");
   const [activeTab, setActiveTab] = useState("network");
   const [showNetworkDialog, setShowNetworkDialog] = useState(false);
+  const [showAIChat, setShowAIChat] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<NetworkUser | null>(null);
 
   // Fetch network data
   const fetchNetworkData = async () => {
@@ -294,6 +297,12 @@ const NetworkCenterPage = () => {
     }
   };
 
+  // 开启AI对话
+  const handleAIChat = (user: NetworkUser) => {
+    setSelectedSupplier(user);
+    setShowAIChat(true);
+  };
+
   const UserCard = ({ user }: { user: NetworkUser }) => (
     <Card className="hover:shadow-lg transition-shadow">
       <CardHeader className="pb-3">
@@ -359,7 +368,12 @@ const NetworkCenterPage = () => {
 
         {/* 操作按钮 */}
         <div className="flex space-x-2 pt-2">
-          <Button variant="outline" size="sm" className="flex-1">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex-1"
+            onClick={() => handleAIChat(user)}
+          >
             <MessageCircle className="h-4 w-4 mr-1" />
             AI对话
           </Button>
@@ -567,6 +581,13 @@ const NetworkCenterPage = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* AI对话 */}
+        <AIChat
+          open={showAIChat}
+          onOpenChange={setShowAIChat}
+          supplier={selectedSupplier}
+        />
       </div>
     </Layout>
   );

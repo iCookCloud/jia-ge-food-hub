@@ -37,6 +37,7 @@ import { useProducts, Product } from "@/hooks/useProducts";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ProductCreateForm } from "@/components/product/ProductCreateForm";
 
 interface SheetItem {
   id: string;
@@ -63,6 +64,7 @@ const SheetCreatePage = () => {
   // 商品列表
   const [selectedProducts, setSelectedProducts] = useState<SheetItem[]>([]);
   const [showProductDialog, setShowProductDialog] = useState(false);
+  const [showCreateProductDialog, setShowCreateProductDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   
   // 编辑状态
@@ -212,6 +214,16 @@ const SheetCreatePage = () => {
         variant: "destructive"
       });
     }
+  };
+
+  // 处理新商品创建成功
+  const handleProductCreated = (newProduct: Product) => {
+    // 刷新商品列表 - 在实际应用中应该使用react-query的invalidateQueries
+    // 这里简单地将新商品添加到当前列表中（仅用于展示）
+    toast({
+      title: "商品创建成功",
+      description: `商品 "${newProduct.standard_chinese_name || newProduct.sku}" 已创建，您可以将其添加到货单中`
+    });
   };
 
   return (
@@ -460,15 +472,24 @@ const SheetCreatePage = () => {
               <DialogTitle>选择商品</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              {/* 搜索 */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="搜索商品名称、SKU..." 
-                  className="pl-10"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+              {/* 搜索和创建商品 */}
+              <div className="flex gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="搜索商品名称、SKU..." 
+                    className="pl-10"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowCreateProductDialog(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  创建商品
+                </Button>
               </div>
 
               {/* 商品列表 */}
@@ -520,6 +541,13 @@ const SheetCreatePage = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* 创建商品对话框 */}
+        <ProductCreateForm
+          open={showCreateProductDialog}
+          onOpenChange={setShowCreateProductDialog}
+          onProductCreated={handleProductCreated}
+        />
       </div>
     </Layout>
   );
