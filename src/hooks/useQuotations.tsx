@@ -6,7 +6,13 @@ import { handleApiError } from '@/services/api';
 export const useQuotations = (filters = {}, pagination = {}) => {
   return useQuery({
     queryKey: ['quotations', filters, pagination],
-    queryFn: () => quotationService.getQuotations(filters, pagination),
+    queryFn: async () => {
+      const result = await quotationService.getQuotations(filters, pagination);
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+      return result.data || [];
+    },
     staleTime: 5 * 60 * 1000, // 5分钟
   });
 };
@@ -14,7 +20,13 @@ export const useQuotations = (filters = {}, pagination = {}) => {
 export const useQuotation = (id: string) => {
   return useQuery({
     queryKey: ['quotation', id],
-    queryFn: () => quotationService.getQuotation(id),
+    queryFn: async () => {
+      const result = await quotationService.getQuotation(id);
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+      return result.data;
+    },
     enabled: !!id,
   });
 };
@@ -24,7 +36,13 @@ export const useCreateQuotation = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: quotationService.createQuotation,
+    mutationFn: async (data: any) => {
+      const result = await quotationService.createQuotation(data);
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+      return result.data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
       toast({ title: "报价创建成功" });

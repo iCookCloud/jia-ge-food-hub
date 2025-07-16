@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supplierService } from '@/services/api';
 
 export interface Supplier {
   id: string;
@@ -16,34 +16,23 @@ export interface Supplier {
 }
 
 export interface SupplierWithProfile extends Supplier {
-  profile?: {
+  profiles?: {
     nickname: string | null;
     avatar_url: string | null;
   };
 }
 
-export const useSuppliers = () => {
+export const useSuppliers = (filters = {}, pagination = {}) => {
   return useQuery({
-    queryKey: ['suppliers'],
+    queryKey: ['suppliers', filters, pagination],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('supplier_credentials')
-        .select(`
-          *,
-          profiles!supplier_credentials_user_id_fkey (
-            nickname,
-            avatar_url
-          )
-        `)
-        .eq('verification_status', 'verified')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        throw new Error(error.message);
+      const result = await supplierService.getAll(filters, pagination);
+      if (result.error) {
+        throw new Error(result.error.message);
       }
-
-      return data as SupplierWithProfile[];
+      return (result.data || []) as any[];
     },
+    staleTime: 5 * 60 * 1000, // 5分钟
   });
 };
 
@@ -51,23 +40,11 @@ export const useSupplier = (id: string) => {
   return useQuery({
     queryKey: ['supplier', id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('supplier_credentials')
-        .select(`
-          *,
-          profiles!supplier_credentials_user_id_fkey (
-            nickname,
-            avatar_url
-          )
-        `)
-        .eq('id', id)
-        .single();
-
-      if (error) {
-        throw new Error(error.message);
+      const result = await supplierService.getById(id);
+      if (result.error) {
+        throw new Error(result.error.message);
       }
-
-      return data as SupplierWithProfile;
+      return result.data as any;
     },
     enabled: !!id,
   });

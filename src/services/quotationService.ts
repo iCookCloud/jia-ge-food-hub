@@ -17,8 +17,8 @@ export const quotationService = {
       .from('quotations')
       .select(`
         *,
-        supplier_credentials!quotations_supplier_id_fkey(company_name),
-        profiles!quotations_customer_id_fkey(nickname)
+        supplier_credentials (company_name),
+        profiles (nickname)
       `);
 
     // 应用过滤器
@@ -48,8 +48,8 @@ export const quotationService = {
       .from('quotations')
       .select(`
         *,
-        supplier_credentials!quotations_supplier_id_fkey(company_name, contact_person),
-        profiles!quotations_customer_id_fkey(nickname),
+        supplier_credentials (company_name, contact_person),
+        profiles (nickname),
         quotation_items(*)
       `)
       .eq('id', id)

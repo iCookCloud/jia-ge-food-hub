@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { productService } from '@/services/api';
 
 export interface Product {
   id: string;
@@ -18,22 +18,17 @@ export interface Product {
   created_at: string | null;
 }
 
-export const useProducts = () => {
+export const useProducts = (filters = {}, pagination = {}) => {
   return useQuery({
-    queryKey: ['products'],
+    queryKey: ['products', filters, pagination],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        throw new Error(error.message);
+      const result = await productService.getAll(filters, pagination);
+      if (result.error) {
+        throw new Error(result.error.message);
       }
-
-      return data as Product[];
+      return result.data as Product[];
     },
+    staleTime: 5 * 60 * 1000, // 5分钟
   });
 };
 
@@ -41,17 +36,11 @@ export const useProduct = (id: string) => {
   return useQuery({
     queryKey: ['product', id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) {
-        throw new Error(error.message);
+      const result = await productService.getById(id);
+      if (result.error) {
+        throw new Error(result.error.message);
       }
-
-      return data as Product;
+      return result.data as Product;
     },
     enabled: !!id,
   });

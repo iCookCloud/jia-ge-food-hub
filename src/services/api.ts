@@ -112,7 +112,7 @@ export const supplierService = {
       .from('supplier_credentials')
       .select(`
         *,
-        profiles!supplier_credentials_user_id_fkey (
+        profiles (
           nickname,
           avatar_url
         )
@@ -137,7 +137,7 @@ export const supplierService = {
       .from('supplier_credentials')
       .select(`
         *,
-        profiles!supplier_credentials_user_id_fkey (
+        profiles (
           nickname,
           avatar_url
         )
