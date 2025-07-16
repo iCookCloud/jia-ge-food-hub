@@ -15,6 +15,7 @@ import SuppliersPage from "./pages/SuppliersPage";
 import SupplierDetailPage from "./pages/SupplierDetailPage";
 import MaterialsPage from "./pages/MaterialsPage";
 import MaterialDetailPage from "./pages/MaterialDetailPage";
+import VideoUploadPage from "./pages/VideoUploadPage";
 import QuotationsPage from "./pages/QuotationsPage";
 import OrdersPage from "./pages/OrdersPage";
 import ProfilePage from "./pages/ProfilePage";
@@ -81,6 +82,11 @@ const App = () => (
             <Route path="/materials/:id" element={
               <ProtectedRoute>
                 <MaterialDetailPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/materials/upload" element={
+              <ProtectedRoute>
+                <VideoUploadPage />
               </ProtectedRoute>
             } />
             <Route path="/quotations" element={
