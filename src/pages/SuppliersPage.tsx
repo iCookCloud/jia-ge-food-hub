@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useSuppliers } from "@/hooks/useSuppliers";
 import { 
   Select,
   SelectContent,
@@ -12,76 +14,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Filter, MapPin, Building2 } from "lucide-react";
-
-// Extended mock suppliers data
-const mockSuppliers = [
-  {
-    id: "1",
-    name: "海鲜直供有限公司",
-    description: "专业海鲜供应商，提供新鲜优质的海产品，覆盖全国主要城市冷链配送。",
-    location: "广东深圳",
-    categories: ["海鲜", "冷冻食品", "进口食材"],
-    verified: true,
-    rating: 4.8,
-    productCount: 156,
-    hasAiChat: true
-  },
-  {
-    id: "2",
-    name: "优质肉类批发",
-    description: "优质肉类供应商，严格品质控制，为餐饮行业提供标准化肉类产品。",
-    location: "山东青岛",
-    categories: ["肉类", "冷冻食品", "火锅食材"],
-    verified: true,
-    rating: 4.7,
-    productCount: 89,
-    hasAiChat: true
-  },
-  {
-    id: "3",
-    name: "绿色农场合作社",
-    description: "有机蔬菜种植基地，提供新鲜蔬菜和农产品直供服务。",
-    location: "江苏南京",
-    categories: ["蔬菜", "有机食品", "农产品"],
-    verified: false,
-    rating: 4.5,
-    productCount: 234,
-    hasAiChat: false
-  },
-  {
-    id: "4",
-    name: "调味专家食品",
-    description: "专业调味料供应商，进口与国产调料齐全，服务全国餐饮企业。",
-    location: "上海浦东",
-    categories: ["调料", "进口食品", "香料"],
-    verified: true,
-    rating: 4.6,
-    productCount: 67,
-    hasAiChat: true
-  }
-];
+import { Search, Filter, MapPin, Building2, AlertCircle } from "lucide-react";
 
 const locations = ["全部地区", "广东深圳", "山东青岛", "江苏南京", "上海浦东"];
 const categories = ["全部分类", "海鲜", "肉类", "蔬菜", "调料", "冷冻食品", "有机食品"];
 
 const SuppliersPage = () => {
+  const { data: suppliers = [], isLoading, error } = useSuppliers();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("全部地区");
   const [selectedCategory, setSelectedCategory] = useState("全部分类");
   const [showVerifiedOnly, setShowVerifiedOnly] = useState(false);
-  const [showAiOnly, setShowAiOnly] = useState(false);
 
-  const filteredSuppliers = mockSuppliers.filter(supplier => {
+  // Convert database suppliers to the format expected by SupplierCard
+  const convertedSuppliers = suppliers.map(supplier => ({
+    id: supplier.id,
+    name: supplier.company_name,
+    description: `专业食材供应商，联系人：${supplier.contact_person}，电话：${supplier.contact_phone}`,
+    location: "暂无地址信息",
+    categories: ["食材供应"],
+    verified: supplier.verification_status === 'verified',
+    rating: 4.5 + Math.random() * 0.5, // Mock rating
+    productCount: Math.floor(Math.random() * 200) + 50, // Mock product count
+    hasAiChat: true
+  }));
+
+  const filteredSuppliers = convertedSuppliers.filter(supplier => {
     const matchesSearch = supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          supplier.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesLocation = selectedLocation === "全部地区" || supplier.location === selectedLocation;
     const matchesCategory = selectedCategory === "全部分类" || 
                            supplier.categories.includes(selectedCategory);
     const matchesVerified = !showVerifiedOnly || supplier.verified;
-    const matchesAi = !showAiOnly || supplier.hasAiChat;
 
-    return matchesSearch && matchesLocation && matchesCategory && matchesVerified && matchesAi;
+    return matchesSearch && matchesLocation && matchesCategory && matchesVerified;
   });
 
   return (
@@ -139,26 +105,50 @@ const SuppliersPage = () => {
               >
                 仅认证供应商
               </Button>
-              <Button
-                variant={showAiOnly ? "supplier" : "outline"}
-                size="sm"
-                onClick={() => setShowAiOnly(!showAiOnly)}
-              >
-                AI客服支持
-              </Button>
             </div>
           </CardContent>
         </Card>
 
         {/* Results */}
-        <div className="mb-4">
+        <div className="mb-4 flex items-center space-x-4">
           <p className="text-sm text-muted-foreground">
             共找到 {filteredSuppliers.length} 家供应商
           </p>
+          {isLoading && (
+            <div className="flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+              <span className="text-sm text-muted-foreground">加载中...</span>
+            </div>
+          )}
         </div>
 
         {/* Suppliers Grid */}
-        {filteredSuppliers.length > 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Card key={i} className="p-6">
+                <div className="flex items-start space-x-4">
+                  <Skeleton className="h-12 w-12 rounded-lg" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : error ? (
+          <Card className="p-12 text-center">
+            <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              加载失败
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              无法加载供应商数据，请刷新页面重试
+            </p>
+          </Card>
+        ) : filteredSuppliers.length > 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {filteredSuppliers.map((supplier) => (
               <SupplierCard key={supplier.id} supplier={supplier} />
@@ -178,7 +168,6 @@ const SuppliersPage = () => {
               setSelectedLocation("全部地区");
               setSelectedCategory("全部分类");
               setShowVerifiedOnly(false);
-              setShowAiOnly(false);
             }}>
               清除筛选条件
             </Button>

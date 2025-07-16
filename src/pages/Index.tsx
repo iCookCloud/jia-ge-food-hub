@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { 
   Search, 
   TrendingUp, 
@@ -117,6 +119,8 @@ const mockSuppliers = [
 ];
 
 const Index = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6 space-y-8">
@@ -132,10 +136,17 @@ const Index = () => {
                 连接优质供应商与餐饮商户，打造高效透明的食材采购体验。AI赋能智能对话，让采购更简单。
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
-                <Button variant="secondary" size="lg" className="font-semibold">
-                  开始采购
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
+                {user ? (
+                  <Button variant="secondary" size="lg" className="font-semibold" onClick={() => navigate('/products')}>
+                    开始采购
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button variant="secondary" size="lg" className="font-semibold" onClick={() => navigate('/auth')}>
+                    立即注册
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button variant="outline" size="lg" className="bg-white/10 border-white/20 text-white hover:bg-white/20">
                   成为供应商
                 </Button>
@@ -231,9 +242,15 @@ const Index = () => {
             无论您是餐饮商户寻找优质食材，还是供应商希望拓展业务，我们都能为您提供专业的B2B服务。
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button variant="premium" size="lg">
-              立即注册采购
-            </Button>
+            {user ? (
+              <Button variant="premium" size="lg" onClick={() => navigate('/products')}>
+                继续采购
+              </Button>
+            ) : (
+              <Button variant="premium" size="lg" onClick={() => navigate('/auth')}>
+                立即注册采购
+              </Button>
+            )}
             <Button variant="supplier" size="lg">
               申请成为供应商
             </Button>

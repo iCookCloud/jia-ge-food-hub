@@ -1,7 +1,16 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   Package, 
   Building2, 
@@ -11,7 +20,11 @@ import {
   Search, 
   Bell,
   Menu,
-  X
+  X,
+  LogOut,
+  Settings,
+  UserPlus,
+  LogIn
 } from "lucide-react";
 
 const navigationItems = [
@@ -49,6 +62,8 @@ const navigationItems = [
 
 export function DesktopNavigation() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
@@ -93,6 +108,51 @@ export function DesktopNavigation() {
           <Button variant="ghost" size="icon-sm" className="text-muted-foreground">
             <Bell className="h-4 w-4" />
           </Button>
+
+          {/* User Menu */}
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-9 px-2">
+                  <Avatar className="h-6 w-6 mr-2">
+                    <AvatarImage src="" />
+                    <AvatarFallback className="text-xs">
+                      {user.email?.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm max-w-20 truncate">
+                    {user.email?.split('@')[0]}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => navigate('/profile')}>
+                  <User className="h-4 w-4 mr-2" />
+                  个人资料
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/settings')}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  设置
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={signOut}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  退出登录
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <Button variant="ghost" size="sm" onClick={() => navigate('/auth')}>
+                <LogIn className="h-4 w-4 mr-1" />
+                登录
+              </Button>
+              <Button variant="default" size="sm" onClick={() => navigate('/auth')}>
+                <UserPlus className="h-4 w-4 mr-1" />
+                注册
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </header>
@@ -101,7 +161,9 @@ export function DesktopNavigation() {
 
 export function MobileNavigation() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
 
   return (
     <>
@@ -122,6 +184,25 @@ export function MobileNavigation() {
             <Button variant="ghost" size="icon-sm">
               <Bell className="h-4 w-4" />
             </Button>
+            
+            {user ? (
+              <Avatar className="h-7 w-7 mr-1">
+                <AvatarImage src="" />
+                <AvatarFallback className="text-xs">
+                  {user.email?.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-xs px-2 h-7"
+                onClick={() => navigate('/auth')}
+              >
+                登录
+              </Button>
+            )}
+            
             <Button 
               variant="ghost" 
               size="icon-sm"
@@ -160,6 +241,35 @@ export function MobileNavigation() {
                   </Link>
                 );
               })}
+              
+              {/* Auth Actions in Menu */}
+              {user ? (
+                <>
+                  <div className="border-t border-border my-2"></div>
+                  <button 
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      signOut();
+                    }}
+                    className="flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted w-full"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <div>退出登录</div>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="border-t border-border my-2"></div>
+                  <Link 
+                    to="/auth"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                  >
+                    <LogIn className="h-4 w-4" />
+                    <div>登录 / 注册</div>
+                  </Link>
+                </>
+              )}
             </nav>
           </div>
         )}

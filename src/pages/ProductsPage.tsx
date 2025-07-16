@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useProducts } from "@/hooks/useProducts";
 import { 
   Select,
   SelectContent,
@@ -28,153 +30,49 @@ import {
   Star,
   Package,
   Grid3X3,
-  List
+  List,
+  AlertCircle
 } from "lucide-react";
-
-// Import product images
-import salmonImage from "@/assets/salmon-fillet.jpg";
-import beefImage from "@/assets/beef-rolls.jpg";
-import vegetableImage from "@/assets/vegetable-platter.jpg";
-import spiceImage from "@/assets/spice-set.jpg";
-
-// Extended mock data for products
-const mockProducts = [
-  {
-    id: "1",
-    name: "新鲜三文鱼片 挪威进口",
-    image: salmonImage,
-    price: "128.00",
-    unit: "kg",
-    specifications: "500g/片 冷链配送",
-    category: "海鲜",
-    origin: "挪威",
-    supplier: {
-      name: "海鲜直供",
-      verified: true,
-      location: "广东深圳"
-    },
-    rating: 4.8,
-    inStock: true,
-    featured: true
-  },
-  {
-    id: "2", 
-    name: "优质牛肉卷 火锅专用",
-    image: beefImage,
-    price: "89.00",
-    unit: "kg",
-    specifications: "200g/盒 冷冻保存",
-    category: "肉类",
-    origin: "澳大利亚",
-    supplier: {
-      name: "优质肉类",
-      verified: true,
-      location: "山东青岛"
-    },
-    rating: 4.6,
-    inStock: true,
-    featured: false
-  },
-  {
-    id: "3",
-    name: "有机蔬菜拼盘",
-    image: vegetableImage,
-    price: "35.00", 
-    unit: "份",
-    specifications: "混合蔬菜 当日采摘",
-    category: "蔬菜",
-    origin: "本地",
-    supplier: {
-      name: "绿色农场",
-      verified: false,
-      location: "江苏南京"
-    },
-    rating: 4.5,
-    inStock: true,
-    featured: false
-  },
-  {
-    id: "4",
-    name: "进口调味料套装",
-    image: spiceImage,
-    price: "156.00",
-    unit: "套",
-    specifications: "10种调料 餐厅专用",
-    category: "调料",
-    origin: "意大利",
-    supplier: {
-      name: "调味专家",
-      verified: true,
-      location: "上海浦东"
-    },
-    rating: 4.7,
-    inStock: false,
-    featured: true
-  },
-  // Additional products for demonstration
-  {
-    id: "5",
-    name: "精选大虾 南美白虾",
-    image: salmonImage, // Reusing for demo
-    price: "78.00",
-    unit: "kg",
-    specifications: "30-40只/kg 冷冻",
-    category: "海鲜",
-    origin: "厄瓜多尔",
-    supplier: {
-      name: "海鲜直供",
-      verified: true,
-      location: "广东深圳"
-    },
-    rating: 4.6,
-    inStock: true,
-    featured: false
-  },
-  {
-    id: "6",
-    name: "新鲜鸡胸肉",
-    image: beefImage, // Reusing for demo
-    price: "32.00",
-    unit: "kg",
-    specifications: "无骨去皮 当日屠宰",
-    category: "肉类",
-    origin: "本地",
-    supplier: {
-      name: "优质肉类",
-      verified: true,
-      location: "山东青岛"
-    },
-    rating: 4.4,
-    inStock: true,
-    featured: false
-  }
-];
 
 const categories = ["全部", "海鲜", "肉类", "蔬菜", "调料", "冷冻食品", "有机食品"];
 const origins = ["全部", "本地", "挪威", "澳大利亚", "意大利", "厄瓜多尔"];
-const suppliers = ["全部", "海鲜直供", "优质肉类", "绿色农场", "调味专家"];
 
 const ProductsPage = () => {
+  const { data: products = [], isLoading, error } = useProducts();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("全部");
   const [selectedOrigin, setSelectedOrigin] = useState("全部");
-  const [selectedSupplier, setSelectedSupplier] = useState("全部");
   const [sortBy, setSortBy] = useState("featured");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [showInStockOnly, setShowInStockOnly] = useState(false);
-  const [showVerifiedOnly, setShowVerifiedOnly] = useState(false);
+
+  // Convert database products to the format expected by ProductCard
+  const convertedProducts = products.map(product => ({
+    id: product.id,
+    name: product.standard_chinese_name || product.standard_english_name || product.sku,
+    image: product.product_image || "/placeholder.svg",
+    price: product.unit_price || "0.00",
+    unit: product.unit || "个",
+    specifications: product.specifications || "暂无规格说明",
+    category: product.category_chinese || product.category_english || "其他",
+    origin: "暂无产地信息",
+    supplier: {
+      name: product.vendor || "未知供应商",
+      verified: true,
+      location: "暂无地址"
+    },
+    rating: 4.5 + Math.random() * 0.5, // Mock rating
+    inStock: product.is_active || false,
+    featured: false
+  }));
 
   // Filter products based on selected criteria
-  const filteredProducts = mockProducts.filter(product => {
+  const filteredProducts = convertedProducts.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          product.specifications.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === "全部" || product.category === selectedCategory;
     const matchesOrigin = selectedOrigin === "全部" || product.origin === selectedOrigin;
-    const matchesSupplier = selectedSupplier === "全部" || product.supplier.name === selectedSupplier;
-    const matchesStock = !showInStockOnly || product.inStock;
-    const matchesVerified = !showVerifiedOnly || product.supplier.verified;
 
-    return matchesSearch && matchesCategory && matchesOrigin && matchesSupplier && matchesStock && matchesVerified;
+    return matchesSearch && matchesCategory && matchesOrigin;
   });
 
   // Sort products
@@ -223,42 +121,6 @@ const ProductsPage = () => {
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      <div>
-        <h3 className="font-semibold text-foreground mb-3">供应商</h3>
-        <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="z-50 bg-popover">
-            {suppliers.map(supplier => (
-              <SelectItem key={supplier} value={supplier}>{supplier}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-3">
-        <h3 className="font-semibold text-foreground">筛选条件</h3>
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="inStock" 
-              checked={showInStockOnly}
-              onCheckedChange={(checked) => setShowInStockOnly(checked === true)}
-            />
-            <label htmlFor="inStock" className="text-sm text-foreground">仅显示有库存</label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="verified" 
-              checked={showVerifiedOnly}
-              onCheckedChange={(checked) => setShowVerifiedOnly(checked === true)}
-            />
-            <label htmlFor="verified" className="text-sm text-foreground">仅显示认证供应商</label>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -340,6 +202,12 @@ const ProductsPage = () => {
                 <p className="text-sm text-muted-foreground">
                   共找到 {sortedProducts.length} 个商品
                 </p>
+                {isLoading && (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    <span className="text-sm text-muted-foreground">加载中...</span>
+                  </div>
+                )}
                 <Badge variant="outline">
                   {selectedCategory !== "全部" && selectedCategory}
                 </Badge>
@@ -382,7 +250,30 @@ const ProductsPage = () => {
             </div>
 
             {/* Products Grid/List */}
-            {sortedProducts.length > 0 ? (
+            {isLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Card key={i} className="overflow-hidden">
+                    <Skeleton className="h-48 w-full" />
+                    <CardContent className="p-4">
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-3/4 mb-2" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : error ? (
+              <Card className="p-12 text-center">
+                <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  加载失败
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  无法加载商品数据，请刷新页面重试
+                </p>
+              </Card>
+            ) : sortedProducts.length > 0 ? (
               <div className={`
                 ${viewMode === "grid" 
                   ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" 
@@ -406,9 +297,6 @@ const ProductsPage = () => {
                   setSearchQuery("");
                   setSelectedCategory("全部");
                   setSelectedOrigin("全部");
-                  setSelectedSupplier("全部");
-                  setShowInStockOnly(false);
-                  setShowVerifiedOnly(false);
                 }}>
                   清除筛选条件
                 </Button>
