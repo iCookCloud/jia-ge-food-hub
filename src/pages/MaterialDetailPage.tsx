@@ -4,6 +4,8 @@ import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { useMaterial } from "@/hooks/useMaterials";
 import { 
   Play,
   Clock,
@@ -14,15 +16,19 @@ import {
   ArrowLeft,
   Share2,
   Heart,
-  Download
+  Download,
+  ExternalLink
 } from "lucide-react";
 
 const MaterialDetailPage = () => {
   const { id } = useParams();
+  const { toast } = useToast();
   const [isLiked, setIsLiked] = useState(false);
+  
+  const { data: video, isLoading, error } = useMaterial(id || "");
 
-  // Mock video data - would normally fetch based on id
-  const video = {
+  // Mock video data for fallback
+  const mockVideo = {
     id: id,
     title: "新鲜三文鱼片制作工艺展示",
     description: "详细展示挪威进口三文鱼的加工制作过程，从原料选择到最终包装，每一个环节都严格把控，确保产品的品质和新鲜度。本视频将带您了解专业的海鲜加工流程。",
@@ -52,6 +58,28 @@ const MaterialDetailPage = () => {
     ]
   };
 
+  const displayVideo = video || mockVideo;
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: displayVideo.title,
+          text: displayVideo.description,
+          url: window.location.href,
+        });
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        toast({
+          title: "链接已复制",
+          description: "视频链接已复制到剪贴板",
+        });
+      }
+    } catch (error) {
+      console.error('分享失败:', error);
+    }
+  };
+
   const relatedVideos = [
     {
       id: "V002",
@@ -78,6 +106,21 @@ const MaterialDetailPage = () => {
     return <Badge className={colors[category] || "bg-muted"}>{category}</Badge>;
   };
 
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-6">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 bg-muted rounded w-48"></div>
+            <div className="aspect-video bg-muted rounded-lg"></div>
+            <div className="h-6 bg-muted rounded w-3/4"></div>
+            <div className="h-4 bg-muted rounded w-1/2"></div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6">
@@ -101,10 +144,10 @@ const MaterialDetailPage = () => {
                   <video
                     className="w-full h-full"
                     controls
-                    poster={video.thumbnail}
+                    poster={(displayVideo as any).thumbnail_url || (displayVideo as any).thumbnail}
                     preload="metadata"
                   >
-                    <source src={video.videoUrl} type="video/mp4" />
+                    <source src={(displayVideo as any).video_url || (displayVideo as any).videoUrl} type="video/mp4" />
                     您的浏览器不支持视频播放
                   </video>
                 </div>
@@ -117,23 +160,23 @@ const MaterialDetailPage = () => {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      {getCategoryBadge(video.category)}
+                      {getCategoryBadge((displayVideo as any).category || "产品介绍")}
                       <div className="flex items-center text-sm text-muted-foreground">
                         <Clock className="w-4 h-4 mr-1" />
-                        {video.duration}
+                        {(displayVideo as any).duration_seconds ? `${Math.floor((displayVideo as any).duration_seconds / 60)}:${((displayVideo as any).duration_seconds % 60).toString().padStart(2, '0')}` : (displayVideo as any).duration}
                       </div>
                     </div>
                     <h1 className="text-2xl font-bold text-foreground mb-2">
-                      {video.title}
+                      {displayVideo.title}
                     </h1>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center">
                         <Eye className="w-4 h-4 mr-1" />
-                        {video.views} 观看
+                        {(displayVideo as any).views || 0} 观看
                       </span>
                       <span className="flex items-center">
                         <Calendar className="w-4 h-4 mr-1" />
-                        {video.uploadDate}
+                        {(displayVideo as any).created_at ? new Date((displayVideo as any).created_at).toLocaleDateString() : (displayVideo as any).uploadDate}
                       </span>
                     </div>
                   </div>
@@ -145,9 +188,9 @@ const MaterialDetailPage = () => {
                       onClick={() => setIsLiked(!isLiked)}
                     >
                       <Heart className={`w-4 h-4 mr-2 ${isLiked ? "fill-current" : ""}`} />
-                      {video.likes + (isLiked ? 1 : 0)}
+                      {((displayVideo as any).likes || 0) + (isLiked ? 1 : 0)}
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={handleShare}>
                       <Share2 className="w-4 h-4 mr-2" />
                       分享
                     </Button>
@@ -161,37 +204,66 @@ const MaterialDetailPage = () => {
                 {/* Supplier Info */}
                 <div className="flex items-center gap-4 p-4 bg-muted rounded-lg mb-4">
                   <img 
-                    src={video.supplierLogo} 
-                    alt={video.supplier}
+                    src={(displayVideo as any).supplierLogo || (displayVideo as any).supplier_credentials?.business_license || "/src/assets/salmon-fillet.jpg"} 
+                    alt={(displayVideo as any).supplier_credentials?.company_name || (displayVideo as any).supplier}
                     className="w-12 h-12 rounded-full object-cover"
                   />
                   <div className="flex-1">
-                    <h3 className="font-semibold">{video.supplier}</h3>
-                    <p className="text-sm text-muted-foreground">专业食材供应商</p>
+                    <h3 className="font-semibold">{(displayVideo as any).supplier_credentials?.company_name || (displayVideo as any).supplier}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {(displayVideo as any).supplier_credentials?.verification_status === 'verified' ? '已认证供应商' : '专业食材供应商'}
+                    </p>
                   </div>
-                  <Link to={`/supplier/${video.supplier}`}>
-                    <Button variant="outline" size="sm">
-                      <User className="w-4 h-4 mr-2" />
-                      查看主页
-                    </Button>
-                  </Link>
+                  <div className="flex gap-2">
+                    <Link to={`/supplier/${(displayVideo as any).supplier_id || (displayVideo as any).supplier}`}>
+                      <Button variant="outline" size="sm">
+                        <User className="w-4 h-4 mr-2" />
+                        查看主页
+                      </Button>
+                    </Link>
+                    {(displayVideo as any).supplier_credentials?.contact_email && (
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={`mailto:${(displayVideo as any).supplier_credentials.contact_email}`}>
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          联系
+                        </a>
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Description */}
                 <div className="space-y-3">
                   <h3 className="font-semibold">视频介绍</h3>
                   <p className="text-muted-foreground leading-relaxed">
-                    {video.description}
+                    {displayVideo.description}
                   </p>
                   
                   {/* Tags */}
                   <div className="flex flex-wrap gap-2">
-                    {video.tags.map(tag => (
+                    {((displayVideo as any).tags || []).map((tag: string) => (
                       <Badge key={tag} variant="outline">
                         {tag}
                       </Badge>
                     ))}
                   </div>
+                  
+                  {/* Related Sheets */}
+                  {(displayVideo as any).relatedSheets?.length > 0 && (
+                    <div className="mt-4 p-4 bg-muted rounded-lg">
+                      <h4 className="font-medium mb-2">关联货单</h4>
+                      <div className="space-y-2">
+                        {(displayVideo as any).relatedSheets.map((sheet: any) => (
+                          <Link key={sheet.id} to={`/sheets/${sheet.id}`}>
+                            <div className="flex items-center justify-between p-2 rounded border hover:bg-background transition-colors">
+                              <span className="font-medium">{sheet.name}</span>
+                              <span className="text-sm text-muted-foreground">返利总额: ¥{sheet.rebate_total}</span>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -208,7 +280,7 @@ const MaterialDetailPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {video.relatedProducts.map(product => (
+                {((displayVideo as any).relatedProducts || []).map((product: any) => (
                   <Link key={product.id} to={`/product/${product.id}`}>
                     <div className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted transition-colors group">
                       <img 
