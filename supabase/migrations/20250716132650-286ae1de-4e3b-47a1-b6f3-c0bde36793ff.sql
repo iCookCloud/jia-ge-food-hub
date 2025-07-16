@@ -1,0 +1,1 @@
+UPDATE products SET vendor = '优质食材供应有限公司' WHERE vendor IS NULL OR vendor != '优质食材供应有限公司';
