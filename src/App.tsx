@@ -11,6 +11,8 @@ import SuppliersPage from "./pages/SuppliersPage";
 import SupplierDetailPage from "./pages/SupplierDetailPage";
 import QuotationsPage from "./pages/QuotationsPage";
 import SupplierQuotationsPage from "./pages/SupplierQuotationsPage";
+import MaterialsPage from "./pages/MaterialsPage";
+import MaterialDetailPage from "./pages/MaterialDetailPage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import AdminSuppliersPage from "./pages/admin/AdminSuppliersPage";
@@ -32,6 +34,8 @@ const App = () => (
           <Route path="/suppliers" element={<SuppliersPage />} />
           <Route path="/supplier/:id" element={<SupplierDetailPage />} />
           <Route path="/supplier/products" element={<SupplierProductsPage />} />
+          <Route path="/materials" element={<MaterialsPage />} />
+          <Route path="/materials/:id" element={<MaterialDetailPage />} />
           <Route path="/quotations" element={<QuotationsPage />} />
           <Route path="/supplier/quotations" element={<SupplierQuotationsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
