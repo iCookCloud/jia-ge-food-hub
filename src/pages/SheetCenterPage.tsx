@@ -30,11 +30,18 @@ import {
   Star,
   Plus,
   Package,
-  Edit
+  Edit,
+  Grid3X3,
+  Building2
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { Product } from "@/hooks/useProducts";
+import { ProductBrowser } from "@/components/sheet/ProductBrowser";
+import { QuickSheetCreator } from "@/components/sheet/QuickSheetCreator";
+import { SupplierClassification } from "@/components/sheet/SupplierClassification";
+import { useToast } from "@/hooks/use-toast";
 
 // Types
 interface SheetData {
@@ -52,12 +59,16 @@ interface SheetData {
 
 const SheetCenterPage = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [sheets, setSheets] = useState<SheetData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("全部");
   const [selectedStatus, setSelectedStatus] = useState("全部");
-  const [activeTab, setActiveTab] = useState("available");
+  const [activeTab, setActiveTab] = useState("products");
+  const [selectedSupplier, setSelectedSupplier] = useState<string | null>(null);
+  const [showQuickCreator, setShowQuickCreator] = useState(false);
+  const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
 
   // Fetch sheets data
   const fetchSheets = async () => {
@@ -152,6 +163,34 @@ const SheetCenterPage = () => {
 
     return matchesSearch && matchesCategory && matchesStatus;
   });
+
+  // 处理商品选择
+  const handleProductSelect = (product: Product) => {
+    setSelectedProducts([product]);
+    setShowQuickCreator(true);
+  };
+
+  // 处理批量创建货单
+  const handleBulkCreate = (products: Product[]) => {
+    setSelectedProducts(products);
+    setShowQuickCreator(true);
+  };
+
+  // 处理供应商选择
+  const handleSupplierSelect = (supplierId: string) => {
+    setSelectedSupplier(supplierId);
+    setActiveTab("available");
+  };
+
+  // 处理快速创建成功
+  const handleQuickCreateSuccess = () => {
+    setSelectedProducts([]);
+    setShowQuickCreator(false);
+    toast({
+      title: "货单创建成功",
+      description: "您的货单已成功创建"
+    });
+  };
 
   const SheetCard = ({ sheet }: { sheet: SheetData }) => (
     <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
@@ -281,11 +320,32 @@ const SheetCenterPage = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="available">可参与货单</TabsTrigger>
-            <TabsTrigger value="my-shared">我分享的</TabsTrigger>
-            <TabsTrigger value="my-created">我创建的</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="products">
+              <Grid3X3 className="h-4 w-4 mr-2" />
+              商品浏览
+            </TabsTrigger>
+            <TabsTrigger value="available">
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              可参与货单
+            </TabsTrigger>
+            <TabsTrigger value="my-sheets">
+              <Package className="h-4 w-4 mr-2" />
+              我的货单
+            </TabsTrigger>
+            <TabsTrigger value="suppliers">
+              <Building2 className="h-4 w-4 mr-2" />
+              供应商分类
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="products" className="mt-6">
+            <ProductBrowser 
+              onProductSelect={handleProductSelect}
+              onBulkCreate={handleBulkCreate}
+              selectionMode={true}
+            />
+          </TabsContent>
 
           <TabsContent value="available" className="mt-6">
             {loading ? (
@@ -319,40 +379,70 @@ const SheetCenterPage = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="my-shared" className="mt-6">
-            <Card className="p-12 text-center">
-              <Share2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                我分享的货单
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                查看和管理您分享的所有货单
-              </p>
-              <Button>
-                <ArrowRight className="h-4 w-4 mr-2" />
-                查看分享详情
-              </Button>
-            </Card>
+          <TabsContent value="my-sheets" className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* 我分享的货单 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Share2 className="h-5 w-5" />
+                    我分享的货单
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <div className="text-2xl font-bold text-primary mb-2">0</div>
+                    <p className="text-muted-foreground mb-4">
+                      暂无分享的货单
+                    </p>
+                    <Button variant="outline" size="sm">
+                      <Eye className="h-4 w-4 mr-2" />
+                      查看详情
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 我创建的货单 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="h-5 w-5" />
+                    我创建的货单
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <div className="text-2xl font-bold text-primary mb-2">0</div>
+                    <p className="text-muted-foreground mb-4">
+                      暂无创建的货单
+                    </p>
+                    <Button asChild size="sm">
+                      <Link to="/sheets/create">
+                        <Plus className="h-4 w-4 mr-2" />
+                        创建货单
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
-          <TabsContent value="my-created" className="mt-6">
-            <Card className="p-12 text-center">
-              <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                我创建的货单
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                管理您创建的货单
-              </p>
-              <Button asChild>
-                <Link to="/sheets/create">
-                  <Plus className="h-4 w-4 mr-2" />
-                  创建新货单
-                </Link>
-              </Button>
-            </Card>
+          <TabsContent value="suppliers" className="mt-6">
+            <SupplierClassification 
+              onSupplierSelect={handleSupplierSelect}
+            />
           </TabsContent>
         </Tabs>
+
+        {/* 快速创建货单对话框 */}
+        <QuickSheetCreator
+          products={selectedProducts}
+          open={showQuickCreator}
+          onOpenChange={setShowQuickCreator}
+          onSuccess={handleQuickCreateSuccess}
+        />
       </div>
     </Layout>
   );

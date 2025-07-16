@@ -59,7 +59,7 @@ const SheetCreatePage = () => {
   const [sheetName, setSheetName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
-  const [isPublic, setIsPublic] = useState(true);
+  const [isPublic, setIsPublic] = useState(false); // 默认私有
   
   // 商品列表
   const [selectedProducts, setSelectedProducts] = useState<SheetItem[]>([]);
