@@ -81,10 +81,10 @@ const SheetCenterPage = () => {
           status,
           created_at,
           is_shareable,
+          notes,
           supplier_credentials!inner(company_name)
         `)
-        .eq('is_shareable', true)
-        .eq('status', 'active');
+        .eq('is_shareable', true);
 
       const { data, error } = await query;
       
