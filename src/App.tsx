@@ -24,6 +24,7 @@ import SupplierQuotationsPage from "./pages/SupplierQuotationsPage";
 import SupplierOrdersPage from "./pages/SupplierOrdersPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
 import AdminSuppliersPage from "./pages/admin/AdminSuppliersPage";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import SheetCenterPage from "./pages/SheetCenterPage";
 import SheetDetailPage from "./pages/SheetDetailPage";
 import NetworkCenterPage from "./pages/NetworkCenterPage";
@@ -136,6 +137,11 @@ const App = () => (
             } />
             
             {/* Admin routes */}
+            <Route path="/admin" element={
+              <AdminRoute>
+                <AdminDashboardPage />
+              </AdminRoute>
+            } />
             <Route path="/admin/products" element={
               <AdminRoute>
                 <AdminProductsPage />
