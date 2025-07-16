@@ -11,6 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
+import { getRoleDisplayName, getRoleColor } from "@/hooks/useRole";
+import { Badge } from "@/components/ui/badge";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { 
@@ -65,7 +67,7 @@ const navigationItems = [
 export function DesktopNavigation() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, userRole, profile, signOut, isAdmin, isSupplier } = useAuth();
   
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
@@ -127,16 +129,72 @@ export function DesktopNavigation() {
                   </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-64">
+                {/* User Info */}
+                <div className="px-3 py-2 border-b">
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={profile?.avatar_url || ""} />
+                      <AvatarFallback>
+                        {(profile?.nickname || user.email)?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">
+                        {profile?.nickname || user.email?.split('@')[0]}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {user.email}
+                      </p>
+                      {userRole && (
+                        <Badge variant="secondary" className={cn("text-xs mt-1", getRoleColor(userRole))}>
+                          {getRoleDisplayName(userRole)}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Menu Items */}
                 <DropdownMenuItem onClick={() => navigate('/profile')}>
                   <User className="h-4 w-4 mr-2" />
                   个人资料
                 </DropdownMenuItem>
+                
+                {/* Role-specific menu items */}
+                {isSupplier && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate('/supplier/products')}>
+                      <Package className="h-4 w-4 mr-2" />
+                      商品管理
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/supplier/quotations')}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      报价管理
+                    </DropdownMenuItem>
+                  </>
+                )}
+                
+                {isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate('/admin/products')}>
+                      <Package className="h-4 w-4 mr-2" />
+                      商品管理
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/admin/suppliers')}>
+                      <Building2 className="h-4 w-4 mr-2" />
+                      供应商管理
+                    </DropdownMenuItem>
+                  </>
+                )}
+                
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate('/settings')}>
                   <Settings className="h-4 w-4 mr-2" />
                   设置
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={signOut}>
                   <LogOut className="h-4 w-4 mr-2" />
                   退出登录
@@ -165,7 +223,7 @@ export function MobileNavigation() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, userRole, profile, signOut } = useAuth();
 
   return (
     <>

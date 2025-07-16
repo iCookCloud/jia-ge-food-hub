@@ -5,6 +5,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 
+import { ProtectedRoute, PublicRoute, SupplierRoute, AdminRoute } from "@/components/auth/ProtectedRoute";
+
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import ProductsPage from "./pages/ProductsPage";
@@ -33,22 +35,94 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/products" element={<ProductsPage />} />
-            <Route path="/product/:id" element={<ProductDetailPage />} />
-            <Route path="/suppliers" element={<SuppliersPage />} />
-            <Route path="/supplier/:id" element={<SupplierDetailPage />} />
-            <Route path="/materials" element={<MaterialsPage />} />
-            <Route path="/materials/:id" element={<MaterialDetailPage />} />
-            <Route path="/quotations" element={<QuotationsPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/supplier/products" element={<SupplierProductsPage />} />
-            <Route path="/supplier/quotations" element={<SupplierQuotationsPage />} />
-            <Route path="/supplier/orders" element={<SupplierOrdersPage />} />
-            <Route path="/admin/products" element={<AdminProductsPage />} />
-            <Route path="/admin/suppliers" element={<AdminSuppliersPage />} />
+            {/* Public routes */}
+            <Route path="/" element={
+              <PublicRoute>
+                <Index />
+              </PublicRoute>
+            } />
+            <Route path="/auth" element={
+              <PublicRoute>
+                <AuthPage />
+              </PublicRoute>
+            } />
+            <Route path="/products" element={
+              <PublicRoute>
+                <ProductsPage />
+              </PublicRoute>
+            } />
+            <Route path="/product/:id" element={
+              <PublicRoute>
+                <ProductDetailPage />
+              </PublicRoute>
+            } />
+            <Route path="/suppliers" element={
+              <PublicRoute>
+                <SuppliersPage />
+              </PublicRoute>
+            } />
+            <Route path="/supplier/:id" element={
+              <PublicRoute>
+                <SupplierDetailPage />
+              </PublicRoute>
+            } />
+            
+            {/* Protected routes - require authentication */}
+            <Route path="/materials" element={
+              <ProtectedRoute>
+                <MaterialsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/materials/:id" element={
+              <ProtectedRoute>
+                <MaterialDetailPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/quotations" element={
+              <ProtectedRoute>
+                <QuotationsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            } />
+            
+            {/* Supplier routes */}
+            <Route path="/supplier/products" element={
+              <SupplierRoute>
+                <SupplierProductsPage />
+              </SupplierRoute>
+            } />
+            <Route path="/supplier/quotations" element={
+              <SupplierRoute>
+                <SupplierQuotationsPage />
+              </SupplierRoute>
+            } />
+            <Route path="/supplier/orders" element={
+              <SupplierRoute>
+                <SupplierOrdersPage />
+              </SupplierRoute>
+            } />
+            
+            {/* Admin routes */}
+            <Route path="/admin/products" element={
+              <AdminRoute>
+                <AdminProductsPage />
+              </AdminRoute>
+            } />
+            <Route path="/admin/suppliers" element={
+              <AdminRoute>
+                <AdminSuppliersPage />
+              </AdminRoute>
+            } />
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

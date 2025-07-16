@@ -3,11 +3,27 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+export type UserRole = 'buyer' | 'supplier' | 'admin';
+
+interface UserProfile {
+  id: string;
+  nickname: string | null;
+  avatar_url: string | null;
+  phone: string | null;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  profile: UserProfile | null;
+  userRole: UserRole | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  hasRole: (role: UserRole) => boolean;
+  isAdmin: boolean;
+  isSupplier: boolean;
+  isBuyer: boolean;
+  refreshUserRole: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,6 +43,8 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -36,14 +54,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
 
-        if (event === 'SIGNED_IN') {
+        if (event === 'SIGNED_IN' && session?.user) {
           // Create or update user profile when signing in
           setTimeout(() => {
-            createUserProfile(session?.user);
+            createUserProfile(session.user);
+            loadUserProfile(session.user.id);
+            loadUserRole(session.user.id);
           }, 0);
+        } else if (event === 'SIGNED_OUT') {
+          // Clear profile and role when signing out
+          setProfile(null);
+          setUserRole(null);
         }
+        
+        setLoading(false);
       }
     );
 
@@ -51,11 +76,59 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        loadUserProfile(session.user.id);
+        loadUserRole(session.user.id);
+      }
+      
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const loadUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, nickname, avatar_url, phone')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error loading user profile:', error);
+        return;
+      }
+
+      setProfile(data);
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    }
+  };
+
+  const loadUserRole = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .order('assigned_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        console.error('Error loading user role:', error);
+        return;
+      }
+
+      setUserRole(data?.role || 'buyer');
+    } catch (error) {
+      console.error('Error loading user role:', error);
+      setUserRole('buyer'); // Default to buyer role
+    }
+  };
 
   const createUserProfile = async (user: User | undefined) => {
     if (!user) return;
@@ -88,6 +161,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  const refreshUserRole = async () => {
+    if (user) {
+      await loadUserRole(user.id);
+    }
+  };
+
+  const hasRole = (role: UserRole): boolean => {
+    return userRole === role;
+  };
+
+  const isAdmin = hasRole('admin');
+  const isSupplier = hasRole('supplier');
+  const isBuyer = hasRole('buyer');
+
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
@@ -115,8 +202,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const value = {
     user,
     session,
+    profile,
+    userRole,
     loading,
     signOut,
+    hasRole,
+    isAdmin,
+    isSupplier,
+    isBuyer,
+    refreshUserRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
