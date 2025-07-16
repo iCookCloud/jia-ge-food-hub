@@ -6,11 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, X, Video, Play, Clock } from 'lucide-react';
+import { Upload, X, Video, Play, Clock, Package, Tag } from 'lucide-react';
 import { cloudflareStreamService, VideoUploadResult } from '@/services/cloudflareStreamService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useProducts, Product } from '@/hooks/useProducts';
 
 interface VideoUploadProps {
   onUploadComplete?: (video: any) => void;
@@ -25,6 +28,10 @@ interface UploadingVideo {
   result?: VideoUploadResult;
   title: string;
   description: string;
+  content: string;
+  tags: string[];
+  selectedProducts: string[];
+  category: string;
 }
 
 export const VideoUpload: React.FC<VideoUploadProps> = ({
@@ -36,6 +43,19 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  
+  // 获取产品列表
+  const { data: products = [], isLoading: productsLoading } = useProducts();
+  
+  // 视频分类选项
+  const videoCategories = [
+    '产品介绍',
+    '操作教程', 
+    '客户案例',
+    '行业资讯',
+    '工艺展示',
+    '质量检测'
+  ];
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -88,7 +108,11 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
       progress: 0,
       status: 'uploading',
       title: file.name.replace(/\.[^/.]+$/, ''), // 去掉文件扩展名作为默认标题
-      description: ''
+      description: '',
+      content: '',
+      tags: [],
+      selectedProducts: [],
+      category: '产品介绍'
     }));
 
     setUploadingVideos(prev => [...prev, ...newUploadingVideos]);
@@ -132,13 +156,20 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
 
         // 保存到数据库
         const uploadingVideo = uploadingVideos.find(uv => uv.file === file) || 
-                              { title: file.name.replace(/\.[^/.]+$/, ''), description: '' };
+                              { 
+                                title: file.name.replace(/\.[^/.]+$/, ''), 
+                                description: '', 
+                                content: '', 
+                                tags: [], 
+                                selectedProducts: [],
+                                category: '产品介绍'
+                              };
 
         const { data: videoData, error: dbError } = await supabase
           .from('product_videos')
           .insert({
             title: uploadingVideo.title,
-            description: uploadingVideo.description,
+            description: `${uploadingVideo.description}\n\n${uploadingVideo.content}`.trim(),
             cloudflare_video_id: result.videoId,
             thumbnail_url: result.thumbnailUrl,
             video_url: result.videoUrl,
@@ -152,6 +183,22 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
 
         if (dbError) {
           throw new Error(`数据库保存失败: ${dbError.message}`);
+        }
+
+        // 创建视频与产品的关联
+        if (uploadingVideo.selectedProducts && uploadingVideo.selectedProducts.length > 0) {
+          const associations = uploadingVideo.selectedProducts.map(productId => ({
+            video_id: videoData.id,
+            product_id: productId
+          }));
+
+          const { error: associationError } = await supabase
+            .from('video_product_associations')
+            .insert(associations);
+
+          if (associationError) {
+            console.error('创建产品关联失败:', associationError);
+          }
         }
 
         // 更新成功状态
@@ -199,11 +246,51 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     }
   };
 
-  const updateVideoInfo = (file: File, field: 'title' | 'description', value: string) => {
+  const updateVideoInfo = (file: File, field: keyof UploadingVideo, value: any) => {
     setUploadingVideos(prev =>
       prev.map(uv =>
         uv.file === file ? { ...uv, [field]: value } : uv
       )
+    );
+  };
+
+  const toggleProduct = (file: File, productId: string) => {
+    setUploadingVideos(prev =>
+      prev.map(uv => {
+        if (uv.file === file) {
+          const isSelected = uv.selectedProducts.includes(productId);
+          return {
+            ...uv,
+            selectedProducts: isSelected 
+              ? uv.selectedProducts.filter(id => id !== productId)
+              : [...uv.selectedProducts, productId]
+          };
+        }
+        return uv;
+      })
+    );
+  };
+
+  const addTag = (file: File, tag: string) => {
+    if (!tag.trim()) return;
+    setUploadingVideos(prev =>
+      prev.map(uv => {
+        if (uv.file === file && !uv.tags.includes(tag.trim())) {
+          return { ...uv, tags: [...uv.tags, tag.trim()] };
+        }
+        return uv;
+      })
+    );
+  };
+
+  const removeTag = (file: File, tagToRemove: string) => {
+    setUploadingVideos(prev =>
+      prev.map(uv => {
+        if (uv.file === file) {
+          return { ...uv, tags: uv.tags.filter(tag => tag !== tagToRemove) };
+        }
+        return uv;
+      })
     );
   };
 
@@ -325,25 +412,163 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
                   </div>
 
                   {uploadingVideo.status !== 'success' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor={`title-${index}`} className="text-sm">视频标题</Label>
-                        <Input
-                          id={`title-${index}`}
-                          value={uploadingVideo.title}
-                          onChange={(e) => updateVideoInfo(uploadingVideo.file, 'title', e.target.value)}
-                          placeholder="请输入视频标题"
-                        />
+                    <div className="space-y-6">
+                      {/* 基础信息 */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor={`title-${index}`} className="text-sm font-medium">视频标题 *</Label>
+                          <Input
+                            id={`title-${index}`}
+                            value={uploadingVideo.title}
+                            onChange={(e) => updateVideoInfo(uploadingVideo.file, 'title', e.target.value)}
+                            placeholder="请输入视频标题"
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor={`category-${index}`} className="text-sm font-medium">视频分类</Label>
+                          <Select
+                            value={uploadingVideo.category}
+                            onValueChange={(value) => updateVideoInfo(uploadingVideo.file, 'category', value)}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="选择分类" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {videoCategories.map(category => (
+                                <SelectItem key={category} value={category}>
+                                  {category}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
+
+                      {/* 描述和详细内容 */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor={`description-${index}`} className="text-sm font-medium">简短描述</Label>
+                          <Textarea
+                            id={`description-${index}`}
+                            value={uploadingVideo.description}
+                            onChange={(e) => updateVideoInfo(uploadingVideo.file, 'description', e.target.value)}
+                            placeholder="请输入视频简短描述"
+                            rows={3}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor={`content-${index}`} className="text-sm font-medium">详细文案</Label>
+                          <Textarea
+                            id={`content-${index}`}
+                            value={uploadingVideo.content}
+                            onChange={(e) => updateVideoInfo(uploadingVideo.file, 'content', e.target.value)}
+                            placeholder="请输入详细的视频文案内容，如制作工艺、产品特色、使用方法等"
+                            rows={3}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+
+                      {/* 标签管理 */}
                       <div>
-                        <Label htmlFor={`description-${index}`} className="text-sm">视频描述</Label>
-                        <Textarea
-                          id={`description-${index}`}
-                          value={uploadingVideo.description}
-                          onChange={(e) => updateVideoInfo(uploadingVideo.file, 'description', e.target.value)}
-                          placeholder="请输入视频描述"
-                          rows={3}
-                        />
+                        <Label className="text-sm font-medium flex items-center gap-2">
+                          <Tag className="h-4 w-4" />
+                          视频标签
+                        </Label>
+                        <div className="mt-1 space-y-2">
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="输入标签后按回车添加"
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  addTag(uploadingVideo.file, e.currentTarget.value);
+                                  e.currentTarget.value = '';
+                                }
+                              }}
+                              className="flex-1"
+                            />
+                          </div>
+                          {uploadingVideo.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {uploadingVideo.tags.map((tag, tagIndex) => (
+                                <Badge 
+                                  key={tagIndex} 
+                                  variant="secondary" 
+                                  className="text-xs flex items-center gap-1"
+                                >
+                                  {tag}
+                                  <X 
+                                    className="h-3 w-3 cursor-pointer" 
+                                    onClick={() => removeTag(uploadingVideo.file, tag)}
+                                  />
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 关联产品 */}
+                      <div>
+                        <Label className="text-sm font-medium flex items-center gap-2">
+                          <Package className="h-4 w-4" />
+                          关联产品
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-1 mb-2">
+                          选择与此视频相关的产品，方便用户查找和了解
+                        </p>
+                        {productsLoading ? (
+                          <div className="text-sm text-muted-foreground">加载产品列表中...</div>
+                        ) : (
+                          <div className="max-h-40 overflow-y-auto border rounded p-3 space-y-2">
+                            {products.length === 0 ? (
+                              <div className="text-sm text-muted-foreground text-center py-4">
+                                暂无产品数据
+                              </div>
+                            ) : (
+                              products.map((product) => (
+                                <div key={product.id} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`product-${product.id}-${index}`}
+                                    checked={uploadingVideo.selectedProducts.includes(product.id)}
+                                    onCheckedChange={() => toggleProduct(uploadingVideo.file, product.id)}
+                                  />
+                                  <Label 
+                                    htmlFor={`product-${product.id}-${index}`}
+                                    className="flex-1 text-sm cursor-pointer"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      {product.product_image && (
+                                        <img 
+                                          src={product.product_image} 
+                                          alt={product.standard_chinese_name || product.sku}
+                                          className="w-8 h-8 object-cover rounded"
+                                        />
+                                      )}
+                                      <div>
+                                        <div className="font-medium">
+                                          {product.standard_chinese_name || product.standard_english_name || product.sku}
+                                        </div>
+                                        {product.specifications && (
+                                          <div className="text-xs text-muted-foreground">
+                                            {product.specifications}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </Label>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                        {uploadingVideo.selectedProducts.length > 0 && (
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            已选择 {uploadingVideo.selectedProducts.length} 个产品
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
