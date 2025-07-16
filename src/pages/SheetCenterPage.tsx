@@ -84,7 +84,7 @@ const SheetCenterPage = () => {
           notes,
           supplier_credentials!inner(company_name)
         `)
-        .eq('is_shareable', true);
+        .neq('status', 'deleted'); // 只排除已删除的货单，所有其他货单都可参与
 
       const { data, error } = await query;
       
