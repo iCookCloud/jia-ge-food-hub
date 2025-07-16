@@ -151,6 +151,192 @@ const MaterialsPage = () => {
             <TabsTrigger value="stats">数据统计</TabsTrigger>
           </TabsList>
           
+          {/* All Videos Tab */}
+          <TabsContent value="all" className="mt-6">
+            {/* Filters */}
+            <Card className="mb-6">
+              <CardContent className="p-4">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                      <Input
+                        placeholder="搜索视频标题、描述或标签..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                      <SelectTrigger className="w-48">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="选择分类" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map(category => (
+                          <SelectItem key={category} value={category}>{category}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+                      <SelectTrigger className="w-48">
+                        <User className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="选择供应商" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="全部">全部供应商</SelectItem>
+                        <SelectItem value="海鲜直供">海鲜直供</SelectItem>
+                        <SelectItem value="优质肉类">优质肉类</SelectItem>
+                        <SelectItem value="绿色农场">绿色农场</SelectItem>
+                        <SelectItem value="香料专家">香料专家</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Video Grid */}
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <Card key={i} className="animate-pulse">
+                    <CardContent className="p-0">
+                      <div className="aspect-video bg-muted rounded-t-lg"></div>
+                      <div className="p-4 space-y-2">
+                        <div className="h-4 bg-muted rounded w-3/4"></div>
+                        <div className="h-3 bg-muted rounded w-1/2"></div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredVideos.map((video: any) => (
+                  <Link key={video.id} to={`/materials/${video.id}`}>
+                    <Card className="group hover:shadow-lg transition-all duration-300 hover-scale">
+                      <CardContent className="p-0">
+                        {/* Video Thumbnail */}
+                        <div className="relative aspect-video overflow-hidden rounded-t-lg">
+                          <img 
+                            src={video.thumbnail_url || video.thumbnail} 
+                            alt={video.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                            <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">
+                              <Play className="w-6 h-6 text-primary ml-1" />
+                            </div>
+                          </div>
+                          
+                          {/* Duration Badge */}
+                          <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs flex items-center">
+                            <Clock className="w-3 h-3 mr-1" />
+                            {video.duration_seconds ? `${Math.floor(video.duration_seconds / 60)}:${(video.duration_seconds % 60).toString().padStart(2, '0')}` : video.duration}
+                          </div>
+                          
+                          {/* Category Badge */}
+                          <div className="absolute top-2 left-2">
+                            {getCategoryBadge(video.category || "产品介绍")}
+                          </div>
+                        </div>
+
+                        {/* Video Info */}
+                        <div className="p-4">
+                          <h3 className="font-semibold text-foreground mb-2 line-clamp-2">
+                            {video.title}
+                          </h3>
+                          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                            {video.description}
+                          </p>
+                          
+                          {/* Supplier and Stats */}
+                          <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+                            <span className="flex items-center">
+                              <User className="w-3 h-3 mr-1" />
+                              {video.supplier_credentials?.company_name || video.supplier}
+                            </span>
+                            <span className="flex items-center">
+                              <Eye className="w-3 h-3 mr-1" />
+                              {video.views || 0}
+                            </span>
+                          </div>
+                          
+                          {/* Tags */}
+                          <div className="flex flex-wrap gap-1">
+                            {(video.tags || []).slice(0, 3).map((tag: string) => (
+                              <Badge key={tag} variant="outline" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                          
+                          {/* Related Products */}
+                          {video.relatedProducts?.length > 0 && (
+                            <div className="mt-3 pt-3 border-t">
+                              <p className="text-xs text-muted-foreground mb-1">关联商品:</p>
+                              <p className="text-xs font-medium line-clamp-1">
+                                {video.relatedProducts[0]}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+          
+          {/* My Materials Tab */}
+          <TabsContent value="mine" className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredVideos.filter((video: any) => video.supplier === user?.email || video.supplier_id === user?.id).map((video: any) => (
+                <Link key={video.id} to={`/materials/${video.id}`}>
+                  <Card className="group hover:shadow-lg transition-all duration-300 hover-scale">
+                    <CardContent className="p-0">
+                      <div className="relative aspect-video overflow-hidden rounded-t-lg">
+                        <img 
+                          src={video.thumbnail_url || video.thumbnail} 
+                          alt={video.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                          <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Play className="w-6 h-6 text-primary ml-1" />
+                          </div>
+                        </div>
+                        <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs flex items-center">
+                          <Clock className="w-3 h-3 mr-1" />
+                          {video.duration_seconds ? `${Math.floor(video.duration_seconds / 60)}:${(video.duration_seconds % 60).toString().padStart(2, '0')}` : video.duration}
+                        </div>
+                        <div className="absolute top-2 left-2">
+                          {getCategoryBadge(video.category || "产品介绍")}
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-semibold text-foreground mb-2 line-clamp-2">
+                          {video.title}
+                        </h3>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>观看: {video.views || 0}</span>
+                          <span>引用: {video.referenceCount || 0}</span>
+                          <span>转化: {video.conversionCount || 0}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </TabsContent>
+          
+          {/* Stats Tab */}
           <TabsContent value="stats" className="mt-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               {[
@@ -174,197 +360,6 @@ const MaterialsPage = () => {
             </div>
           </TabsContent>
         </Tabs>
-
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    placeholder="搜索视频标题、描述或标签..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="w-48">
-                    <Filter className="w-4 h-4 mr-2" />
-                    <SelectValue placeholder="选择分类" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map(category => (
-                      <SelectItem key={category} value={category}>{category}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-                  <SelectTrigger className="w-48">
-                    <User className="w-4 h-4 mr-2" />
-                    <SelectValue placeholder="选择供应商" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="全部">全部供应商</SelectItem>
-                    <SelectItem value="海鲜直供">海鲜直供</SelectItem>
-                    <SelectItem value="优质肉类">优质肉类</SelectItem>
-                    <SelectItem value="绿色农场">绿色农场</SelectItem>
-                    <SelectItem value="香料专家">香料专家</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Video Grid */}
-        <TabsContent value="all">
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-0">
-                    <div className="aspect-video bg-muted rounded-t-lg"></div>
-                    <div className="p-4 space-y-2">
-                      <div className="h-4 bg-muted rounded w-3/4"></div>
-                      <div className="h-3 bg-muted rounded w-1/2"></div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredVideos.map((video: any) => (
-                <Link key={video.id} to={`/materials/${video.id}`}>
-                  <Card className="group hover:shadow-lg transition-all duration-300 hover-scale">
-                    <CardContent className="p-0">
-                      {/* Video Thumbnail */}
-                      <div className="relative aspect-video overflow-hidden rounded-t-lg">
-                        <img 
-                          src={video.thumbnail_url || video.thumbnail} 
-                          alt={video.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                          <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Play className="w-6 h-6 text-primary ml-1" />
-                          </div>
-                        </div>
-                        
-                        {/* Duration Badge */}
-                        <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs flex items-center">
-                          <Clock className="w-3 h-3 mr-1" />
-                          {video.duration_seconds ? `${Math.floor(video.duration_seconds / 60)}:${(video.duration_seconds % 60).toString().padStart(2, '0')}` : video.duration}
-                        </div>
-                        
-                        {/* Category Badge */}
-                        <div className="absolute top-2 left-2">
-                          {getCategoryBadge(video.category || "产品介绍")}
-                        </div>
-                      </div>
-
-                      {/* Video Info */}
-                      <div className="p-4">
-                        <h3 className="font-semibold text-foreground mb-2 line-clamp-2">
-                          {video.title}
-                        </h3>
-                        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                          {video.description}
-                        </p>
-                        
-                        {/* Supplier and Stats */}
-                        <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
-                          <span className="flex items-center">
-                            <User className="w-3 h-3 mr-1" />
-                            {video.supplier_credentials?.company_name || video.supplier}
-                          </span>
-                          <span className="flex items-center">
-                            <Eye className="w-3 h-3 mr-1" />
-                            {video.views || 0}
-                          </span>
-                        </div>
-                        
-                        {/* Tags */}
-                        <div className="flex flex-wrap gap-1">
-                          {(video.tags || []).slice(0, 3).map((tag: string) => (
-                            <Badge key={tag} variant="outline" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                        
-                        {/* Related Products */}
-                        {video.relatedProducts?.length > 0 && (
-                          <div className="mt-3 pt-3 border-t">
-                            <p className="text-xs text-muted-foreground mb-1">关联商品:</p>
-                            <p className="text-xs font-medium line-clamp-1">
-                              {video.relatedProducts[0]}
-                            </p>
-                          </div>
-                        )}
-                        
-                        {/* My Material Stats */}
-                        {activeTab === "mine" && (
-                          <div className="mt-3 pt-3 border-t flex justify-between text-xs">
-                            <span>引用: {video.referenceCount || 0}</span>
-                            <span>转化: {video.conversionCount || 0}</span>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="mine">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredVideos.filter((video: any) => video.supplier === user?.email || video.supplier_id === user?.id).map((video: any) => (
-              <Link key={video.id} to={`/materials/${video.id}`}>
-                <Card className="group hover:shadow-lg transition-all duration-300 hover-scale">
-                  <CardContent className="p-0">
-                    <div className="relative aspect-video overflow-hidden rounded-t-lg">
-                      <img 
-                        src={video.thumbnail_url || video.thumbnail} 
-                        alt={video.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                        <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <Play className="w-6 h-6 text-primary ml-1" />
-                        </div>
-                      </div>
-                      <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs flex items-center">
-                        <Clock className="w-3 h-3 mr-1" />
-                        {video.duration_seconds ? `${Math.floor(video.duration_seconds / 60)}:${(video.duration_seconds % 60).toString().padStart(2, '0')}` : video.duration}
-                      </div>
-                      <div className="absolute top-2 left-2">
-                        {getCategoryBadge(video.category || "产品介绍")}
-                      </div>
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-semibold text-foreground mb-2 line-clamp-2">
-                        {video.title}
-                      </h3>
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>观看: {video.views || 0}</span>
-                        <span>引用: {video.referenceCount || 0}</span>
-                        <span>转化: {video.conversionCount || 0}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </TabsContent>
 
         {/* Load More */}
         <div className="flex justify-center mt-8">
