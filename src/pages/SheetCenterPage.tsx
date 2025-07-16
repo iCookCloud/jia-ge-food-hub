@@ -17,7 +17,10 @@ import {
   ShoppingCart,
   Plus,
   Package,
-  Grid3X3
+  Grid3X3,
+  Edit,
+  AlertCircle,
+  CreditCard
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -209,18 +212,34 @@ const SheetCenterPage = () => {
         </div>
 
         {/* 操作按钮 */}
-        <div className="flex space-x-2 pt-2">
-          <Button variant="outline" size="sm" className="flex-1" asChild>
+        <div className="grid grid-cols-2 gap-2 pt-2">
+          <Button variant="outline" size="sm" asChild>
             <Link to={`/sheets/${sheet.id}`}>
               <Eye className="h-4 w-4 mr-1" />
               查看详情
             </Link>
           </Button>
-          <Button size="sm" className="flex-1">
+          <Button variant="outline" size="sm">
+            <Edit className="h-4 w-4 mr-1" />
+            修改
+          </Button>
+          <Button variant="outline" size="sm">
             <Share2 className="h-4 w-4 mr-1" />
-            分享货单
+            分享
+          </Button>
+          <Button size="sm" className="bg-green-600 hover:bg-green-700">
+            <CreditCard className="h-4 w-4 mr-1" />
+            购买
           </Button>
         </div>
+        
+        {/* 订单失败状态 */}
+        {sheet.status === 'failed' && (
+          <div className="flex items-center gap-2 mt-2 p-2 bg-red-50 rounded-lg">
+            <AlertCircle className="h-4 w-4 text-red-600" />
+            <span className="text-sm text-red-600">订单创建失败</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -234,12 +253,20 @@ const SheetCenterPage = () => {
             <h1 className="text-3xl font-bold text-foreground mb-2">货单中心</h1>
             <p className="text-muted-foreground">搜索、分享和管理供应链货单</p>
           </div>
-          <Button asChild>
-            <Link to="/sheets/create">
-              <Plus className="h-4 w-4 mr-2" />
-              创建货单
-            </Link>
-          </Button>
+          <div className="flex space-x-2">
+            <Button variant="outline" asChild>
+              <Link to="/products/create">
+                <Plus className="h-4 w-4 mr-2" />
+                创建商品
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link to="/sheets/create">
+                <Plus className="h-4 w-4 mr-2" />
+                创建货单
+              </Link>
+            </Button>
+          </div>
         </div>
 
 
@@ -265,115 +292,53 @@ const SheetCenterPage = () => {
           </TabsContent>
 
           <TabsContent value="my-sheets" className="mt-6">
-            <div className="space-y-6">
-              {/* 我的货单统计 */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Package className="h-5 w-5" />
-                      我创建的货单
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-4">
-                      <div className="text-2xl font-bold text-primary mb-2">0</div>
-                      <p className="text-muted-foreground mb-4">
-                        暂无创建的货单
-                      </p>
-                      <Button asChild size="sm">
-                        <Link to="/sheets/create">
-                          <Plus className="h-4 w-4 mr-2" />
-                          创建货单
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Share2 className="h-5 w-5" />
-                      我分享的货单
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-4">
-                      <div className="text-2xl font-bold text-primary mb-2">0</div>
-                      <p className="text-muted-foreground mb-4">
-                        暂无分享的货单
-                      </p>
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-4 w-4 mr-2" />
-                        查看详情
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5" />
-                      可参与货单
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-4">
-                      <div className="text-2xl font-bold text-primary mb-2">{filteredSheets.length}</div>
-                      <p className="text-muted-foreground mb-4">
-                        可参与的货单
-                      </p>
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-4 w-4 mr-2" />
-                        查看详情
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+            {/* 我的货单列表 */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">我的货单</h3>
+                <Button asChild size="sm">
+                  <Link to="/sheets/create">
+                    <Plus className="h-4 w-4 mr-2" />
+                    创建货单
+                  </Link>
+                </Button>
               </div>
-
-              {/* 可参与的货单列表 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <ShoppingCart className="h-5 w-5" />
-                    可参与的货单
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {Array.from({ length: 6 }).map((_, i) => (
-                        <Card key={i}>
-                          <CardContent className="p-6">
-                            <Skeleton className="h-4 w-3/4 mb-2" />
-                            <Skeleton className="h-4 w-1/2 mb-4" />
-                            <Skeleton className="h-20 w-full" />
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  ) : filteredSheets.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {filteredSheets.map((sheet) => (
-                        <SheetCard key={sheet.id} sheet={sheet} />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-semibold text-foreground mb-2">
-                        暂无可参与的货单
-                      </h3>
-                      <p className="text-muted-foreground">
-                        请稍后再来查看或调整筛选条件
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              
+              {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Card key={i}>
+                      <CardContent className="p-6">
+                        <Skeleton className="h-4 w-3/4 mb-2" />
+                        <Skeleton className="h-4 w-1/2 mb-4" />
+                        <Skeleton className="h-20 w-full" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : filteredSheets.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredSheets.map((sheet) => (
+                    <SheetCard key={sheet.id} sheet={sheet} />
+                  ))}
+                </div>
+              ) : (
+                <Card className="p-12 text-center">
+                  <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                    暂无货单
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    您还没有创建任何货单
+                  </p>
+                  <Button asChild>
+                    <Link to="/sheets/create">
+                      <Plus className="h-4 w-4 mr-2" />
+                      创建第一个货单
+                    </Link>
+                  </Button>
+                </Card>
+              )}
             </div>
           </TabsContent>
         </Tabs>

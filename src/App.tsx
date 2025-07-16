@@ -30,6 +30,7 @@ import SheetCenterPage from "./pages/SheetCenterPage";
 import SheetDetailPage from "./pages/SheetDetailPage";
 import SheetCreatePage from "./pages/SheetCreatePage";
 import NetworkCenterPage from "./pages/NetworkCenterPage";
+import ProductCreatePage from "./pages/ProductCreatePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -113,6 +114,11 @@ const App = () => (
             <Route path="/sheets/create" element={
               <ProtectedRoute>
                 <SheetCreatePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/products/create" element={
+              <ProtectedRoute>
+                <ProductCreatePage />
               </ProtectedRoute>
             } />
             <Route path="/network" element={
