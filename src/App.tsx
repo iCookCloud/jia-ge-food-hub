@@ -28,6 +28,7 @@ import AdminSuppliersPage from "./pages/admin/AdminSuppliersPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import SheetCenterPage from "./pages/SheetCenterPage";
 import SheetDetailPage from "./pages/SheetDetailPage";
+import SheetCreatePage from "./pages/SheetCreatePage";
 import NetworkCenterPage from "./pages/NetworkCenterPage";
 import NotFound from "./pages/NotFound";
 
@@ -108,6 +109,11 @@ const App = () => (
               <PublicRoute>
                 <SheetDetailPage />
               </PublicRoute>
+            } />
+            <Route path="/sheets/create" element={
+              <ProtectedRoute>
+                <SheetCreatePage />
+              </ProtectedRoute>
             } />
             <Route path="/network" element={
               <PublicRoute>

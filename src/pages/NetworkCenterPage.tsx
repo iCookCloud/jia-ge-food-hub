@@ -62,20 +62,15 @@ interface NetworkUser {
   main_categories: string[];
   total_orders: number;
   total_sales: number;
-  commission_earned: number;
   network_level: number;
-  relationship: 'upstream' | 'downstream' | 'peer' | 'none';
-  share_count: number;
+  relationship: 'partner' | 'none';
   success_rate: number;
   created_at: string;
 }
 
 interface NetworkStats {
   total_users: number;
-  my_upstream: number;
-  my_downstream: number;
-  total_commission: number;
-  network_growth: number;
+  active_suppliers: number;
 }
 
 interface ShareRelation {
@@ -139,21 +134,16 @@ const NetworkCenterPage = () => {
         main_categories: ['海鲜', '肉类', '蔬菜'].slice(0, Math.floor(Math.random() * 3) + 1),
         total_orders: Math.floor(Math.random() * 100) + 10,
         total_sales: Math.floor(Math.random() * 500000) + 50000,
-        commission_earned: Math.floor(Math.random() * 10000) + 1000,
         network_level: Math.floor(Math.random() * 5) + 1,
-        relationship: index % 4 === 0 ? 'upstream' : index % 4 === 1 ? 'downstream' : 'peer',
-        share_count: Math.floor(Math.random() * 50) + 5,
+        relationship: index % 2 === 0 ? 'partner' : 'none',
         success_rate: (Math.random() * 0.4 + 0.6) * 100,
         created_at: supplier.profiles?.created_at || new Date().toISOString()
       }));
 
-      // Mock stats
+      // Simple stats
       const mockStats: NetworkStats = {
         total_users: networkUsers.length,
-        my_upstream: networkUsers.filter(u => u.relationship === 'upstream').length,
-        my_downstream: networkUsers.filter(u => u.relationship === 'downstream').length,
-        total_commission: 28600,
-        network_growth: 15.2
+        active_suppliers: networkUsers.filter(u => u.verification_status === 'verified').length
       };
 
       // Mock share relations
@@ -207,10 +197,8 @@ const NetworkCenterPage = () => {
           main_categories: ['海鲜'],
           total_orders: 45,
           total_sales: 280000,
-          commission_earned: 8500,
           network_level: 3,
-          relationship: 'upstream',
-          share_count: 12,
+          relationship: 'partner',
           success_rate: 89.5,
           created_at: '2024-01-01'
         },
@@ -226,10 +214,8 @@ const NetworkCenterPage = () => {
           main_categories: ['肉类'],
           total_orders: 32,
           total_sales: 195000,
-          commission_earned: 6200,
           network_level: 2,
-          relationship: 'peer',
-          share_count: 8,
+          relationship: 'none',
           success_rate: 92.1,
           created_at: '2024-01-15'
         },
@@ -245,10 +231,8 @@ const NetworkCenterPage = () => {
           main_categories: ['蔬菜', '有机'],
           total_orders: 67,
           total_sales: 158000,
-          commission_earned: 4800,
           network_level: 4,
-          relationship: 'downstream',
-          share_count: 15,
+          relationship: 'partner',
           success_rate: 86.3,
           created_at: '2024-01-20'
         }
@@ -256,10 +240,7 @@ const NetworkCenterPage = () => {
       
       const fallbackStats: NetworkStats = {
         total_users: fallbackUsers.length,
-        my_upstream: 1,
-        my_downstream: 1,
-        total_commission: 19500,
-        network_growth: 12.8
+        active_suppliers: 2
       };
       
       setUsers(fallbackUsers);
@@ -306,14 +287,10 @@ const NetworkCenterPage = () => {
 
   const getRelationshipBadge = (relationship: string) => {
     switch (relationship) {
-      case 'upstream':
-        return <Badge variant="secondary" className="bg-blue-100 text-blue-800">上游</Badge>;
-      case 'downstream':
-        return <Badge variant="secondary" className="bg-green-100 text-green-800">下游</Badge>;
-      case 'peer':
-        return <Badge variant="outline">同级</Badge>;
+      case 'partner':
+        return <Badge variant="secondary" className="bg-primary/10 text-primary">合作伙伴</Badge>;
       default:
-        return <Badge variant="outline">无关系</Badge>;
+        return <Badge variant="outline">潜在合作</Badge>;
     }
   };
 
@@ -374,13 +351,9 @@ const NetworkCenterPage = () => {
             <div className="text-muted-foreground">成功率</div>
             <div className="font-semibold">{user.success_rate.toFixed(1)}%</div>
           </div>
-          <div>
+          <div className="col-span-2">
             <div className="text-muted-foreground">销售额</div>
             <div className="font-semibold">¥{user.total_sales.toLocaleString()}</div>
-          </div>
-          <div>
-            <div className="text-muted-foreground">返利</div>
-            <div className="font-semibold text-success">¥{user.commission_earned.toLocaleString()}</div>
           </div>
         </div>
 
@@ -480,33 +453,10 @@ const NetworkCenterPage = () => {
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-2">网络中心</h1>
-          <p className="text-muted-foreground">构建分享网络，拓展商业人脉</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">供应链网络</h1>
+          <p className="text-muted-foreground">拓展商业人脉，构建供应链合作关系</p>
         </div>
 
-        {/* Stats */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            {[
-              { label: "网络用户", value: stats.total_users, icon: Users, color: "text-primary" },
-              { label: "上游关系", value: stats.my_upstream, icon: ArrowUpRight, color: "text-blue-600" },
-              { label: "下游团队", value: stats.my_downstream, icon: GitBranch, color: "text-green-600" },
-              { label: "累计返利", value: `¥${stats.total_commission.toLocaleString()}`, icon: DollarSign, color: "text-warning" }
-            ].map((stat, index) => (
-              <Card key={index}>
-                <CardContent className="p-4">
-                  <div className="flex items-center space-x-2">
-                    <stat.icon className={`h-8 w-8 ${stat.color}`} />
-                    <div>
-                      <p className="text-2xl font-bold">{stat.value}</p>
-                      <p className="text-sm text-muted-foreground">{stat.label}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
 
         {/* Search and Filters */}
         <Card className="mb-6">
@@ -543,9 +493,8 @@ const NetworkCenterPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="全部">全部关系</SelectItem>
-                    <SelectItem value="upstream">上游</SelectItem>
-                    <SelectItem value="downstream">下游</SelectItem>
-                    <SelectItem value="peer">同级</SelectItem>
+                    <SelectItem value="partner">合作伙伴</SelectItem>
+                    <SelectItem value="none">潜在合作</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -563,9 +512,8 @@ const NetworkCenterPage = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="network">用户网络</TabsTrigger>
-            <TabsTrigger value="relations">我的关系</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-1">
+            <TabsTrigger value="network">供应链网络</TabsTrigger>
           </TabsList>
 
           <TabsContent value="network" className="mt-6">
@@ -600,9 +548,6 @@ const NetworkCenterPage = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="relations" className="mt-6">
-            <NetworkVisualization />
-          </TabsContent>
         </Tabs>
 
         {/* Network Dialog */}
