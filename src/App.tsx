@@ -17,6 +17,7 @@ import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import AdminSuppliersPage from "./pages/admin/AdminSuppliersPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
+import SupplierOrdersPage from "./pages/SupplierOrdersPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
           <Route path="/materials/:id" element={<MaterialDetailPage />} />
           <Route path="/quotations" element={<QuotationsPage />} />
           <Route path="/supplier/quotations" element={<SupplierQuotationsPage />} />
+          <Route path="/supplier/orders" element={<SupplierOrdersPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/admin/suppliers" element={<AdminSuppliersPage />} />

@@ -17,7 +17,8 @@ import {
   Shield,
   Package,
   Eye,
-  TrendingUp
+  TrendingUp,
+  FileText
 } from "lucide-react";
 
 // Import product images
@@ -169,10 +170,14 @@ const SupplierDetailPage = () => {
                 onClick={() => setShowAiChat(true)}
               >
                 <MessageCircle className="h-4 w-4 mr-2" />
-                {supplier.hasAiChat ? "AI智能客服" : "联系供应商"}
+                联系供应商
               </Button>
               <Button variant="outline" className="w-full">
                 查看所有产品
+              </Button>
+              <Button variant="outline" className="w-full">
+                <FileText className="h-4 w-4 mr-2" />
+                获取报价
               </Button>
             </div>
           </div>

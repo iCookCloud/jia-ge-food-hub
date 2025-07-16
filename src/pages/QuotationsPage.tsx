@@ -356,6 +356,11 @@ const QuotationsPage = () => {
                         <Button variant="ghost" size="icon-sm">
                           <MessageCircle className="h-4 w-4" />
                         </Button>
+                        {quotation.status === "已报价" && (
+                          <Button variant="default" size="sm">
+                            加入订单
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
