@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { 
   Package, 
   Building2, 
@@ -108,9 +109,7 @@ export function DesktopNavigation() {
               <Search className="h-4 w-4" />
             </Button>
           </GlobalSearch>
-          <Button variant="ghost" size="icon-sm" className="text-muted-foreground">
-            <Bell className="h-4 w-4" />
-          </Button>
+          <NotificationBell className="text-muted-foreground" />
 
           {/* User Menu */}
           {user ? (
@@ -186,9 +185,7 @@ export function MobileNavigation() {
                 <Search className="h-4 w-4" />
               </Button>
             </GlobalSearch>
-            <Button variant="ghost" size="icon-sm">
-              <Bell className="h-4 w-4" />
-            </Button>
+            <NotificationBell />
             
             {user ? (
               <Avatar className="h-7 w-7 mr-1">
