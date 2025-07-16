@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
+import { GlobalSearch } from "@/components/search/GlobalSearch";
 import { 
   Package, 
   Building2, 
@@ -102,9 +103,11 @@ export function DesktopNavigation() {
 
         {/* Search and Actions */}
         <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="icon-sm" className="text-muted-foreground">
-            <Search className="h-4 w-4" />
-          </Button>
+          <GlobalSearch>
+            <Button variant="ghost" size="icon-sm" className="text-muted-foreground">
+              <Search className="h-4 w-4" />
+            </Button>
+          </GlobalSearch>
           <Button variant="ghost" size="icon-sm" className="text-muted-foreground">
             <Bell className="h-4 w-4" />
           </Button>
@@ -178,9 +181,11 @@ export function MobileNavigation() {
           </Link>
 
           <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="icon-sm">
-              <Search className="h-4 w-4" />
-            </Button>
+            <GlobalSearch>
+              <Button variant="ghost" size="icon-sm">
+                <Search className="h-4 w-4" />
+              </Button>
+            </GlobalSearch>
             <Button variant="ghost" size="icon-sm">
               <Bell className="h-4 w-4" />
             </Button>
