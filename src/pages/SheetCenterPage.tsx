@@ -53,10 +53,15 @@ const SheetCenterPage = () => {
   const [showQuickCreator, setShowQuickCreator] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
 
-  // Fetch sheets data
+  // Fetch sheets data - 获取用户自己的货单
   const fetchSheets = async () => {
     setLoading(true);
     try {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
       let query = supabase
         .from('quotations')
         .select(`
@@ -70,8 +75,8 @@ const SheetCenterPage = () => {
           notes,
           supplier_credentials(company_name)
         `)
-        .neq('status', 'deleted')
-        .eq('is_shareable', true); // 只显示可分享的货单
+        .eq('supplier_id', user.id) // 只显示当前用户创建的货单
+        .neq('status', 'deleted');
 
       const { data, error } = await query;
       

@@ -645,6 +645,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           is_fragile: boolean | null
+          is_public: boolean | null
           outer_box_dimensions: string | null
           outer_size_cm: string | null
           package_outer_size: string | null
@@ -680,6 +681,7 @@ export type Database = {
           id: string
           is_active?: boolean | null
           is_fragile?: boolean | null
+          is_public?: boolean | null
           outer_box_dimensions?: string | null
           outer_size_cm?: string | null
           package_outer_size?: string | null
@@ -715,6 +717,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_fragile?: boolean | null
+          is_public?: boolean | null
           outer_box_dimensions?: string | null
           outer_size_cm?: string | null
           package_outer_size?: string | null
