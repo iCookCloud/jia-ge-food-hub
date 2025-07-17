@@ -334,20 +334,12 @@ const NetworkCenterPage = () => {
       </CardHeader>
       
       <CardContent className="space-y-4">
-        {/* 联系方式 */}
+        {/* 公司信息 */}
         <div className="space-y-2 text-sm">
-          {user.contact_phone && (
-            <div className="flex items-center text-muted-foreground">
-              <Phone className="h-4 w-4 mr-2" />
-              <span>{user.contact_phone}</span>
-            </div>
-          )}
-          {user.contact_email && (
-            <div className="flex items-center text-muted-foreground">
-              <Mail className="h-4 w-4 mr-2" />
-              <span>{user.contact_email}</span>
-            </div>
-          )}
+          <div className="flex items-center text-muted-foreground">
+            <Building2 className="h-4 w-4 mr-2" />
+            <span>{user.company_name}</span>
+          </div>
         </div>
 
         {/* 业绩数据 */}
@@ -375,11 +367,11 @@ const NetworkCenterPage = () => {
             onClick={() => handleAIChat(user)}
           >
             <MessageCircle className="h-4 w-4 mr-1" />
-            AI对话
+            联系厂家
           </Button>
           <Button size="sm" className="flex-1">
             <Share2 className="h-4 w-4 mr-1" />
-            查看货单
+            咨询报价
           </Button>
         </div>
       </CardContent>
@@ -467,8 +459,8 @@ const NetworkCenterPage = () => {
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-2">供应链网络</h1>
-          <p className="text-muted-foreground">拓展商业人脉，构建供应链合作关系</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">供需中心</h1>
+          <p className="text-muted-foreground">在这里咨询报价和分享货单</p>
         </div>
 
 
@@ -527,7 +519,7 @@ const NetworkCenterPage = () => {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
           <TabsList className="grid w-full grid-cols-1">
-            <TabsTrigger value="network">供应链网络</TabsTrigger>
+            <TabsTrigger value="network">供需网络</TabsTrigger>
           </TabsList>
 
           <TabsContent value="network" className="mt-6">

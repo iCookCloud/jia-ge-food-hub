@@ -41,13 +41,13 @@ const navigationItems = [
     description: "货单分享与返利"
   },
   {
-    title: "网络",
+    title: "供需",
     href: "/network", 
     icon: Users,
-    description: "用户网络与关系"
+    description: "咨询报价与分享货单"
   },
   {
-    title: "视频",
+    title: "学习",
     href: "/materials",
     icon: Video,
     description: "产品展示视频"
