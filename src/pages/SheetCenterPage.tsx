@@ -162,9 +162,19 @@ const SheetCenterPage = () => {
   const handleQuickCreateSuccess = () => {
     setSelectedProducts([]);
     setShowQuickCreator(false);
+    fetchSheets(); // 重新获取货单列表
     toast({
       title: "货单创建成功",
       description: "您的货单已成功创建"
+    });
+  };
+
+  // 处理快速创建失败
+  const handleQuickCreateError = (error: string) => {
+    toast({
+      title: "货单创建失败",
+      description: `创建失败，请检查错误：${error}`,
+      variant: "destructive"
     });
   };
 
@@ -354,6 +364,7 @@ const SheetCenterPage = () => {
           open={showQuickCreator}
           onOpenChange={setShowQuickCreator}
           onSuccess={handleQuickCreateSuccess}
+          onError={handleQuickCreateError}
         />
       </div>
     </Layout>

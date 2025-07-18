@@ -38,6 +38,7 @@ interface QuickSheetCreatorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  onError?: (error: string) => void;
 }
 
 interface SheetItem {
@@ -51,7 +52,8 @@ export const QuickSheetCreator = ({
   products, 
   open, 
   onOpenChange, 
-  onSuccess 
+  onSuccess,
+  onError 
 }: QuickSheetCreatorProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -199,11 +201,15 @@ export const QuickSheetCreator = ({
       navigate(`/sheets/${quotation.id}`);
     } catch (error) {
       console.error('创建货单失败:', error);
+      const errorMessage = error instanceof Error ? error.message : "货单创建失败，请重试";
+      
       toast({
         title: "创建失败",
-        description: "货单创建失败，请重试",
+        description: `货单创建失败，请检查错误：${errorMessage}`,
         variant: "destructive"
       });
+      
+      onError?.(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -4,11 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Package, 
   Plus, 
   ShoppingCart,
-  Eye
+  Eye,
+  Search
 } from "lucide-react";
 import { useProducts, Product } from "@/hooks/useProducts";
 
@@ -24,11 +27,30 @@ export const ProductBrowser = ({
   selectionMode = false 
 }: ProductBrowserProps) => {
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
+  const [searchSupplier, setSearchSupplier] = useState<string>("all");
+  const [searchText, setSearchText] = useState<string>("");
   
   const { data: products = [], isLoading: productsLoading } = useProducts({});
   
-  // 显示所有产品
-  const filteredProducts = products;
+  // 获取所有供应商
+  const suppliers = Array.from(new Set(products.map(p => p.vendor || "优质食材供应有限公司")));
+  
+  // 过滤产品
+  const filteredProducts = products.filter(product => {
+    // 供应商过滤
+    const productSupplier = product.vendor || "优质食材供应有限公司";
+    const supplierMatch = searchSupplier === "all" || productSupplier === searchSupplier;
+    
+    // 文本搜索（类别或商品名称）
+    const textMatch = !searchText || 
+      (product.standard_chinese_name?.toLowerCase().includes(searchText.toLowerCase())) ||
+      (product.standard_english_name?.toLowerCase().includes(searchText.toLowerCase())) ||
+      (product.category_chinese?.toLowerCase().includes(searchText.toLowerCase())) ||
+      (product.category_english?.toLowerCase().includes(searchText.toLowerCase())) ||
+      (product.sku?.toLowerCase().includes(searchText.toLowerCase()));
+    
+    return supplierMatch && textMatch;
+  });
 
   // 按供应商分组 - 现在所有商品都属于优质食材供应有限公司
   const groupedProducts = filteredProducts.reduce((groups, product) => {
@@ -128,7 +150,46 @@ export const ProductBrowser = ({
 
   return (
     <div className="space-y-4">
-      {/* 工具栏 */}
+      {/* 搜索工具栏 */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 供应商选择 */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">按供应商筛选</label>
+              <Select value={searchSupplier} onValueChange={setSearchSupplier}>
+                <SelectTrigger>
+                  <SelectValue placeholder="选择供应商" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部供应商</SelectItem>
+                  {suppliers.map(supplier => (
+                    <SelectItem key={supplier} value={supplier}>
+                      {supplier}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* 文本搜索 */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">按类别或商品名称搜索</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="输入类别或商品名称..."
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 选择工具栏 */}
       {selectionMode && (
         <Card>
           <CardContent className="p-4">
