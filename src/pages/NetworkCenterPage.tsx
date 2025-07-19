@@ -103,7 +103,7 @@ const NetworkCenterPage = () => {
   const fetchNetworkData = async () => {
     setLoading(true);
     try {
-      // Fetch all suppliers/users (not just verified ones)
+      // Fetch all suppliers (no relationship restrictions)
       const { data: suppliersData, error: suppliersError } = await supabase
         .from('supplier_credentials')
         .select(`
@@ -113,9 +113,9 @@ const NetworkCenterPage = () => {
           contact_phone,
           contact_email,
           verification_status,
-          profiles!inner(nickname, avatar_url, created_at)
+          profiles(nickname, avatar_url, created_at)
         `);
-        // 移除 .eq('verification_status', 'verified') 限制，显示所有供应商
+        // 显示所有供应商，不限制关系和验证状态
 
       if (suppliersError) {
         console.error('获取供应商数据失败:', suppliersError);
