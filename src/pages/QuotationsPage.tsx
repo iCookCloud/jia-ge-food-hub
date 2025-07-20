@@ -37,6 +37,7 @@ import {
   Eye,
   MessageCircle
 } from "lucide-react";
+import { QuotationChat } from "@/components/quotations/QuotationChat";
 
 // Types
 interface Quotation {
@@ -99,6 +100,8 @@ const QuotationsPage = () => {
   const [quotations, setQuotations] = useState(mockQuotations);
   const [selectedStatus, setSelectedStatus] = useState("全部");
   const [showNewQuotationDialog, setShowNewQuotationDialog] = useState(false);
+  const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
+  const [showChatDialog, setShowChatDialog] = useState(false);
   
   const [newQuotation, setNewQuotation] = useState({
     productName: "",
@@ -155,6 +158,11 @@ const QuotationsPage = () => {
       urgency: "普通",
       requirements: ""
     });
+  };
+
+  const handleOpenChat = (quotation: Quotation) => {
+    setSelectedQuotation(quotation);
+    setShowChatDialog(true);
   };
 
   return (
@@ -353,7 +361,11 @@ const QuotationsPage = () => {
                         <Button variant="ghost" size="icon-sm">
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon-sm">
+                        <Button 
+                          variant="ghost" 
+                          size="icon-sm"
+                          onClick={() => handleOpenChat(quotation)}
+                        >
                           <MessageCircle className="h-4 w-4" />
                         </Button>
                         {quotation.status === "已报价" && (
@@ -369,6 +381,18 @@ const QuotationsPage = () => {
             </Table>
           </CardContent>
         </Card>
+
+        {/* 询价沟通对话框 */}
+        {selectedQuotation && (
+          <QuotationChat
+            quotationId={selectedQuotation.id}
+            supplierId="mock-supplier-id" // 这里应该从实际数据获取
+            supplierName={selectedQuotation.supplierName}
+            quotationTitle={selectedQuotation.productName}
+            open={showChatDialog}
+            onOpenChange={setShowChatDialog}
+          />
+        )}
       </div>
     </Layout>
   );

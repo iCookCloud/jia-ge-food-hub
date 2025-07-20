@@ -780,6 +780,38 @@ export type Database = {
         }
         Relationships: []
       }
+      quotation_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          last_message_at: string | null
+          participants: Json
+          quotation_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          participants: Json
+          quotation_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          participants?: Json
+          quotation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_conversations_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotation_items: {
         Row: {
           created_at: string
@@ -833,8 +865,10 @@ export type Database = {
           created_at: string
           customer_email: string | null
           customer_id: string | null
+          has_messages: boolean | null
           id: string
           is_shareable: boolean | null
+          last_message_at: string | null
           markup_percentage: number | null
           notes: string | null
           origin_supplier_id: string | null
@@ -852,8 +886,10 @@ export type Database = {
           created_at?: string
           customer_email?: string | null
           customer_id?: string | null
+          has_messages?: boolean | null
           id?: string
           is_shareable?: boolean | null
+          last_message_at?: string | null
           markup_percentage?: number | null
           notes?: string | null
           origin_supplier_id?: string | null
@@ -871,8 +907,10 @@ export type Database = {
           created_at?: string
           customer_email?: string | null
           customer_id?: string | null
+          has_messages?: boolean | null
           id?: string
           is_shareable?: boolean | null
+          last_message_at?: string | null
           markup_percentage?: number | null
           notes?: string | null
           origin_supplier_id?: string | null
@@ -1108,6 +1146,53 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_messages: {
+        Row: {
+          attachments: Json | null
+          content: string
+          created_at: string
+          id: string
+          is_read: boolean
+          message_type: string
+          quotation_id: string | null
+          receiver_id: string
+          sender_id: string
+          updated_at: string
+        }
+        Insert: {
+          attachments?: Json | null
+          content: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message_type?: string
+          quotation_id?: string | null
+          receiver_id: string
+          sender_id: string
+          updated_at?: string
+        }
+        Update: {
+          attachments?: Json | null
+          content?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message_type?: string
+          quotation_id?: string | null
+          receiver_id?: string
+          sender_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_messages_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
             referencedColumns: ["id"]
           },
         ]

@@ -30,7 +30,8 @@ import {
   Settings,
   UserPlus,
   LogIn,
-  ShoppingCart
+  ShoppingCart,
+  MessageCircle
 } from "lucide-react";
 
 const navigationItems = [
@@ -57,6 +58,12 @@ const navigationItems = [
     href: "/orders",
     icon: ShoppingCart,
     description: "订单与返利管理"
+  },
+  {
+    title: "消息",
+    href: "/messages",
+    icon: MessageCircle,
+    description: "消息与沟通"
   },
   {
     title: "管理",
