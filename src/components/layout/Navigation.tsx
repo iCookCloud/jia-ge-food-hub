@@ -60,10 +60,10 @@ const navigationItems = [
     description: "订单与返利管理"
   },
   {
-    title: "消息",
-    href: "/messages",
+    title: "询价",
+    href: "/quotations",
     icon: MessageCircle,
-    description: "消息与沟通"
+    description: "询价与沟通"
   },
   {
     title: "管理",

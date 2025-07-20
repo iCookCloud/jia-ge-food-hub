@@ -6,6 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { 
   Select,
   SelectContent,
@@ -35,9 +39,16 @@ import {
   CheckCircle,
   XCircle,
   Eye,
-  MessageCircle
+  MessageCircle,
+  Phone,
+  Mail,
+  User,
+  Send
 } from "lucide-react";
 import { QuotationChat } from "@/components/quotations/QuotationChat";
+import { useMessages, useSendMessage } from "@/hooks/useMessages";
+import { formatDistanceToNow } from "date-fns";
+import { zhCN } from "date-fns/locale";
 
 // Types
 interface Quotation {
@@ -102,6 +113,11 @@ const QuotationsPage = () => {
   const [showNewQuotationDialog, setShowNewQuotationDialog] = useState(false);
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
   const [showChatDialog, setShowChatDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState("quotations");
+  const [newMessage, setNewMessage] = useState("");
+  
+  const { data: messages = [] } = useMessages();
+  const sendMessage = useSendMessage();
   
   const [newQuotation, setNewQuotation] = useState({
     productName: "",
@@ -171,8 +187,8 @@ const QuotationsPage = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">询价管理</h1>
-            <p className="text-muted-foreground">管理您的询价单，跟踪报价进度</p>
+            <h1 className="text-3xl font-bold text-foreground mb-2">询价中心</h1>
+            <p className="text-muted-foreground">管理询价单，供应商联系和沟通记录</p>
           </div>
           
           <Dialog open={showNewQuotationDialog} onOpenChange={setShowNewQuotationDialog}>
@@ -304,83 +320,209 @@ const QuotationsPage = () => {
           ))}
         </div>
 
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-4">
-              <Label>状态筛选:</Label>
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="全部">全部状态</SelectItem>
-                  <SelectItem value="待报价">待报价</SelectItem>
-                  <SelectItem value="已报价">已报价</SelectItem>
-                  <SelectItem value="已成交">已成交</SelectItem>
-                  <SelectItem value="失效">失效</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+        {/* 主要内容区域 */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="quotations">询价单</TabsTrigger>
+            <TabsTrigger value="suppliers">供应商联系</TabsTrigger>
+            <TabsTrigger value="messages">沟通记录</TabsTrigger>
+          </TabsList>
 
-        {/* Quotations Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>询价单列表</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>询价单号</TableHead>
-                  <TableHead>商品信息</TableHead>
-                  <TableHead>供应商</TableHead>
-                  <TableHead>数量</TableHead>
-                  <TableHead>期望交期</TableHead>
-                  <TableHead>状态</TableHead>
-                  <TableHead>金额</TableHead>
-                  <TableHead>操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredQuotations.map((quotation) => (
-                  <TableRow key={quotation.id}>
-                    <TableCell className="font-mono">{quotation.id}</TableCell>
-                    <TableCell>{quotation.productName}</TableCell>
-                    <TableCell>{quotation.supplierName}</TableCell>
-                    <TableCell>{quotation.quantity}{quotation.unit}</TableCell>
-                    <TableCell>{quotation.requestedDelivery}</TableCell>
-                    <TableCell>{getStatusBadge(quotation.status)}</TableCell>
-                    <TableCell className="font-semibold">
-                      ¥{quotation.quotedAmount || quotation.finalAmount || quotation.estimatedAmount}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-1">
-                        <Button variant="ghost" size="icon-sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon-sm"
-                          onClick={() => handleOpenChat(quotation)}
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                        </Button>
-                        {quotation.status === "已报价" && (
-                          <Button variant="default" size="sm">
-                            加入订单
-                          </Button>
-                        )}
+          {/* 询价单列表 */}
+          <TabsContent value="quotations" className="mt-6">
+            {/* Filters */}
+            <Card className="mb-6">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-4">
+                  <Label>状态筛选:</Label>
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="全部">全部状态</SelectItem>
+                      <SelectItem value="待报价">待报价</SelectItem>
+                      <SelectItem value="已报价">已报价</SelectItem>
+                      <SelectItem value="已成交">已成交</SelectItem>
+                      <SelectItem value="失效">失效</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>询价单列表</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>询价单号</TableHead>
+                      <TableHead>商品信息</TableHead>
+                      <TableHead>供应商</TableHead>
+                      <TableHead>数量</TableHead>
+                      <TableHead>期望交期</TableHead>
+                      <TableHead>状态</TableHead>
+                      <TableHead>金额</TableHead>
+                      <TableHead>操作</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredQuotations.map((quotation) => (
+                      <TableRow key={quotation.id}>
+                        <TableCell className="font-mono">{quotation.id}</TableCell>
+                        <TableCell>{quotation.productName}</TableCell>
+                        <TableCell>{quotation.supplierName}</TableCell>
+                        <TableCell>{quotation.quantity}{quotation.unit}</TableCell>
+                        <TableCell>{quotation.requestedDelivery}</TableCell>
+                        <TableCell>{getStatusBadge(quotation.status)}</TableCell>
+                        <TableCell className="font-semibold">
+                          ¥{quotation.quotedAmount || quotation.finalAmount || quotation.estimatedAmount}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-1">
+                            <Button variant="ghost" size="icon-sm">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon-sm"
+                              onClick={() => handleOpenChat(quotation)}
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                            </Button>
+                            {quotation.status === "已报价" && (
+                              <Button variant="default" size="sm">
+                                加入订单
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 供应商联系 */}
+          <TabsContent value="suppliers" className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {["海鲜直供", "优质肉类", "绿色农场"].map((supplier, index) => (
+                <Card key={index} className="hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-12 w-12">
+                        <AvatarFallback>
+                          <User className="h-6 w-6" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <CardTitle className="text-lg">{supplier}</CardTitle>
+                        <p className="text-sm text-muted-foreground">优质供应商</p>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2 text-sm">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span>联系人: 张经理</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-sm">
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <span>13800138000</span>
+                        <Button variant="outline" size="sm">拨打</Button>
+                      </div>
+                      <div className="flex items-center space-x-2 text-sm">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <span>supplier@example.com</span>
+                      </div>
+                      
+                      <Separator />
+                      
+                      <div className="flex space-x-2">
+                        <Button variant="outline" size="sm" className="flex-1">
+                          <MessageCircle className="h-4 w-4 mr-1" />
+                          发消息
+                        </Button>
+                        <Button variant="default" size="sm" className="flex-1">
+                          新询价
+                        </Button>
+                      </div>
+                      
+                      <div className="text-xs text-muted-foreground">
+                        <p>合作询价: 5次</p>
+                        <p>成交订单: 3次</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          {/* 沟通记录 */}
+          <TabsContent value="messages" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <MessageCircle className="h-5 w-5" />
+                  <span>询价沟通记录</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[500px]">
+                  {messages.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8">
+                      <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>暂无沟通记录</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {messages.map((message) => (
+                        <Card key={message.id} className="p-4">
+                          <div className="flex items-start space-x-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={message.sender_profile?.avatar_url} />
+                              <AvatarFallback>
+                                <User className="h-4 w-4" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center space-x-2">
+                                  <span className="font-medium text-sm">
+                                    {message.sender_profile?.nickname || '用户'}
+                                  </span>
+                                  {message.quotation && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {message.quotation.sheet_name || '询价单'}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatDistanceToNow(new Date(message.created_at), {
+                                    addSuffix: true,
+                                    locale: zhCN
+                                  })}
+                                </span>
+                              </div>
+                              <p className="text-sm">{message.content}</p>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* 询价沟通对话框 */}
         {selectedQuotation && (

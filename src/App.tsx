@@ -18,7 +18,7 @@ import MaterialDetailPage from "./pages/MaterialDetailPage";
 import VideoUploadPage from "./pages/VideoUploadPage";
 import QuotationsPage from "./pages/QuotationsPage";
 import OrdersPage from "./pages/OrdersPage";
-import MessagesPage from "./pages/MessagesPage";
+
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import SupplierProductsPage from "./pages/SupplierProductsPage";
@@ -100,11 +100,6 @@ const App = () => (
             <Route path="/orders" element={
               <ProtectedRoute>
                 <OrdersPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/messages" element={
-              <ProtectedRoute>
-                <MessagesPage />
               </ProtectedRoute>
             } />
             <Route path="/sheets" element={
