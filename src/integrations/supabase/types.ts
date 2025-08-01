@@ -139,13 +139,6 @@ export type Database = {
             referencedRelation: "product_lists"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "fk_customer_invitations_supplier"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "supplier_credentials"
-            referencedColumns: ["user_id"]
-          },
         ]
       }
       order_items: {
@@ -205,7 +198,6 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
-          origin_supplier_id: string | null
           sheet_id: string | null
           shipping_address: string | null
           status: string
@@ -216,7 +208,6 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
-          origin_supplier_id?: string | null
           sheet_id?: string | null
           shipping_address?: string | null
           status?: string
@@ -227,7 +218,6 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
-          origin_supplier_id?: string | null
           sheet_id?: string | null
           shipping_address?: string | null
           status?: string
@@ -334,7 +324,6 @@ export type Database = {
           is_public: boolean
           name: string
           share_code: string | null
-          supplier_id: string
           updated_at: string
         }
         Insert: {
@@ -345,7 +334,6 @@ export type Database = {
           is_public?: boolean
           name: string
           share_code?: string | null
-          supplier_id: string
           updated_at?: string
         }
         Update: {
@@ -356,18 +344,9 @@ export type Database = {
           is_public?: boolean
           name?: string
           share_code?: string | null
-          supplier_id?: string
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "fk_product_lists_supplier"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "supplier_credentials"
-            referencedColumns: ["user_id"]
-          },
-        ]
+        Relationships: []
       }
       product_variants: {
         Row: {
@@ -425,7 +404,6 @@ export type Database = {
           id: string
           is_active: boolean
           status: string
-          supplier_id: string
           thumbnail_url: string | null
           title: string
           updated_at: string
@@ -439,7 +417,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           status?: string
-          supplier_id: string
           thumbnail_url?: string | null
           title: string
           updated_at?: string
@@ -453,21 +430,12 @@ export type Database = {
           id?: string
           is_active?: boolean
           status?: string
-          supplier_id?: string
           thumbnail_url?: string | null
           title?: string
           updated_at?: string
           video_url?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "fk_product_videos_supplier"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "supplier_credentials"
-            referencedColumns: ["user_id"]
-          },
-        ]
+        Relationships: []
       }
       products: {
         Row: {
@@ -706,12 +674,10 @@ export type Database = {
           last_message_at: string | null
           markup_percentage: number | null
           notes: string | null
-          origin_supplier_id: string | null
           product_list_id: string
           sheet_name: string | null
           sheet_type: string | null
           status: string
-          supplier_id: string
           total_amount: number
           updated_at: string
           valid_until: string | null
@@ -726,12 +692,10 @@ export type Database = {
           last_message_at?: string | null
           markup_percentage?: number | null
           notes?: string | null
-          origin_supplier_id?: string | null
           product_list_id: string
           sheet_name?: string | null
           sheet_type?: string | null
           status?: string
-          supplier_id: string
           total_amount?: number
           updated_at?: string
           valid_until?: string | null
@@ -746,12 +710,10 @@ export type Database = {
           last_message_at?: string | null
           markup_percentage?: number | null
           notes?: string | null
-          origin_supplier_id?: string | null
           product_list_id?: string
           sheet_name?: string | null
           sheet_type?: string | null
           status?: string
-          supplier_id?: string
           total_amount?: number
           updated_at?: string
           valid_until?: string | null
@@ -763,13 +725,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_lists"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_quotations_supplier"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "supplier_credentials"
-            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -804,56 +759,6 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      supplier_credentials: {
-        Row: {
-          business_license: string | null
-          company_name: string
-          contact_email: string
-          contact_person: string
-          contact_phone: string
-          created_at: string
-          id: string
-          updated_at: string
-          user_id: string
-          verification_date: string | null
-          verification_status: string
-        }
-        Insert: {
-          business_license?: string | null
-          company_name: string
-          contact_email: string
-          contact_person: string
-          contact_phone: string
-          created_at?: string
-          id?: string
-          updated_at?: string
-          user_id: string
-          verification_date?: string | null
-          verification_status?: string
-        }
-        Update: {
-          business_license?: string | null
-          company_name?: string
-          contact_email?: string
-          contact_person?: string
-          contact_phone?: string
-          created_at?: string
-          id?: string
-          updated_at?: string
-          user_id?: string
-          verification_date?: string | null
-          verification_status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_supplier_credentials_profiles"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

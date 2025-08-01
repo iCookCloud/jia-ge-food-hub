@@ -100,22 +100,7 @@ export const realtimeService = {
     });
   },
 
-  /**
-   * 订阅供应商认证状态变更
-   */
-  subscribeToSupplierVerification(callback: (payload: any) => void, userId?: string): RealtimeSubscription {
-    return this.subscribe({
-      table: 'supplier_credentials',
-      filter: userId ? `user_id=eq.${userId}` : undefined,
-      event: 'UPDATE',
-      callback: (payload) => {
-        if (payload.new.verification_status !== payload.old.verification_status) {
-          console.log('Supplier verification status changed:', payload);
-          callback(payload);
-        }
-      }
-    });
-  },
+  // Note: Supplier verification subscription has been removed
 
   /**
    * 用户在线状态管理

@@ -136,12 +136,10 @@ export const statisticsService = {
   async getDashboardStats() {
     const [
       productsCount,
-      suppliersCount,
       ordersCount,
       videosCount
     ] = await Promise.all([
       supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true),
-      supabase.from('supplier_credentials').select('id', { count: 'exact', head: true }).eq('verification_status', 'verified'),
       supabase.from('orders').select('id', { count: 'exact', head: true }),
       supabase.from('product_videos').select('id', { count: 'exact', head: true }).eq('is_active', true)
     ]);

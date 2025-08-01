@@ -17,7 +17,6 @@ export const quotationService = {
       .from('quotations')
       .select(`
         *,
-        supplier_credentials (company_name),
         profiles (nickname)
       `);
 
@@ -48,7 +47,6 @@ export const quotationService = {
       .from('quotations')
       .select(`
         *,
-        supplier_credentials (company_name, contact_person),
         profiles (nickname),
         quotation_items(*)
       `)

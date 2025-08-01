@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth, UserRole } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
-import { AlertTriangle, Lock, User } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ProtectedRouteProps {
@@ -79,8 +79,6 @@ const getRoleDisplayName = (role: UserRole | null): string => {
   switch (role) {
     case 'admin':
       return '管理员';
-    case 'supplier':
-      return '供应商';
     case 'buyer':
       return '采购商';
     default:
@@ -101,16 +99,8 @@ export const AdminRoute = ({ children }: { children: ReactNode }) => (
   <ProtectedRoute requiredRole="admin">{children}</ProtectedRoute>
 );
 
-export const SupplierRoute = ({ children }: { children: ReactNode }) => (
-  <ProtectedRoute requiredRole="supplier">{children}</ProtectedRoute>
-);
-
 export const BuyerRoute = ({ children }: { children: ReactNode }) => (
   <ProtectedRoute requiredRole="buyer">{children}</ProtectedRoute>
-);
-
-export const SupplierOrAdminRoute = ({ children }: { children: ReactNode }) => (
-  <ProtectedRoute requiredRole={['supplier', 'admin']}>{children}</ProtectedRoute>
 );
 
 // Public route that doesn't require authentication

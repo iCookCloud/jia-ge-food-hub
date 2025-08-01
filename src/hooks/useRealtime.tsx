@@ -65,24 +65,7 @@ export const useRealtime = () => {
     }, user.id);
     subscriptions.push(notificationsSub);
 
-    // 订阅供应商认证状态变更
-    const supplierVerificationSub = realtimeService.subscribeToSupplierVerification((payload) => {
-      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
-      queryClient.invalidateQueries({ queryKey: ['supplier', payload.new.user_id] });
-      
-      const statusMap = {
-        'pending': '待审核',
-        'verified': '已认证',
-        'rejected': '已拒绝'
-      };
-      
-      toast({
-        title: '认证状态更新',
-        description: `供应商认证状态已更新为：${statusMap[payload.new.verification_status as keyof typeof statusMap]}`,
-        variant: payload.new.verification_status === 'verified' ? 'default' : 'destructive'
-      });
-    }, user.id);
-    subscriptions.push(supplierVerificationSub);
+    // Note: Supplier verification subscription has been removed
 
     subscriptionsRef.current = subscriptions;
 
@@ -104,9 +87,6 @@ export const useRealtime = () => {
         break;
       case 'quotations':
         queryClient.invalidateQueries({ queryKey: ['quotations'] });
-        break;
-      case 'suppliers':
-        queryClient.invalidateQueries({ queryKey: ['suppliers'] });
         break;
       case 'notifications':
         queryClient.invalidateQueries({ queryKey: ['notifications'] });
