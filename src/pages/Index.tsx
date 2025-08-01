@@ -1,6 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
 import { ProductCard } from "@/components/product/ProductCard";
-import { SupplierCard } from "@/components/supplier/SupplierCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -228,7 +227,29 @@ const Index = () => {
           
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {mockSuppliers.map((supplier) => (
-              <SupplierCard key={supplier.id} supplier={supplier} />
+              <Card key={supplier.id} className="p-6 hover:shadow-card transition-shadow">
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between">
+                    <h3 className="font-semibold text-foreground">{supplier.name}</h3>
+                    {supplier.verified && (
+                      <Badge variant="secondary" className="text-xs">认证</Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground line-clamp-2">{supplier.description}</p>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>{supplier.location}</span>
+                    <span>•</span>
+                    <span>{supplier.productCount}款产品</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {supplier.categories.slice(0, 3).map((category) => (
+                      <Badge key={category} variant="outline" className="text-xs">
+                        {category}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </Card>
             ))}
           </div>
         </section>

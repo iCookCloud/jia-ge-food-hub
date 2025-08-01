@@ -5,27 +5,20 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 
-import { ProtectedRoute, PublicRoute, SupplierRoute, AdminRoute } from "@/components/auth/ProtectedRoute";
+import { ProtectedRoute, PublicRoute, AdminRoute } from "@/components/auth/ProtectedRoute";
 
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import ProductsPage from "./pages/ProductsPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
-import SuppliersPage from "./pages/SuppliersPage";
-import SupplierDetailPage from "./pages/SupplierDetailPage";
+import QuotationsPage from "./pages/QuotationsPage";
+import OrdersPage from "./pages/OrdersPage";
+import ProfilePage from "./pages/ProfilePage";
+import SettingsPage from "./pages/SettingsPage";
 import MaterialsPage from "./pages/MaterialsPage";
 import MaterialDetailPage from "./pages/MaterialDetailPage";
 import VideoUploadPage from "./pages/VideoUploadPage";
-import QuotationsPage from "./pages/QuotationsPage";
-import OrdersPage from "./pages/OrdersPage";
-
-import ProfilePage from "./pages/ProfilePage";
-import SettingsPage from "./pages/SettingsPage";
-import SupplierProductsPage from "./pages/SupplierProductsPage";
-import SupplierQuotationsPage from "./pages/SupplierQuotationsPage";
-import SupplierOrdersPage from "./pages/SupplierOrdersPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
-import AdminSuppliersPage from "./pages/admin/AdminSuppliersPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import ProductCreatePage from "./pages/ProductCreatePage";
 import NotFound from "./pages/NotFound";
@@ -56,19 +49,9 @@ const App = () => (
                 <ProductsPage />
               </PublicRoute>
             } />
-            <Route path="/product/:id" element={
+            <Route path="/products/:id" element={
               <PublicRoute>
                 <ProductDetailPage />
-              </PublicRoute>
-            } />
-            <Route path="/suppliers" element={
-              <PublicRoute>
-                <SuppliersPage />
-              </PublicRoute>
-            } />
-            <Route path="/supplier/:id" element={
-              <PublicRoute>
-                <SupplierDetailPage />
               </PublicRoute>
             } />
             
@@ -114,23 +97,6 @@ const App = () => (
               </ProtectedRoute>
             } />
             
-            {/* Supplier routes */}
-            <Route path="/supplier/products" element={
-              <SupplierRoute>
-                <SupplierProductsPage />
-              </SupplierRoute>
-            } />
-            <Route path="/supplier/quotations" element={
-              <SupplierRoute>
-                <SupplierQuotationsPage />
-              </SupplierRoute>
-            } />
-            <Route path="/supplier/orders" element={
-              <SupplierRoute>
-                <SupplierOrdersPage />
-              </SupplierRoute>
-            } />
-            
             {/* Admin routes */}
             <Route path="/admin" element={
               <AdminRoute>
@@ -140,11 +106,6 @@ const App = () => (
             <Route path="/admin/products" element={
               <AdminRoute>
                 <AdminProductsPage />
-              </AdminRoute>
-            } />
-            <Route path="/admin/suppliers" element={
-              <AdminRoute>
-                <AdminSuppliersPage />
               </AdminRoute>
             } />
             

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProducts } from "@/hooks/useProducts";
-import { useSuppliers } from "@/hooks/useSuppliers";
+// Remove suppliers import for now
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,6 @@ export function GlobalSearch({ children }: GlobalSearchProps) {
   const navigate = useNavigate();
 
   const { data: products = [], isLoading: productsLoading } = useProducts();
-  const { data: suppliers = [], isLoading: suppliersLoading } = useSuppliers();
 
   // Handle keyboard shortcut
   useEffect(() => {
@@ -85,23 +84,6 @@ export function GlobalSearch({ children }: GlobalSearchProps) {
       }
     });
 
-    // Search suppliers
-    suppliers.forEach(supplier => {
-      if (supplier.company_name.toLowerCase().includes(searchTerm) ||
-          supplier.contact_person.toLowerCase().includes(searchTerm)) {
-        results.push({
-          id: supplier.id,
-          title: supplier.company_name,
-          description: `联系人：${supplier.contact_person} | 电话：${supplier.contact_phone}`,
-          type: 'supplier',
-          url: `/supplier/${supplier.id}`,
-          metadata: {
-            verified: supplier.verification_status === 'verified',
-            email: supplier.contact_email
-          }
-        });
-      }
-    });
 
     // Mock video search results
     if (searchTerm.includes('视频') || searchTerm.includes('教程') || searchTerm.includes('展示')) {
@@ -129,7 +111,7 @@ export function GlobalSearch({ children }: GlobalSearchProps) {
 
     setSearchResults(results.slice(0, 20)); // Limit to 20 results
     setIsSearching(false);
-  }, [query, products, suppliers]);
+  }, [query, products]);
 
   const handleResultClick = (result: SearchResult) => {
     navigate(result.url);
@@ -209,7 +191,7 @@ export function GlobalSearch({ children }: GlobalSearchProps) {
                 </div>
               </div>
             </div>
-          ) : isSearching || productsLoading || suppliersLoading ? (
+          ) : isSearching || productsLoading ? (
             <div className="p-4 space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="flex items-center space-x-3 p-3">
@@ -224,12 +206,12 @@ export function GlobalSearch({ children }: GlobalSearchProps) {
           ) : searchResults.length > 0 ? (
             <div className="p-2">
               {/* Group results by type */}
-              {['product', 'supplier', 'video'].map(type => {
+              {['product', 'video'].map(type => {
                 const typeResults = searchResults.filter(r => r.type === type);
                 if (typeResults.length === 0) return null;
 
                 const TypeIcon = getTypeIcon(type as SearchResult['type']);
-                const typeName = type === 'product' ? '商品' : type === 'supplier' ? '供应商' : '视频';
+                const typeName = type === 'product' ? '商品' : '视频';
 
                 return (
                   <div key={type} className="mb-4">

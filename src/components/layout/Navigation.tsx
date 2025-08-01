@@ -42,12 +42,6 @@ const navigationItems = [
     description: "商品浏览与查看"
   },
   {
-    title: "供应商",
-    href: "/suppliers",
-    icon: Building2,
-    description: "供应商信息"
-  },
-  {
     title: "学习",
     href: "/materials",
     icon: Video,
@@ -76,7 +70,7 @@ const navigationItems = [
 export function DesktopNavigation() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, userRole, profile, signOut, isAdmin, isSupplier } = useAuth();
+  const { user, userRole, profile, signOut, isAdmin } = useAuth();
   
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
@@ -172,30 +166,12 @@ export function DesktopNavigation() {
                 </DropdownMenuItem>
                 
                 {/* Role-specific menu items */}
-                {isSupplier && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => navigate('/supplier/products')}>
-                      <Package className="h-4 w-4 mr-2" />
-                      商品管理
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate('/supplier/quotations')}>
-                      <FileText className="h-4 w-4 mr-2" />
-                      报价管理
-                    </DropdownMenuItem>
-                  </>
-                )}
-                
                 {isAdmin && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => navigate('/admin/products')}>
                       <Package className="h-4 w-4 mr-2" />
                       商品管理
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate('/admin/suppliers')}>
-                      <Building2 className="h-4 w-4 mr-2" />
-                      供应商管理
                     </DropdownMenuItem>
                   </>
                 )}
