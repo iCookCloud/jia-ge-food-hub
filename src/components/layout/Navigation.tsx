@@ -36,16 +36,16 @@ import {
 
 const navigationItems = [
   {
-    title: "货单",
-    href: "/",
-    icon: FileText,
-    description: "货单分享与返利"
+    title: "商品",
+    href: "/products",
+    icon: Package,
+    description: "商品浏览与查看"
   },
   {
-    title: "供需",
-    href: "/network", 
-    icon: Users,
-    description: "咨询报价与分享货单"
+    title: "供应商",
+    href: "/suppliers",
+    icon: Building2,
+    description: "供应商信息"
   },
   {
     title: "学习",
@@ -57,7 +57,7 @@ const navigationItems = [
     title: "订单",
     href: "/orders",
     icon: ShoppingCart,
-    description: "订单与返利管理"
+    description: "订单管理"
   },
   {
     title: "询价",

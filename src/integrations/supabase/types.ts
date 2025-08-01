@@ -61,63 +61,6 @@ export type Database = {
           },
         ]
       }
-      commission_distributions: {
-        Row: {
-          commission_amount: number
-          commission_rate: number
-          contribution_score: number | null
-          created_at: string | null
-          distribution_type: string | null
-          id: string
-          order_id: string
-          order_total: number
-          share_chain_id: string
-          sheet_id: string
-          user_id: string
-        }
-        Insert: {
-          commission_amount: number
-          commission_rate: number
-          contribution_score?: number | null
-          created_at?: string | null
-          distribution_type?: string | null
-          id?: string
-          order_id: string
-          order_total: number
-          share_chain_id: string
-          sheet_id: string
-          user_id: string
-        }
-        Update: {
-          commission_amount?: number
-          commission_rate?: number
-          contribution_score?: number | null
-          created_at?: string | null
-          distribution_type?: string | null
-          id?: string
-          order_id?: string
-          order_total?: number
-          share_chain_id?: string
-          sheet_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "commission_distributions_share_chain_id_fkey"
-            columns: ["share_chain_id"]
-            isOneToOne: false
-            referencedRelation: "share_chains"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "commission_distributions_sheet_id_fkey"
-            columns: ["sheet_id"]
-            isOneToOne: false
-            referencedRelation: "quotations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       coupons: {
         Row: {
           code: string
@@ -205,98 +148,6 @@ export type Database = {
           },
         ]
       }
-      distribution_applications: {
-        Row: {
-          applicant_id: string
-          application_reason: string | null
-          approved_at: string | null
-          approved_by: string | null
-          created_at: string
-          id: string
-          status: string
-          supplier_id: string
-          updated_at: string
-        }
-        Insert: {
-          applicant_id: string
-          application_reason?: string | null
-          approved_at?: string | null
-          approved_by?: string | null
-          created_at?: string
-          id?: string
-          status?: string
-          supplier_id: string
-          updated_at?: string
-        }
-        Update: {
-          applicant_id?: string
-          application_reason?: string | null
-          approved_at?: string | null
-          approved_by?: string | null
-          created_at?: string
-          id?: string
-          status?: string
-          supplier_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_distribution_applications_supplier"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "supplier_credentials"
-            referencedColumns: ["user_id"]
-          },
-        ]
-      }
-      distribution_authorizations: {
-        Row: {
-          authorized_at: string
-          created_at: string
-          distributor_id: string
-          expires_at: string | null
-          id: string
-          is_active: boolean
-          max_markup_percentage: number | null
-          supplier_id: string
-        }
-        Insert: {
-          authorized_at?: string
-          created_at?: string
-          distributor_id: string
-          expires_at?: string | null
-          id?: string
-          is_active?: boolean
-          max_markup_percentage?: number | null
-          supplier_id: string
-        }
-        Update: {
-          authorized_at?: string
-          created_at?: string
-          distributor_id?: string
-          expires_at?: string | null
-          id?: string
-          is_active?: boolean
-          max_markup_percentage?: number | null
-          supplier_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_distribution_authorizations_distributor"
-            columns: ["distributor_id"]
-            isOneToOne: false
-            referencedRelation: "supplier_credentials"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "fk_distribution_authorizations_supplier"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "supplier_credentials"
-            referencedColumns: ["user_id"]
-          },
-        ]
-      }
       order_items: {
         Row: {
           id: string
@@ -355,9 +206,6 @@ export type Database = {
           created_at: string | null
           id: string
           origin_supplier_id: string | null
-          rebate_chain: string | null
-          rebate_total: number | null
-          share_chain_id: string | null
           sheet_id: string | null
           shipping_address: string | null
           status: string
@@ -369,9 +217,6 @@ export type Database = {
           created_at?: string | null
           id?: string
           origin_supplier_id?: string | null
-          rebate_chain?: string | null
-          rebate_total?: number | null
-          share_chain_id?: string | null
           sheet_id?: string | null
           shipping_address?: string | null
           status?: string
@@ -383,9 +228,6 @@ export type Database = {
           created_at?: string | null
           id?: string
           origin_supplier_id?: string | null
-          rebate_chain?: string | null
-          rebate_total?: number | null
-          share_chain_id?: string | null
           sheet_id?: string | null
           shipping_address?: string | null
           status?: string
@@ -394,13 +236,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "orders_share_chain_id_fkey"
-            columns: ["share_chain_id"]
-            isOneToOne: false
-            referencedRelation: "share_chains"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "orders_sheet_id_fkey"
             columns: ["sheet_id"]
@@ -873,7 +708,6 @@ export type Database = {
           notes: string | null
           origin_supplier_id: string | null
           product_list_id: string
-          rebate_total: number | null
           sheet_name: string | null
           sheet_type: string | null
           status: string
@@ -894,7 +728,6 @@ export type Database = {
           notes?: string | null
           origin_supplier_id?: string | null
           product_list_id: string
-          rebate_total?: number | null
           sheet_name?: string | null
           sheet_type?: string | null
           status?: string
@@ -915,7 +748,6 @@ export type Database = {
           notes?: string | null
           origin_supplier_id?: string | null
           product_list_id?: string
-          rebate_total?: number | null
           sheet_name?: string | null
           sheet_type?: string | null
           status?: string
@@ -972,69 +804,6 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      share_chains: {
-        Row: {
-          children_count: number | null
-          created_at: string | null
-          id: string
-          is_active: boolean | null
-          parent_id: string | null
-          share_code: string
-          share_depth: number | null
-          sheet_id: string
-          total_commission: number | null
-          total_orders: number | null
-          total_sales: number | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          children_count?: number | null
-          created_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          parent_id?: string | null
-          share_code: string
-          share_depth?: number | null
-          sheet_id: string
-          total_commission?: number | null
-          total_orders?: number | null
-          total_sales?: number | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          children_count?: number | null
-          created_at?: string | null
-          id?: string
-          is_active?: boolean | null
-          parent_id?: string | null
-          share_code?: string
-          share_depth?: number | null
-          sheet_id?: string
-          total_commission?: number | null
-          total_orders?: number | null
-          total_sales?: number | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "share_chains_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "share_chains"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "share_chains_sheet_id_fkey"
-            columns: ["sheet_id"]
-            isOneToOne: false
-            referencedRelation: "quotations"
             referencedColumns: ["id"]
           },
         ]

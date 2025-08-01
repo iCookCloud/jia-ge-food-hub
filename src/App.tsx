@@ -27,10 +27,6 @@ import SupplierOrdersPage from "./pages/SupplierOrdersPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
 import AdminSuppliersPage from "./pages/admin/AdminSuppliersPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
-import SheetCenterPage from "./pages/SheetCenterPage";
-import SheetDetailPage from "./pages/SheetDetailPage";
-import SheetCreatePage from "./pages/SheetCreatePage";
-import NetworkCenterPage from "./pages/NetworkCenterPage";
 import ProductCreatePage from "./pages/ProductCreatePage";
 import NotFound from "./pages/NotFound";
 
@@ -47,7 +43,7 @@ const App = () => (
             {/* Public routes */}
             <Route path="/" element={
               <PublicRoute>
-                <SheetCenterPage />
+                <ProductsPage />
               </PublicRoute>
             } />
             <Route path="/auth" element={
@@ -102,30 +98,10 @@ const App = () => (
                 <OrdersPage />
               </ProtectedRoute>
             } />
-            <Route path="/sheets" element={
-              <PublicRoute>
-                <SheetCenterPage />
-              </PublicRoute>
-            } />
-            <Route path="/sheets/:id" element={
-              <PublicRoute>
-                <SheetDetailPage />
-              </PublicRoute>
-            } />
-            <Route path="/sheets/create" element={
-              <ProtectedRoute>
-                <SheetCreatePage />
-              </ProtectedRoute>
-            } />
             <Route path="/products/create" element={
               <ProtectedRoute>
                 <ProductCreatePage />
               </ProtectedRoute>
-            } />
-            <Route path="/network" element={
-              <PublicRoute>
-                <NetworkCenterPage />
-              </PublicRoute>
             } />
             <Route path="/profile" element={
               <ProtectedRoute>

@@ -26,10 +26,9 @@ const OrdersPage = () => {
       id: "ORD001",
       sheet_name: "优质海鲜拼盘",
       total_amount: 2580,
-      rebate_earned: 258,
       status: "completed",
       created_at: "2024-01-15",
-      share_chain: "供应商A → 分销商B → 我",
+      supplier_name: "海鲜供应商A",
       items: [
         { name: "挪威三文鱼片", quantity: 2, price: 256 },
         { name: "澳洲龙虾", quantity: 1, price: 680 }
@@ -39,10 +38,9 @@ const OrdersPage = () => {
       id: "ORD002", 
       sheet_name: "火锅食材套餐",
       total_amount: 1200,
-      rebate_earned: 120,
       status: "processing",
       created_at: "2024-01-12",
-      share_chain: "供应商C → 我",
+      supplier_name: "火锅食材供应商C",
       items: [
         { name: "优质牛肉卷", quantity: 3, price: 180 },
         { name: "新鲜蔬菜拼盘", quantity: 2, price: 120 }
@@ -50,50 +48,48 @@ const OrdersPage = () => {
     }
   ];
 
-  const rebateIncome = [
+  const orderStats = [
     {
-      id: "REB001",
-      source_order: "ORD003",
-      referral_user: "张三",
-      amount: 450,
-      rate: 0.15,
-      sheet_name: "精选调料套装",
-      created_at: "2024-01-14",
-      status: "paid"
+      period: "本月",
+      orders_count: 15,
+      total_amount: 28500,
+      avg_order: 1900
     },
     {
-      id: "REB002",
-      source_order: "ORD004", 
-      referral_user: "李四",
-      amount: 680,
-      rate: 0.12,
-      sheet_name: "有机蔬菜专供",
-      created_at: "2024-01-10",
-      status: "pending"
+      period: "上月",
+      orders_count: 12,
+      total_amount: 22800,
+      avg_order: 1900
+    },
+    {
+      period: "本年",
+      orders_count: 156,
+      total_amount: 285000,
+      avg_order: 1827
     }
   ];
 
-  const teamPerformance = [
+  const recentSuppliers = [
     {
-      user: "张三",
+      name: "海鲜供应商A",
       orders_count: 15,
-      total_sales: 28500,
-      commission_earned: 3420,
-      rank: 1
+      total_purchases: 28500,
+      last_order: "2024-01-15",
+      rating: 4.8
     },
     {
-      user: "李四", 
+      name: "火锅食材供应商C", 
       orders_count: 12,
-      total_sales: 22800,
-      commission_earned: 2736,
-      rank: 2
+      total_purchases: 22800,
+      last_order: "2024-01-12",
+      rating: 4.6
     },
     {
-      user: "王五",
+      name: "调料供应商B",
       orders_count: 8,
-      total_sales: 15600,
-      commission_earned: 1872,
-      rank: 3
+      total_purchases: 15600,
+      last_order: "2024-01-10",
+      rating: 4.7
     }
   ];
 
@@ -118,17 +114,17 @@ const OrdersPage = () => {
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-2">订单与返利中心</h1>
-          <p className="text-muted-foreground">管理我的采购订单、返利收入和团队业绩</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">订单管理中心</h1>
+          <p className="text-muted-foreground">管理我的采购订单和供应商关系</p>
         </div>
 
         {/* Stats Overview */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
             { label: "总订单", value: orders.length, icon: ShoppingCart },
-            { label: "总返利", value: "¥3,420", icon: DollarSign },
-            { label: "团队订单", value: 35, icon: Users },
-            { label: "本月收益", value: "¥1,130", icon: TrendingUp }
+            { label: "总金额", value: "¥3,780", icon: DollarSign },
+            { label: "供应商", value: 3, icon: Users },
+            { label: "本月采购", value: "¥2,580", icon: TrendingUp }
           ].map((stat, index) => (
             <Card key={index}>
               <CardContent className="p-4">
@@ -147,8 +143,8 @@ const OrdersPage = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="orders">我的订单</TabsTrigger>
-            <TabsTrigger value="rebates">返利收入</TabsTrigger>
-            <TabsTrigger value="team">团队业绩</TabsTrigger>
+            <TabsTrigger value="stats">订单统计</TabsTrigger>
+            <TabsTrigger value="suppliers">供应商关系</TabsTrigger>
           </TabsList>
 
           {/* My Orders */}
@@ -164,11 +160,11 @@ const OrdersPage = () => {
                           {getStatusBadge(order.status)}
                         </div>
                         <p className="text-sm text-muted-foreground">订单号: {order.id}</p>
-                        <p className="text-sm text-muted-foreground">分享链路: {order.share_chain}</p>
+                        <p className="text-sm text-muted-foreground">供应商: {order.supplier_name}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-bold text-primary">¥{order.total_amount}</p>
-                        <p className="text-sm text-success">返利: ¥{order.rebate_earned}</p>
+                        <p className="text-sm text-muted-foreground">{order.created_at}</p>
                       </div>
                     </div>
 
@@ -200,39 +196,28 @@ const OrdersPage = () => {
             </div>
           </TabsContent>
 
-          {/* Rebate Income */}
-          <TabsContent value="rebates" className="mt-6">
+          {/* Order Statistics */}
+          <TabsContent value="stats" className="mt-6">
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">返利明细</h3>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Download className="w-4 h-4 mr-2" />
-                    导出明细
-                  </Button>
-                  <Button size="sm">
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    申请提现
-                  </Button>
-                </div>
+                <h3 className="text-lg font-semibold">订单统计</h3>
+                <Button variant="outline" size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  导出报表
+                </Button>
               </div>
 
-              {rebateIncome.map((rebate) => (
-                <Card key={rebate.id}>
+              {orderStats.map((stat, index) => (
+                <Card key={index}>
                   <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-medium">{rebate.sheet_name}</h4>
-                          {getStatusBadge(rebate.status)}
-                        </div>
-                        <p className="text-sm text-muted-foreground">推荐用户: {rebate.referral_user}</p>
-                        <p className="text-sm text-muted-foreground">返利比例: {(rebate.rate * 100).toFixed(1)}%</p>
-                        <p className="text-sm text-muted-foreground">订单号: {rebate.source_order}</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium text-lg">{stat.period}</h4>
+                        <p className="text-sm text-muted-foreground">共 {stat.orders_count} 个订单</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xl font-bold text-success">+¥{rebate.amount}</p>
-                        <p className="text-sm text-muted-foreground">{rebate.created_at}</p>
+                        <p className="text-xl font-bold text-primary">¥{stat.total_amount.toLocaleString()}</p>
+                        <p className="text-sm text-muted-foreground">平均每单: ¥{stat.avg_order}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -241,31 +226,34 @@ const OrdersPage = () => {
             </div>
           </TabsContent>
 
-          {/* Team Performance */}
-          <TabsContent value="team" className="mt-6">
+          {/* Supplier Relationships */}
+          <TabsContent value="suppliers" className="mt-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <Target className="w-5 h-5 mr-2" />
-                  团队贡献排行榜
+                  <Users className="w-5 h-5 mr-2" />
+                  常用供应商
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {teamPerformance.map((member) => (
-                    <div key={member.user} className="flex items-center justify-between p-4 rounded-lg border">
+                  {recentSuppliers.map((supplier, index) => (
+                    <div key={supplier.name} className="flex items-center justify-between p-4 rounded-lg border">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-                          {member.rank}
+                          {index + 1}
                         </div>
                         <div>
-                          <h4 className="font-medium">{member.user}</h4>
-                          <p className="text-sm text-muted-foreground">{member.orders_count} 个订单</p>
+                          <h4 className="font-medium">{supplier.name}</h4>
+                          <p className="text-sm text-muted-foreground">{supplier.orders_count} 个订单 • 最近订单: {supplier.last_order}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold">¥{member.total_sales.toLocaleString()}</p>
-                        <p className="text-sm text-success">返利: ¥{member.commission_earned}</p>
+                        <p className="font-semibold">¥{supplier.total_purchases.toLocaleString()}</p>
+                        <div className="flex items-center text-sm text-warning">
+                          <span className="mr-1">⭐</span>
+                          <span>{supplier.rating}</span>
+                        </div>
                       </div>
                     </div>
                   ))}

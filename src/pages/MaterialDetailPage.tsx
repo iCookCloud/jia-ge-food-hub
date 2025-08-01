@@ -248,16 +248,16 @@ const MaterialDetailPage = () => {
                     ))}
                   </div>
                   
-                  {/* Related Sheets */}
-                  {(displayVideo as any).relatedSheets?.length > 0 && (
+                  {/* Related Products */}
+                  {(displayVideo as any).relatedProducts?.length > 0 && (
                     <div className="mt-4 p-4 bg-muted rounded-lg">
-                      <h4 className="font-medium mb-2">关联货单</h4>
+                      <h4 className="font-medium mb-2">相关商品</h4>
                       <div className="space-y-2">
-                        {(displayVideo as any).relatedSheets.map((sheet: any) => (
-                          <Link key={sheet.id} to={`/sheets/${sheet.id}`}>
+                        {(displayVideo as any).relatedProducts.map((product: any) => (
+                          <Link key={product.id} to={`/products/${product.id}`}>
                             <div className="flex items-center justify-between p-2 rounded border hover:bg-background transition-colors">
-                              <span className="font-medium">{sheet.name}</span>
-                              <span className="text-sm text-muted-foreground">返利总额: ¥{sheet.rebate_total}</span>
+                              <span className="font-medium">{product.name}</span>
+                              <span className="text-sm text-muted-foreground">价格: ¥{product.price}</span>
                             </div>
                           </Link>
                         ))}
