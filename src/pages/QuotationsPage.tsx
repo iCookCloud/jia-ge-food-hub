@@ -351,61 +351,90 @@ const QuotationsPage = () => {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>询价单列表</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>询价单号</TableHead>
-                      <TableHead>商品信息</TableHead>
-                      <TableHead>供应商</TableHead>
-                      <TableHead>数量</TableHead>
-                      <TableHead>期望交期</TableHead>
-                      <TableHead>状态</TableHead>
-                      <TableHead>金额</TableHead>
-                      <TableHead>操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredQuotations.map((quotation) => (
-                      <TableRow key={quotation.id}>
-                        <TableCell className="font-mono">{quotation.id}</TableCell>
-                        <TableCell>{quotation.productName}</TableCell>
-                        <TableCell>{quotation.supplierName}</TableCell>
-                        <TableCell>{quotation.quantity}{quotation.unit}</TableCell>
-                        <TableCell>{quotation.requestedDelivery}</TableCell>
-                        <TableCell>{getStatusBadge(quotation.status)}</TableCell>
-                        <TableCell className="font-semibold">
-                          ¥{quotation.quotedAmount || quotation.finalAmount || quotation.estimatedAmount}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-1">
-                            <Button variant="ghost" size="icon-sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon-sm"
-                              onClick={() => handleOpenChat(quotation)}
-                            >
-                              <MessageCircle className="h-4 w-4" />
-                            </Button>
-                            {quotation.status === "已报价" && (
-                              <Button variant="default" size="sm">
-                                加入订单
-                              </Button>
-                            )}
+            {/* 卡片式询价单列表 */}
+            <div className="space-y-4">
+              {filteredQuotations.map((quotation) => (
+                <Card key={quotation.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                      {/* 左侧信息 */}
+                      <div className="flex-1 space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-3">
+                              <span className="font-mono text-sm text-muted-foreground">{quotation.id}</span>
+                              {getStatusBadge(quotation.status)}
+                            </div>
+                            <h3 className="font-semibold text-lg text-foreground">{quotation.productName}</h3>
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          <div className="space-y-1">
+                            <p className="text-muted-foreground">供应商</p>
+                            <p className="font-medium">{quotation.supplierName}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-muted-foreground">采购数量</p>
+                            <p className="font-medium">{quotation.quantity}{quotation.unit}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-muted-foreground">期望交期</p>
+                            <p className="font-medium">{quotation.requestedDelivery}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 右侧金额和操作 */}
+                      <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                        <div className="text-right lg:text-left">
+                          <p className="text-sm text-muted-foreground">金额</p>
+                          <p className="text-2xl font-bold text-primary">
+                            ¥{quotation.quotedAmount || quotation.finalAmount || quotation.estimatedAmount}
+                          </p>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm">
+                            <Eye className="h-4 w-4 mr-1" />
+                            查看
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleOpenChat(quotation)}
+                          >
+                            <MessageCircle className="h-4 w-4 mr-1" />
+                            沟通
+                          </Button>
+                          {quotation.status === "已报价" && (
+                            <Button variant="default" size="sm">
+                              加入订单
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              
+              {filteredQuotations.length === 0 && (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">暂无询价单</h3>
+                    <p className="text-muted-foreground mb-4">
+                      {selectedStatus !== "全部" ? `暂无${selectedStatus}询价单` : "还没有创建任何询价单"}
+                    </p>
+                    <Button onClick={() => setShowNewQuotationDialog(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      发起询价
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </TabsContent>
 
           {/* 供应商联系 */}
