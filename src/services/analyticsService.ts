@@ -30,11 +30,6 @@ export const analyticsService = {
           .select('id', { count: 'exact', head: true })
           .eq('is_active', true),
 
-        // 供应商总数
-        supabase
-          .from('supplier_credentials')
-          .select('id', { count: 'exact', head: true })
-          .eq('verification_status', 'verified'),
 
         // 订单总数
         supabase
@@ -61,11 +56,10 @@ export const analyticsService = {
           .limit(10)
       ];
 
-      const [productsResult, suppliersResult, ordersResult, recentOrdersResult] = 
+      const [productsResult, ordersResult, recentOrdersResult] = 
         await Promise.all(promises);
 
       if (productsResult.error) throw productsResult.error;
-      if (suppliersResult.error) throw suppliersResult.error;
       if (ordersResult.error) throw ordersResult.error;
       if (recentOrdersResult.error) throw recentOrdersResult.error;
 
@@ -76,7 +70,7 @@ export const analyticsService = {
       return {
         data: {
           totalProducts: productsResult.count || 0,
-          totalSuppliers: suppliersResult.count || 0,
+          totalSuppliers: 0, // 移除供应商功能
           totalOrders: ordersResult.count || 0,
           totalRevenue,
           recentOrders: recentOrdersResult.data || []
@@ -150,52 +144,13 @@ export const analyticsService = {
   },
 
   /**
-   * 获取供应商业绩统计
+   * 获取供应商业绩统计 - 已移除供应商功能
    */
   async getSupplierStats() {
-    try {
-      const { data, error } = await supabase
-        .from('supplier_credentials')
-        .select(`
-          id,
-          user_id,
-          company_name,
-          verification_status,
-          created_at,
-          profiles (
-            nickname,
-            avatar_url
-          )
-        `);
-
-      if (error) throw error;
-
-      // 获取每个供应商的商品数量
-      const supplierStatsPromises = data?.map(async (supplier) => {
-        const { count: productCount } = await supabase
-          .from('products')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', supplier.user_id)
-          .eq('is_active', true);
-
-        return {
-          ...supplier,
-          productCount: productCount || 0
-        };
-      }) || [];
-
-      const supplierStats = await Promise.all(supplierStatsPromises);
-
-      return {
-        data: supplierStats,
-        error: null
-      };
-    } catch (error) {
-      return {
-        data: [],
-        error: handleApiError(error as Error)
-      };
-    }
+    return {
+      data: [],
+      error: null
+    };
   },
 
   /**

@@ -105,67 +105,6 @@ export const productService = {
   }
 };
 
-// 供应商相关操作
-export const supplierService = {
-  async getAll(filters: FilterParams = {}, pagination: PaginationParams = {}) {
-    let query = supabase
-      .from('supplier_credentials')
-      .select(`
-        *,
-        profiles (
-          nickname,
-          avatar_url
-        )
-      `)
-      .eq('verification_status', 'verified');
-
-    if (filters.search) {
-      query = query.or(`company_name.ilike.%${filters.search}%,contact_person.ilike.%${filters.search}%`);
-    }
-
-    if (pagination.page && pagination.limit) {
-      const offset = (pagination.page - 1) * pagination.limit;
-      query = query.range(offset, offset + pagination.limit - 1);
-    }
-
-    const { data, error } = await query.order('created_at', { ascending: false });
-    return { data, error };
-  },
-
-  async getById(id: string) {
-    const { data, error } = await supabase
-      .from('supplier_credentials')
-      .select(`
-        *,
-        profiles (
-          nickname,
-          avatar_url
-        )
-      `)
-      .eq('id', id)
-      .single();
-    return { data, error };
-  },
-
-  async create(supplierData: any) {
-    const { data, error } = await supabase
-      .from('supplier_credentials')
-      .insert(supplierData)
-      .select()
-      .single();
-    return { data, error };
-  },
-
-  async update(id: string, supplierData: any) {
-    const { data, error } = await supabase
-      .from('supplier_credentials')
-      .update({ ...supplierData, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-    return { data, error };
-  }
-};
 
 // 通用分页辅助函数
 export const applePagination = (query: any, pagination: PaginationParams) => {

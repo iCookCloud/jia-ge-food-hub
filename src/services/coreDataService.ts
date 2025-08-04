@@ -147,7 +147,7 @@ export const statisticsService = {
     return {
       data: {
         products: productsCount.count || 0,
-        suppliers: suppliersCount.count || 0,
+        suppliers: 0, // 移除供应商功能
         orders: ordersCount.count || 0,
         videos: videosCount.count || 0
       },

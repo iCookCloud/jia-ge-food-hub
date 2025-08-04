@@ -27,9 +27,6 @@ export const quotationService = {
     if (filters.customer_id) {
       query = query.eq('customer_id', filters.customer_id);
     }
-    if (filters.supplier_id) {
-      query = query.eq('supplier_id', filters.supplier_id);
-    }
 
     // 应用分页
     if (pagination.page && pagination.limit) {
