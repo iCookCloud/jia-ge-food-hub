@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, MessageCircle, Star, Plus, ShoppingCart } from "lucide-react";
+import { Building2, MessageCircle, Star, Plus } from "lucide-react";
 
 interface ProductCardProps {
   product: {
@@ -87,7 +87,7 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
       </CardContent>
 
-      <CardFooter className="p-4 pt-0 space-y-2">
+      <CardFooter className="p-4 pt-0">
         <div className="flex space-x-2 w-full">
           <Button 
             variant={product.inStock ? "default" : "secondary"} 
@@ -103,10 +103,6 @@ export function ProductCard({ product }: ProductCardProps) {
             加入货单
           </Button>
         </div>
-        <Button variant="ghost" size="sm" className="w-full text-xs">
-          <ShoppingCart className="h-3 w-3" />
-          货单管理
-        </Button>
       </CardFooter>
     </Card>
   );
