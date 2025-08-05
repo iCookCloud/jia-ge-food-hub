@@ -42,7 +42,7 @@ const navigationItems = [
     description: "商品浏览与查看"
   },
   {
-    title: "学习",
+    title: "展示",
     href: "/materials",
     icon: Video,
     description: "产品展示视频"

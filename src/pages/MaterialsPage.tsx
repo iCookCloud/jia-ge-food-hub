@@ -131,7 +131,7 @@ const MaterialsPage = () => {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-2">视频&素材中心</h1>
-            <p className="text-muted-foreground">观看产品展示视频，学习操作教程，了解行业案例</p>
+            <p className="text-muted-foreground">观看产品展示视频，了解操作教程，查看行业案例</p>
           </div>
           {user && (
             <Link to="/materials/upload">
