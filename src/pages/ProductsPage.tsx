@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProducts } from "@/hooks/useProducts";
 import { useCart } from "@/hooks/useCart";
+import { CreateProductListDialog } from "@/components/cart/CreateProductListDialog";
 import { 
   Select,
   SelectContent,
@@ -41,12 +42,13 @@ const origins = ["全部", "本地", "挪威", "澳大利亚", "意大利", "厄
 
 const ProductsPage = () => {
   const { data: products = [], isLoading, error } = useProducts();
-  const { getTotalItems, getTotalAmount, clearCart } = useCart();
+  const { items: cartItems, getTotalItems, getTotalAmount, clearCart } = useCart();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("全部");
   const [selectedOrigin, setSelectedOrigin] = useState("全部");
   const [sortBy, setSortBy] = useState("featured");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   const totalItems = getTotalItems();
   const totalAmount = getTotalAmount();
@@ -158,8 +160,12 @@ const ProductsPage = () => {
                     </div>
                   </div>
                   <div className="flex space-x-2">
-                    <Button size="sm" variant="default">
-                      生成订单
+                    <Button 
+                      size="sm" 
+                      variant="default"
+                      onClick={() => setShowCreateDialog(true)}
+                    >
+                      生成货单
                     </Button>
                     <Button size="sm" variant="outline" onClick={clearCart}>
                       清空
@@ -342,6 +348,15 @@ const ProductsPage = () => {
           </main>
         </div>
       </div>
+
+      <CreateProductListDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        cartItems={cartItems}
+        onSuccess={() => {
+          clearCart();
+        }}
+      />
     </Layout>
   );
 };

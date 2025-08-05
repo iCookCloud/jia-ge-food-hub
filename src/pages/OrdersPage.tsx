@@ -102,7 +102,7 @@ const OrdersPage = () => {
           {/* My Product Lists */}
           <TabsContent value="lists" className="mt-6">
             <div className="space-y-4">
-              {productLists.map((list) => (
+              {displayLists.map((list) => (
                 <Card key={list.id}>
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">

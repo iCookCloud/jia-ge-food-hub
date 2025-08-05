@@ -84,6 +84,10 @@ const ProductDetailPage = () => {
   const [inquiryMessage, setInquiryMessage] = useState("");
   const [showAiChat, setShowAiChat] = useState(false);
 
+  const handleAddToCart = () => {
+    console.log("Add to cart functionality - to be implemented");
+  };
+
   const product = mockProductDetails[id as keyof typeof mockProductDetails];
 
   if (!product) {
@@ -302,7 +306,11 @@ const ProductDetailPage = () => {
                 </div>
 
                 <div className="flex space-x-2">
-                  <Button variant="outline" className="flex-1">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={handleAddToCart}
+                  >
                     <ShoppingCart className="h-4 w-4 mr-2" />
                     加入购物车
                   </Button>
