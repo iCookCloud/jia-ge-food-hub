@@ -279,6 +279,8 @@ export type Database = {
           position: number | null
           product_id: string
           product_list_id: string
+          quantity: number | null
+          unit_price: number | null
         }
         Insert: {
           created_at?: string
@@ -288,6 +290,8 @@ export type Database = {
           position?: number | null
           product_id: string
           product_list_id: string
+          quantity?: number | null
+          unit_price?: number | null
         }
         Update: {
           created_at?: string
@@ -297,6 +301,8 @@ export type Database = {
           position?: number | null
           product_id?: string
           product_list_id?: string
+          quantity?: number | null
+          unit_price?: number | null
         }
         Relationships: [
           {
@@ -324,7 +330,10 @@ export type Database = {
           is_public: boolean
           name: string
           share_code: string | null
+          status: string | null
+          total_amount: number | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -334,7 +343,10 @@ export type Database = {
           is_public?: boolean
           name: string
           share_code?: string | null
+          status?: string | null
+          total_amount?: number | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -344,7 +356,10 @@ export type Database = {
           is_public?: boolean
           name?: string
           share_code?: string | null
+          status?: string | null
+          total_amount?: number | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
