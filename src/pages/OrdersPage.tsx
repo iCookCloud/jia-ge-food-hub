@@ -16,9 +16,11 @@ import {
   Target
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useProductLists } from "@/hooks/useProductLists";
 
 const OrdersPage = () => {
   const [activeTab, setActiveTab] = useState("lists");
+  const { data: realProductLists } = useProductLists();
 
   // Mock data
   const productLists = [
@@ -48,6 +50,8 @@ const OrdersPage = () => {
     }
   ];
 
+  // Use real data if available, otherwise use mock data
+  const displayLists = realProductLists && realProductLists.length > 0 ? realProductLists : productLists;
 
   const getStatusBadge = (status: string) => {
     const colors = {
