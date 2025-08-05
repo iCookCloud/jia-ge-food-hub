@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, MessageCircle, Star, Plus } from "lucide-react";
+import { Building2, MessageCircle, Star, Plus, Minus } from "lucide-react";
+import { useCart } from "@/hooks/useCart";
 
 interface ProductCardProps {
   product: {
@@ -21,6 +22,30 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const { addItem, updateQuantity, getItemQuantity } = useCart();
+  const currentQuantity = getItemQuantity(product.id);
+
+  const handleAddToCart = () => {
+    if (currentQuantity === 0) {
+      addItem({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        unit: product.unit,
+        image: product.image,
+        specifications: product.specifications,
+        supplier: product.supplier
+      }, 1);
+    } else {
+      updateQuantity(product.id, currentQuantity + 1);
+    }
+  };
+
+  const handleDecreaseQuantity = () => {
+    if (currentQuantity > 0) {
+      updateQuantity(product.id, currentQuantity - 1);
+    }
+  };
   return (
     <Card className="group hover:shadow-card transition-all duration-200 hover:scale-[1.02] overflow-hidden">
       <div className="aspect-square overflow-hidden bg-muted">
@@ -98,10 +123,39 @@ export function ProductCard({ product }: ProductCardProps) {
             <MessageCircle className="h-3 w-3" />
             {product.inStock ? "咨询询价" : "缺货"}
           </Button>
-          <Button variant="outline" size="sm" className="flex-1">
-            <Plus className="h-3 w-3" />
-            加入货单
-          </Button>
+          
+          {currentQuantity === 0 ? (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1"
+              onClick={handleAddToCart}
+              disabled={!product.inStock}
+            >
+              <Plus className="h-3 w-3" />
+              加入货单
+            </Button>
+          ) : (
+            <div className="flex-1 flex items-center space-x-1">
+              <Button 
+                variant="outline" 
+                size="icon-sm"
+                onClick={handleDecreaseQuantity}
+              >
+                <Minus className="h-3 w-3" />
+              </Button>
+              <div className="flex-1 text-center text-sm font-medium">
+                {currentQuantity}
+              </div>
+              <Button 
+                variant="outline" 
+                size="icon-sm"
+                onClick={handleAddToCart}
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
         </div>
       </CardFooter>
     </Card>

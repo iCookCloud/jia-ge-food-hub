@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProducts } from "@/hooks/useProducts";
+import { useCart } from "@/hooks/useCart";
 import { 
   Select,
   SelectContent,
@@ -31,7 +32,8 @@ import {
   Package,
   Grid3X3,
   List,
-  AlertCircle
+  AlertCircle,
+  ShoppingCart
 } from "lucide-react";
 
 const categories = ["全部", "海鲜", "肉类", "蔬菜", "调料", "冷冻食品", "有机食品"];
@@ -39,11 +41,15 @@ const origins = ["全部", "本地", "挪威", "澳大利亚", "意大利", "厄
 
 const ProductsPage = () => {
   const { data: products = [], isLoading, error } = useProducts();
+  const { getTotalItems, getTotalAmount, clearCart } = useCart();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("全部");
   const [selectedOrigin, setSelectedOrigin] = useState("全部");
   const [sortBy, setSortBy] = useState("featured");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  const totalItems = getTotalItems();
+  const totalAmount = getTotalAmount();
 
   // Convert database products to the format expected by ProductCard
   const convertedProducts = products.map(product => ({
@@ -129,9 +135,40 @@ const ProductsPage = () => {
     <Layout>
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-2">商品中心</h1>
-          <p className="text-muted-foreground">发现优质食材，连接专业供应商</p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground mb-2">商品中心</h1>
+            <p className="text-muted-foreground">发现优质食材，连接专业供应商</p>
+          </div>
+          
+          {/* Cart Summary */}
+          {totalItems > 0 && (
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <ShoppingCart className="h-5 w-5 text-primary" />
+                    <div>
+                      <div className="text-sm font-medium text-foreground">
+                        已选 {totalItems} 件商品
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        合计：¥{totalAmount.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button size="sm" variant="default">
+                      生成订单
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={clearCart}>
+                      清空
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Search and Filters */}
