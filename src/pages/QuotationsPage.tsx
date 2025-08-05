@@ -15,8 +15,10 @@ import {
   Video,
   Plus,
   Paperclip,
-  Smile
+  Smile,
+  ArrowLeft
 } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // 对话用户数据
 interface ChatUser {
@@ -150,10 +152,12 @@ const mockMessages: { [userId: string]: Message[] } = {
 };
 
 const QuotationsPage = () => {
+  const isMobile = useIsMobile();
   const [selectedUser, setSelectedUser] = useState<ChatUser | null>(mockChatUsers[0]);
   const [searchQuery, setSearchQuery] = useState("");
   const [newMessage, setNewMessage] = useState("");
   const [messages, setMessages] = useState(mockMessages);
+  const [showChatView, setShowChatView] = useState(false);
 
   const filteredUsers = mockChatUsers.filter(user => 
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -161,6 +165,17 @@ const QuotationsPage = () => {
   );
 
   const currentMessages = selectedUser ? messages[selectedUser.id] || [] : [];
+
+  const handleSelectUser = (user: ChatUser) => {
+    setSelectedUser(user);
+    if (isMobile) {
+      setShowChatView(true);
+    }
+  };
+
+  const handleBackToContacts = () => {
+    setShowChatView(false);
+  };
 
   const handleSendMessage = () => {
     if (!newMessage.trim() || !selectedUser) return;
@@ -248,138 +263,274 @@ const QuotationsPage = () => {
   return (
     <Layout>
       <div className="h-[calc(100vh-4rem)] flex">
-        {/* 左侧对话列表 */}
-        <div className="w-80 border-r bg-card flex flex-col">
-          {/* 搜索栏 */}
-          <div className="p-4 border-b">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="搜索联系人或公司"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-
-          {/* 对话列表 */}
-          <ScrollArea className="flex-1">
-            <div className="p-2">
-              {filteredUsers.map((user) => (
-                <div
-                  key={user.id}
-                  onClick={() => setSelectedUser(user)}
-                  className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer hover:bg-muted transition-colors ${
-                    selectedUser?.id === user.id ? 'bg-muted' : ''
-                  }`}
-                >
+        {/* 移动端：根据状态显示联系人列表或聊天窗口 */}
+        {isMobile ? (
+          <>
+            {!showChatView ? (
+              /* 联系人列表 - 移动端全屏 */
+              <div className="w-full bg-card flex flex-col">
+                <div className="p-4 border-b bg-card">
+                  <h1 className="text-xl font-bold mb-4">询价对话</h1>
                   <div className="relative">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={user.avatar} />
-                      <AvatarFallback>{user.name[0]}</AvatarFallback>
-                    </Avatar>
-                    {user.online && (
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-success rounded-full border-2 border-background"></div>
-                    )}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-medium truncate">{user.name}</h3>
-                      <span className="text-xs text-muted-foreground">{user.lastMessageTime}</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground truncate">{user.company}</p>
-                    <p className="text-sm text-muted-foreground truncate">{user.lastMessage}</p>
-                  </div>
-
-                  {user.unreadCount > 0 && (
-                    <Badge variant="destructive" className="min-w-[1.25rem] h-5 text-xs flex items-center justify-center">
-                      {user.unreadCount}
-                    </Badge>
-                  )}
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        </div>
-
-        {/* 右侧对话窗口 */}
-        <div className="flex-1 flex flex-col">
-          {selectedUser ? (
-            <>
-              {/* 对话头部 */}
-              <div className="p-4 border-b bg-card flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={selectedUser.avatar} />
-                    <AvatarFallback>{selectedUser.name[0]}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h2 className="font-semibold">{selectedUser.name}</h2>
-                    <p className="text-sm text-muted-foreground">{selectedUser.company}</p>
-                  </div>
-                  {selectedUser.online && (
-                    <Badge variant="outline" className="text-xs">在线</Badge>
-                  )}
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Button variant="ghost" size="icon">
-                    <Phone className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon">
-                    <Video className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* 消息区域 */}
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
-                  {currentMessages.map((message) => renderMessage(message))}
-                </div>
-              </ScrollArea>
-
-              {/* 输入区域 */}
-              <div className="p-4 border-t bg-card">
-                <div className="flex items-end space-x-2">
-                  <Button variant="ghost" size="icon">
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                  <div className="flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="输入消息..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      className="resize-none"
+                      placeholder="搜索联系人或公司"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
                     />
                   </div>
-                  <Button variant="ghost" size="icon">
-                    <Smile className="h-4 w-4" />
-                  </Button>
-                  <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
-                    <Send className="h-4 w-4" />
-                  </Button>
+                </div>
+
+                <ScrollArea className="flex-1">
+                  <div className="p-2">
+                    {filteredUsers.map((user) => (
+                      <div
+                        key={user.id}
+                        onClick={() => handleSelectUser(user)}
+                        className="flex items-center space-x-3 p-4 border-b cursor-pointer hover:bg-muted transition-colors active:bg-muted"
+                      >
+                        <div className="relative">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage src={user.avatar} />
+                            <AvatarFallback>{user.name[0]}</AvatarFallback>
+                          </Avatar>
+                          {user.online && (
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-success rounded-full border-2 border-background"></div>
+                          )}
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-medium truncate">{user.name}</h3>
+                            <span className="text-xs text-muted-foreground">{user.lastMessageTime}</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">{user.company}</p>
+                          <p className="text-sm text-muted-foreground truncate">{user.lastMessage}</p>
+                        </div>
+
+                        {user.unreadCount > 0 && (
+                          <Badge variant="destructive" className="min-w-[1.25rem] h-5 text-xs flex items-center justify-center">
+                            {user.unreadCount}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            ) : (
+              /* 聊天窗口 - 移动端全屏 */
+              selectedUser && (
+                <div className="w-full flex flex-col">
+                  {/* 聊天头部 - 移动端 */}
+                  <div className="p-4 border-b bg-card flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={handleBackToContacts}
+                        className="mr-2"
+                      >
+                        <ArrowLeft className="h-5 w-5" />
+                      </Button>
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={selectedUser.avatar} />
+                        <AvatarFallback>{selectedUser.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h2 className="font-semibold">{selectedUser.name}</h2>
+                        <p className="text-sm text-muted-foreground">{selectedUser.company}</p>
+                      </div>
+                      {selectedUser.online && (
+                        <Badge variant="outline" className="text-xs">在线</Badge>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Button variant="ghost" size="icon">
+                        <Phone className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon">
+                        <Video className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 消息区域 - 移动端 */}
+                  <ScrollArea className="flex-1 p-4 bg-muted/20">
+                    <div className="space-y-4">
+                      {currentMessages.map((message) => renderMessage(message))}
+                    </div>
+                  </ScrollArea>
+
+                  {/* 输入区域 - 移动端 */}
+                  <div className="p-4 border-t bg-card">
+                    <div className="flex items-end space-x-2">
+                      <Button variant="ghost" size="icon" className="mb-1">
+                        <Paperclip className="h-4 w-4" />
+                      </Button>
+                      <div className="flex-1">
+                        <Input
+                          placeholder="输入消息..."
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          onKeyPress={handleKeyPress}
+                          className="resize-none"
+                        />
+                      </div>
+                      <Button variant="ghost" size="icon" className="mb-1">
+                        <Smile className="h-4 w-4" />
+                      </Button>
+                      <Button onClick={handleSendMessage} disabled={!newMessage.trim()} className="mb-1">
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )
+            )}
+          </>
+        ) : (
+          /* 桌面端：左右分栏布局 */
+          <>
+            {/* 左侧对话列表 */}
+            <div className="w-80 border-r bg-card flex flex-col">
+              {/* 搜索栏 */}
+              <div className="p-4 border-b">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="搜索联系人或公司"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
               </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Plus className="h-8 w-8 text-muted-foreground" />
+
+              {/* 对话列表 */}
+              <ScrollArea className="flex-1">
+                <div className="p-2">
+                  {filteredUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      onClick={() => handleSelectUser(user)}
+                      className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer hover:bg-muted transition-colors ${
+                        selectedUser?.id === user.id ? 'bg-muted' : ''
+                      }`}
+                    >
+                      <div className="relative">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={user.avatar} />
+                          <AvatarFallback>{user.name[0]}</AvatarFallback>
+                        </Avatar>
+                        {user.online && (
+                          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-success rounded-full border-2 border-background"></div>
+                        )}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium truncate">{user.name}</h3>
+                          <span className="text-xs text-muted-foreground">{user.lastMessageTime}</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate">{user.company}</p>
+                        <p className="text-sm text-muted-foreground truncate">{user.lastMessage}</p>
+                      </div>
+
+                      {user.unreadCount > 0 && (
+                        <Badge variant="destructive" className="min-w-[1.25rem] h-5 text-xs flex items-center justify-center">
+                          {user.unreadCount}
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                <h3 className="text-lg font-semibold mb-2">选择一个对话</h3>
-                <p className="text-muted-foreground">从左侧列表中选择联系人开始对话</p>
-              </div>
+              </ScrollArea>
             </div>
-          )}
-        </div>
+
+            {/* 右侧对话窗口 */}
+            <div className="flex-1 flex flex-col">
+              {selectedUser ? (
+                <>
+                  {/* 对话头部 */}
+                  <div className="p-4 border-b bg-card flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={selectedUser.avatar} />
+                        <AvatarFallback>{selectedUser.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h2 className="font-semibold">{selectedUser.name}</h2>
+                        <p className="text-sm text-muted-foreground">{selectedUser.company}</p>
+                      </div>
+                      {selectedUser.online && (
+                        <Badge variant="outline" className="text-xs">在线</Badge>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Button variant="ghost" size="icon">
+                        <Phone className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon">
+                        <Video className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 消息区域 */}
+                  <ScrollArea className="flex-1 p-4">
+                    <div className="space-y-4">
+                      {currentMessages.map((message) => renderMessage(message))}
+                    </div>
+                  </ScrollArea>
+
+                  {/* 输入区域 */}
+                  <div className="p-4 border-t bg-card">
+                    <div className="flex items-end space-x-2">
+                      <Button variant="ghost" size="icon">
+                        <Paperclip className="h-4 w-4" />
+                      </Button>
+                      <div className="flex-1">
+                        <Input
+                          placeholder="输入消息..."
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          onKeyPress={handleKeyPress}
+                          className="resize-none"
+                        />
+                      </div>
+                      <Button variant="ghost" size="icon">
+                        <Smile className="h-4 w-4" />
+                      </Button>
+                      <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Plus className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2">选择一个对话</h3>
+                    <p className="text-muted-foreground">从左侧列表中选择联系人开始对话</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </Layout>
   );
