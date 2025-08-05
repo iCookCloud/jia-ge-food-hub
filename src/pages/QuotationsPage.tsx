@@ -1,569 +1,385 @@
 import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { 
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { 
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { 
-  Plus, 
-  FileText, 
-  Clock,
-  CheckCircle,
-  XCircle,
-  Eye,
-  MessageCircle,
+  Search, 
+  Send,
+  MoreHorizontal,
   Phone,
-  Mail,
-  User,
-  Send
+  Video,
+  Plus,
+  Paperclip,
+  Smile
 } from "lucide-react";
-import { QuotationChat } from "@/components/quotations/QuotationChat";
-import { useMessages, useSendMessage } from "@/hooks/useMessages";
-import { formatDistanceToNow } from "date-fns";
-import { zhCN } from "date-fns/locale";
 
-// Types
-interface Quotation {
+// 对话用户数据
+interface ChatUser {
   id: string;
-  productName: string;
-  supplierName: string;
-  quantity: number;
-  unit: string;
-  requestedDelivery: string;
-  status: string;
-  createdAt: string;
-  urgency: string;
-  estimatedAmount?: string;
-  quotedAmount?: string;
-  finalAmount?: string;
+  name: string;
+  avatar?: string;
+  company: string;
+  lastMessage: string;
+  lastMessageTime: string;
+  unreadCount: number;
+  online: boolean;
+  category: "supplier" | "customer";
 }
 
-// Mock quotations data
-const mockQuotations: Quotation[] = [
+// 消息数据
+interface Message {
+  id: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  timestamp: string;
+  type: "text" | "quotation" | "order" | "file";
+  metadata?: any;
+}
+
+// Mock 对话用户数据
+const mockChatUsers: ChatUser[] = [
   {
-    id: "Q001",
-    productName: "新鲜三文鱼片 挪威进口",
-    supplierName: "海鲜直供",
-    quantity: 50,
-    unit: "kg",
-    requestedDelivery: "2024-01-20",
-    status: "待报价",
-    createdAt: "2024-01-15",
-    urgency: "普通",
-    estimatedAmount: "6400.00"
+    id: "user1",
+    name: "张经理",
+    company: "海鲜直供有限公司",
+    lastMessage: "三文鱼的最新报价已发送，请查收",
+    lastMessageTime: "12:30",
+    unreadCount: 2,
+    online: true,
+    category: "supplier"
   },
   {
-    id: "Q002", 
-    productName: "优质牛肉卷 火锅专用",
-    supplierName: "优质肉类",
-    quantity: 30,
-    unit: "kg",
-    requestedDelivery: "2024-01-25",
-    status: "已报价",
-    createdAt: "2024-01-12",
-    urgency: "紧急",
-    quotedAmount: "2670.00",
-    estimatedAmount: "2700.00"
+    id: "user2", 
+    name: "李总",
+    company: "优质肉类供应商",
+    lastMessage: "牛肉卷的价格可以再商议",
+    lastMessageTime: "11:45",
+    unreadCount: 0,
+    online: true,
+    category: "supplier"
   },
   {
-    id: "Q003",
-    productName: "有机蔬菜拼盘",
-    supplierName: "绿色农场",
-    quantity: 100,
-    unit: "份",
-    requestedDelivery: "2024-01-18",
-    status: "已成交",
-    createdAt: "2024-01-10",
-    urgency: "普通",
-    finalAmount: "3500.00"
+    id: "user3",
+    name: "王采购",
+    company: "绿色农场",
+    lastMessage: "有机蔬菜的质量标准需要确认",
+    lastMessageTime: "昨天",
+    unreadCount: 1,
+    online: false,
+    category: "supplier"
+  },
+  {
+    id: "user4",
+    name: "陈老板",
+    company: "川味小厨",
+    lastMessage: "这批食材什么时候能到货？",
+    lastMessageTime: "昨天",
+    unreadCount: 0,
+    online: false,
+    category: "customer"
   }
 ];
 
-const QuotationsPage = () => {
-  const [quotations, setQuotations] = useState(mockQuotations);
-  const [selectedStatus, setSelectedStatus] = useState("全部");
-  const [showNewQuotationDialog, setShowNewQuotationDialog] = useState(false);
-  const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
-  const [showChatDialog, setShowChatDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState("quotations");
-  const [newMessage, setNewMessage] = useState("");
-  
-  const { data: messages = [] } = useMessages();
-  const sendMessage = useSendMessage();
-  
-  const [newQuotation, setNewQuotation] = useState({
-    productName: "",
-    supplierName: "",
-    quantity: "",
-    unit: "kg",
-    requestedDelivery: "",
-    urgency: "普通",
-    requirements: ""
-  });
+// Mock 消息数据
+const mockMessages: { [userId: string]: Message[] } = {
+  user1: [
+    {
+      id: "msg1",
+      senderId: "user1",
+      senderName: "张经理",
+      content: "您好，关于您咨询的挪威三文鱼，我们有最新的报价",
+      timestamp: "10:30",
+      type: "text"
+    },
+    {
+      id: "msg2", 
+      senderId: "me",
+      senderName: "我",
+      content: "请发送详细报价单，包括不同规格的价格",
+      timestamp: "10:35",
+      type: "text"
+    },
+    {
+      id: "msg3",
+      senderId: "user1", 
+      senderName: "张经理",
+      content: "三文鱼报价单",
+      timestamp: "12:30",
+      type: "quotation",
+      metadata: {
+        productName: "挪威三文鱼片",
+        quantity: "50kg",
+        unitPrice: "128元/kg",
+        totalAmount: "6400元",
+        validUntil: "2024-01-25"
+      }
+    }
+  ],
+  user2: [
+    {
+      id: "msg4",
+      senderId: "user2",
+      senderName: "李总", 
+      content: "牛肉卷现在的价格是89元/kg，量大可以优惠",
+      timestamp: "11:30",
+      type: "text"
+    },
+    {
+      id: "msg5",
+      senderId: "me",
+      senderName: "我",
+      content: "我们需要30kg，能给到什么价格？",
+      timestamp: "11:40",
+      type: "text"
+    },
+    {
+      id: "msg6",
+      senderId: "user2",
+      senderName: "李总",
+      content: "30kg的话可以给到85元/kg，总价2550元",
+      timestamp: "11:45", 
+      type: "text"
+    }
+  ]
+};
 
-  const filteredQuotations = quotations.filter(q => 
-    selectedStatus === "全部" || q.status === selectedStatus
+const QuotationsPage = () => {
+  const [selectedUser, setSelectedUser] = useState<ChatUser | null>(mockChatUsers[0]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [newMessage, setNewMessage] = useState("");
+  const [messages, setMessages] = useState(mockMessages);
+
+  const filteredUsers = mockChatUsers.filter(user => 
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.company.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "待报价":
-        return <Badge variant="secondary" className="bg-warning text-warning-foreground">待报价</Badge>;
-      case "已报价":
-        return <Badge variant="default">已报价</Badge>;
-      case "已成交":
-        return <Badge variant="secondary" className="bg-success text-success-foreground">已成交</Badge>;
-      case "失效":
-        return <Badge variant="destructive">失效</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+  const currentMessages = selectedUser ? messages[selectedUser.id] || [] : [];
+
+  const handleSendMessage = () => {
+    if (!newMessage.trim() || !selectedUser) return;
+
+    const newMsg: Message = {
+      id: `msg_${Date.now()}`,
+      senderId: "me",
+      senderName: "我",
+      content: newMessage,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: "text"
+    };
+
+    setMessages(prev => ({
+      ...prev,
+      [selectedUser.id]: [...(prev[selectedUser.id] || []), newMsg]
+    }));
+
+    setNewMessage("");
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
     }
   };
 
-  const handleCreateQuotation = () => {
-    const newId = `Q${String(quotations.length + 1).padStart(3, '0')}`;
-    const quotation: Quotation = {
-      id: newId,
-      productName: newQuotation.productName,
-      supplierName: newQuotation.supplierName,
-      quantity: parseInt(newQuotation.quantity),
-      unit: newQuotation.unit,
-      requestedDelivery: newQuotation.requestedDelivery,
-      status: "待报价",
-      createdAt: new Date().toISOString().split('T')[0],
-      urgency: newQuotation.urgency,
-      estimatedAmount: (parseFloat(newQuotation.quantity) * 100).toFixed(2) // Mock calculation
-    };
+  const renderMessage = (message: Message) => {
+    const isMyMessage = message.senderId === "me";
     
-    setQuotations(prev => [quotation, ...prev]);
-    setShowNewQuotationDialog(false);
-    setNewQuotation({
-      productName: "",
-      supplierName: "",
-      quantity: "",
-      unit: "kg", 
-      requestedDelivery: "",
-      urgency: "普通",
-      requirements: ""
-    });
-  };
+    if (message.type === "quotation") {
+      return (
+        <div className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'} mb-4`}>
+          <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
+            isMyMessage 
+              ? 'bg-primary text-primary-foreground' 
+              : 'bg-muted'
+          }`}>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-success rounded-full"></div>
+                <span className="text-sm font-medium">报价单</span>
+              </div>
+              <div className="text-sm space-y-1">
+                <p><strong>商品：</strong>{message.metadata.productName}</p>
+                <p><strong>数量：</strong>{message.metadata.quantity}</p>
+                <p><strong>单价：</strong>{message.metadata.unitPrice}</p>
+                <p><strong>总价：</strong><span className="text-lg font-bold">{message.metadata.totalAmount}</span></p>
+                <p><strong>有效期：</strong>{message.metadata.validUntil}</p>
+              </div>
+              <div className="flex space-x-2 mt-3">
+                <Button size="sm" variant={isMyMessage ? "secondary" : "default"}>
+                  接受报价
+                </Button>
+                <Button size="sm" variant="outline">
+                  还价
+                </Button>
+              </div>
+            </div>
+            <div className="text-xs mt-2 opacity-70">
+              {message.timestamp}
+            </div>
+          </div>
+        </div>
+      );
+    }
 
-  const handleOpenChat = (quotation: Quotation) => {
-    setSelectedQuotation(quotation);
-    setShowChatDialog(true);
+    return (
+      <div className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'} mb-4`}>
+        <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+          isMyMessage 
+            ? 'bg-primary text-primary-foreground' 
+            : 'bg-muted'
+        }`}>
+          <p className="text-sm">{message.content}</p>
+          <div className="text-xs mt-1 opacity-70">
+            {message.timestamp}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">询价中心</h1>
-            <p className="text-muted-foreground">管理询价单，供应商联系和沟通记录</p>
+      <div className="h-[calc(100vh-4rem)] flex">
+        {/* 左侧对话列表 */}
+        <div className="w-80 border-r bg-card flex flex-col">
+          {/* 搜索栏 */}
+          <div className="p-4 border-b">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="搜索联系人或公司"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
           </div>
-          
-          <Dialog open={showNewQuotationDialog} onOpenChange={setShowNewQuotationDialog}>
-            <DialogTrigger asChild>
-              <Button size="lg">
-                <Plus className="h-4 w-4 mr-2" />
-                发起询价
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>发起新询价</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>商品名称</Label>
-                    <Input 
-                      value={newQuotation.productName}
-                      onChange={(e) => setNewQuotation(prev => ({...prev, productName: e.target.value}))}
-                      placeholder="请输入商品名称"
-                    />
+
+          {/* 对话列表 */}
+          <ScrollArea className="flex-1">
+            <div className="p-2">
+              {filteredUsers.map((user) => (
+                <div
+                  key={user.id}
+                  onClick={() => setSelectedUser(user)}
+                  className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer hover:bg-muted transition-colors ${
+                    selectedUser?.id === user.id ? 'bg-muted' : ''
+                  }`}
+                >
+                  <div className="relative">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={user.avatar} />
+                      <AvatarFallback>{user.name[0]}</AvatarFallback>
+                    </Avatar>
+                    {user.online && (
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-success rounded-full border-2 border-background"></div>
+                    )}
                   </div>
-                  <div>
-                    <Label>目标供应商</Label>
-                    <Select value={newQuotation.supplierName} onValueChange={(value) => setNewQuotation(prev => ({...prev, supplierName: value}))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="选择供应商" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="海鲜直供">海鲜直供</SelectItem>
-                        <SelectItem value="优质肉类">优质肉类</SelectItem>
-                        <SelectItem value="绿色农场">绿色农场</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium truncate">{user.name}</h3>
+                      <span className="text-xs text-muted-foreground">{user.lastMessageTime}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">{user.company}</p>
+                    <p className="text-sm text-muted-foreground truncate">{user.lastMessage}</p>
                   </div>
+
+                  {user.unreadCount > 0 && (
+                    <Badge variant="destructive" className="min-w-[1.25rem] h-5 text-xs flex items-center justify-center">
+                      {user.unreadCount}
+                    </Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+
+        {/* 右侧对话窗口 */}
+        <div className="flex-1 flex flex-col">
+          {selectedUser ? (
+            <>
+              {/* 对话头部 */}
+              <div className="p-4 border-b bg-card flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={selectedUser.avatar} />
+                    <AvatarFallback>{selectedUser.name[0]}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h2 className="font-semibold">{selectedUser.name}</h2>
+                    <p className="text-sm text-muted-foreground">{selectedUser.company}</p>
+                  </div>
+                  {selectedUser.online && (
+                    <Badge variant="outline" className="text-xs">在线</Badge>
+                  )}
                 </div>
                 
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label>采购数量</Label>
-                    <Input 
-                      type="number"
-                      value={newQuotation.quantity}
-                      onChange={(e) => setNewQuotation(prev => ({...prev, quantity: e.target.value}))}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <Label>单位</Label>
-                    <Select value={newQuotation.unit} onValueChange={(value) => setNewQuotation(prev => ({...prev, unit: value}))}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="kg">千克</SelectItem>
-                        <SelectItem value="份">份</SelectItem>
-                        <SelectItem value="盒">盒</SelectItem>
-                        <SelectItem value="套">套</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>期望交期</Label>
-                    <Input 
-                      type="date"
-                      value={newQuotation.requestedDelivery}
-                      onChange={(e) => setNewQuotation(prev => ({...prev, requestedDelivery: e.target.value}))}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label>紧急程度</Label>
-                  <Select value={newQuotation.urgency} onValueChange={(value) => setNewQuotation(prev => ({...prev, urgency: value}))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="普通">普通</SelectItem>
-                      <SelectItem value="紧急">紧急</SelectItem>
-                      <SelectItem value="非常紧急">非常紧急</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>特殊要求</Label>
-                  <Textarea 
-                    value={newQuotation.requirements}
-                    onChange={(e) => setNewQuotation(prev => ({...prev, requirements: e.target.value}))}
-                    placeholder="请描述特殊要求、质量标准等..."
-                    rows={3}
-                  />
-                </div>
-
-                <div className="flex space-x-2 pt-4">
-                  <Button onClick={handleCreateQuotation} className="flex-1">
-                    发送询价
+                <div className="flex items-center space-x-2">
+                  <Button variant="ghost" size="icon">
+                    <Phone className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" onClick={() => setShowNewQuotationDialog(false)} className="flex-1">
-                    取消
+                  <Button variant="ghost" size="icon">
+                    <Video className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon">
+                    <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
-        </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          {[
-            { label: "总询价单", value: quotations.length, icon: FileText, color: "text-primary" },
-            { label: "待报价", value: quotations.filter(q => q.status === "待报价").length, icon: Clock, color: "text-warning" },
-            { label: "已报价", value: quotations.filter(q => q.status === "已报价").length, icon: CheckCircle, color: "text-primary" },
-            { label: "已成交", value: quotations.filter(q => q.status === "已成交").length, icon: CheckCircle, color: "text-success" }
-          ].map((stat, index) => (
-            <Card key={index}>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <stat.icon className={`h-8 w-8 ${stat.color}`} />
-                  <div>
-                    <p className="text-2xl font-bold">{stat.value}</p>
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
+              {/* 消息区域 */}
+              <ScrollArea className="flex-1 p-4">
+                <div className="space-y-4">
+                  {currentMessages.map((message) => renderMessage(message))}
+                </div>
+              </ScrollArea>
+
+              {/* 输入区域 */}
+              <div className="p-4 border-t bg-card">
+                <div className="flex items-end space-x-2">
+                  <Button variant="ghost" size="icon">
+                    <Paperclip className="h-4 w-4" />
+                  </Button>
+                  <div className="flex-1">
+                    <Input
+                      placeholder="输入消息..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      className="resize-none"
+                    />
                   </div>
+                  <Button variant="ghost" size="icon">
+                    <Smile className="h-4 w-4" />
+                  </Button>
+                  <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                    <Send className="h-4 w-4" />
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Plus className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">选择一个对话</h3>
+                <p className="text-muted-foreground">从左侧列表中选择联系人开始对话</p>
+              </div>
+            </div>
+          )}
         </div>
-
-        {/* 主要内容区域 */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="quotations">询价单</TabsTrigger>
-            <TabsTrigger value="suppliers">供应商联系</TabsTrigger>
-            <TabsTrigger value="messages">沟通记录</TabsTrigger>
-          </TabsList>
-
-          {/* 询价单列表 */}
-          <TabsContent value="quotations" className="mt-6">
-            {/* Filters */}
-            <Card className="mb-6">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-4">
-                  <Label>状态筛选:</Label>
-                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="全部">全部状态</SelectItem>
-                      <SelectItem value="待报价">待报价</SelectItem>
-                      <SelectItem value="已报价">已报价</SelectItem>
-                      <SelectItem value="已成交">已成交</SelectItem>
-                      <SelectItem value="失效">失效</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 卡片式询价单列表 */}
-            <div className="space-y-4">
-              {filteredQuotations.map((quotation) => (
-                <Card key={quotation.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                      {/* 左侧信息 */}
-                      <div className="flex-1 space-y-3">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-3">
-                              <span className="font-mono text-sm text-muted-foreground">{quotation.id}</span>
-                              {getStatusBadge(quotation.status)}
-                            </div>
-                            <h3 className="font-semibold text-lg text-foreground">{quotation.productName}</h3>
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                          <div className="space-y-1">
-                            <p className="text-muted-foreground">供应商</p>
-                            <p className="font-medium">{quotation.supplierName}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-muted-foreground">采购数量</p>
-                            <p className="font-medium">{quotation.quantity}{quotation.unit}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-muted-foreground">期望交期</p>
-                            <p className="font-medium">{quotation.requestedDelivery}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 右侧金额和操作 */}
-                      <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                        <div className="text-right lg:text-left">
-                          <p className="text-sm text-muted-foreground">金额</p>
-                          <p className="text-2xl font-bold text-primary">
-                            ¥{quotation.quotedAmount || quotation.finalAmount || quotation.estimatedAmount}
-                          </p>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4 mr-1" />
-                            查看
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleOpenChat(quotation)}
-                          >
-                            <MessageCircle className="h-4 w-4 mr-1" />
-                            沟通
-                          </Button>
-                          {quotation.status === "已报价" && (
-                            <Button variant="default" size="sm">
-                              加入订单
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              
-              {filteredQuotations.length === 0 && (
-                <Card>
-                  <CardContent className="p-12 text-center">
-                    <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">暂无询价单</h3>
-                    <p className="text-muted-foreground mb-4">
-                      {selectedStatus !== "全部" ? `暂无${selectedStatus}询价单` : "还没有创建任何询价单"}
-                    </p>
-                    <Button onClick={() => setShowNewQuotationDialog(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      发起询价
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </TabsContent>
-
-          {/* 供应商联系 */}
-          <TabsContent value="suppliers" className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {["海鲜直供", "优质肉类", "绿色农场"].map((supplier, index) => (
-                <Card key={index} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-12 w-12">
-                        <AvatarFallback>
-                          <User className="h-6 w-6" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <CardTitle className="text-lg">{supplier}</CardTitle>
-                        <p className="text-sm text-muted-foreground">优质供应商</p>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex items-center space-x-2 text-sm">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span>联系人: 张经理</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-sm">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        <span>13800138000</span>
-                        <Button variant="outline" size="sm">拨打</Button>
-                      </div>
-                      <div className="flex items-center space-x-2 text-sm">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <span>supplier@example.com</span>
-                      </div>
-                      
-                      <Separator />
-                      
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" className="flex-1">
-                          <MessageCircle className="h-4 w-4 mr-1" />
-                          发消息
-                        </Button>
-                        <Button variant="default" size="sm" className="flex-1">
-                          新询价
-                        </Button>
-                      </div>
-                      
-                      <div className="text-xs text-muted-foreground">
-                        <p>合作询价: 5次</p>
-                        <p>成交订单: 3次</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* 沟通记录 */}
-          <TabsContent value="messages" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <MessageCircle className="h-5 w-5" />
-                  <span>询价沟通记录</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[500px]">
-                  {messages.length === 0 ? (
-                    <div className="text-center text-muted-foreground py-8">
-                      <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>暂无沟通记录</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {messages.map((message) => (
-                        <Card key={message.id} className="p-4">
-                          <div className="flex items-start space-x-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={message.sender_profile?.avatar_url} />
-                              <AvatarFallback>
-                                <User className="h-4 w-4" />
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between mb-1">
-                                <div className="flex items-center space-x-2">
-                                  <span className="font-medium text-sm">
-                                    {message.sender_profile?.nickname || '用户'}
-                                  </span>
-                                  {message.quotation && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {message.quotation.sheet_name || '询价单'}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <span className="text-xs text-muted-foreground">
-                                  {formatDistanceToNow(new Date(message.created_at), {
-                                    addSuffix: true,
-                                    locale: zhCN
-                                  })}
-                                </span>
-                              </div>
-                              <p className="text-sm">{message.content}</p>
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        {/* 询价沟通对话框 */}
-        {selectedQuotation && (
-          <QuotationChat
-            quotationId={selectedQuotation.id}
-            supplierId="mock-supplier-id" // 这里应该从实际数据获取
-            supplierName={selectedQuotation.supplierName}
-            quotationTitle={selectedQuotation.productName}
-            open={showChatDialog}
-            onOpenChange={setShowChatDialog}
-          />
-        )}
       </div>
     </Layout>
   );
