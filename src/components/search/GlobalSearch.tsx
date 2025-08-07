@@ -49,69 +49,74 @@ export function GlobalSearch({ children }: GlobalSearchProps) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Perform search
+  // Perform search with debounce
   useEffect(() => {
     if (!query.trim()) {
       setSearchResults([]);
+      setIsSearching(false);
       return;
     }
 
     setIsSearching(true);
-    const searchTerm = query.toLowerCase();
-    const results: SearchResult[] = [];
+    
+    const searchTimer = setTimeout(() => {
+      const searchTerm = query.toLowerCase();
+      const results: SearchResult[] = [];
 
-    // Search products
-    products.forEach(product => {
-      const name = product.standard_chinese_name || product.standard_english_name || product.sku;
-      const specs = product.specifications || '';
-      
-      if (name.toLowerCase().includes(searchTerm) || 
-          specs.toLowerCase().includes(searchTerm) ||
-          product.sku.toLowerCase().includes(searchTerm)) {
+      // Search products
+      products.forEach(product => {
+        const name = product.standard_chinese_name || product.standard_english_name || product.sku;
+        const specs = product.specifications || '';
+        
+        if (name.toLowerCase().includes(searchTerm) || 
+            specs.toLowerCase().includes(searchTerm) ||
+            product.sku.toLowerCase().includes(searchTerm)) {
+          results.push({
+            id: product.id,
+            title: name,
+            description: specs || '暂无规格说明',
+            type: 'product',
+            image: product.product_image,
+            url: `/product/${product.id}`,
+            metadata: {
+              price: product.unit_price,
+              unit: product.unit,
+              vendor: product.vendor
+            }
+          });
+        }
+      });
+
+      // Mock video search results
+      if (searchTerm.includes('视频') || searchTerm.includes('教程') || searchTerm.includes('展示')) {
         results.push({
-          id: product.id,
-          title: name,
-          description: specs || '暂无规格说明',
-          type: 'product',
-          image: product.product_image,
-          url: `/product/${product.id}`,
+          id: 'video-1',
+          title: '三文鱼切片教程视频',
+          description: '专业厨师演示三文鱼切片技巧',
+          type: 'video',
+          url: '/materials/1',
           metadata: {
-            price: product.unit_price,
-            unit: product.unit,
-            vendor: product.vendor
+            duration: '5:30',
+            views: 1250
           }
         });
       }
-    });
 
-
-    // Mock video search results
-    if (searchTerm.includes('视频') || searchTerm.includes('教程') || searchTerm.includes('展示')) {
-      results.push({
-        id: 'video-1',
-        title: '三文鱼切片教程视频',
-        description: '专业厨师演示三文鱼切片技巧',
-        type: 'video',
-        url: '/materials/1',
-        metadata: {
-          duration: '5:30',
-          views: 1250
-        }
+      // Sort results by relevance (exact matches first)
+      results.sort((a, b) => {
+        const aExact = a.title.toLowerCase().startsWith(searchTerm);
+        const bExact = b.title.toLowerCase().startsWith(searchTerm);
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        return 0;
       });
-    }
 
-    // Sort results by relevance (exact matches first)
-    results.sort((a, b) => {
-      const aExact = a.title.toLowerCase().startsWith(searchTerm);
-      const bExact = b.title.toLowerCase().startsWith(searchTerm);
-      if (aExact && !bExact) return -1;
-      if (!aExact && bExact) return 1;
-      return 0;
-    });
+      setSearchResults(results.slice(0, 20)); // Limit to 20 results
+      setIsSearching(false);
+    }, 200); // 200ms debounce
 
-    setSearchResults(results.slice(0, 20)); // Limit to 20 results
-    setIsSearching(false);
-  }, [query, products]);
+    return () => clearTimeout(searchTimer);
+  }, [query]); // Only depend on query, not products
 
   const handleResultClick = (result: SearchResult) => {
     navigate(result.url);
