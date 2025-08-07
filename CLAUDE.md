@@ -4,6 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 重要要求
 **不主动启动项目** ：修改代码后不要主动启动项目，因为已启动完毕，检查代码仅使用lint或者build即可。
+**supabase** 对应的supabase项目id为 skowhfrykowtbchoypbl
 
 ## 常用命令 (Common Commands)
 

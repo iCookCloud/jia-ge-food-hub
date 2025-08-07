@@ -12,7 +12,8 @@ export const materialService = {
           product_id
         )
       `)
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .eq('status', 'ready'); // 只显示已就绪可播放的视频
 
     if (filters.search) {
       query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
@@ -42,6 +43,8 @@ export const materialService = {
         )
       `)
       .eq('id', id)
+      .eq('is_active', true)
+      .eq('status', 'ready') // 只允许查看已就绪的视频
       .single();
     
     return { data, error };
@@ -51,9 +54,13 @@ export const materialService = {
     const { data, error } = await supabase
       .from('video_product_associations')
       .select(`
-        product_videos (*)
+        product_videos!inner (
+          *
+        )
       `)
-      .eq('product_id', productId);
+      .eq('product_id', productId)
+      .eq('product_videos.is_active', true)
+      .eq('product_videos.status', 'ready'); // 只返回可播放的视频
     
     return { data, error };
   }
@@ -141,7 +148,7 @@ export const statisticsService = {
     ] = await Promise.all([
       supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true),
       supabase.from('orders').select('id', { count: 'exact', head: true }),
-      supabase.from('product_videos').select('id', { count: 'exact', head: true }).eq('is_active', true)
+      supabase.from('product_videos').select('id', { count: 'exact', head: true }).eq('is_active', true).eq('status', 'ready')
     ]);
 
     return {

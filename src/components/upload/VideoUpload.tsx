@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, X, Video, Play, Clock, Package, Tag } from 'lucide-react';
+import { Upload, X, Video, Play, Clock, Package, Tag, Loader2 } from 'lucide-react';
 import { cloudflareStreamService, VideoUploadResult } from '@/services/cloudflareStreamService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,7 +17,12 @@ import { productService } from '@/services/api';
 import { Product } from '@/hooks/useProducts';
 
 interface VideoUploadProps {
-  onUploadComplete?: (video: any) => void;
+  onUploadComplete?: (video: {
+    id: string;
+    title: string;
+    videoUrl?: string;
+    thumbnailUrl?: string;
+  }) => void;
   onUploadError?: (error: string) => void;
 }
 
@@ -178,12 +183,30 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
           );
         }, 1000);
 
-        // 上传到 Cloudflare Stream
-        const result = await cloudflareStreamService.uploadVideo(file);
+        // 获取当前上传视频的信息
+        const uploadingVideo = uploadingVideos.find(uv => uv.file === file) || 
+                              { 
+                                title: file.name.replace(/\.[^/.]+$/, ''), 
+                                description: '', 
+                                content: '', 
+                                tags: [], 
+                                selectedProducts: [],
+                                category: '产品介绍'
+                              };
+
+        // 构建完整的描述信息
+        const fullDescription = `${uploadingVideo.description}\n\n${uploadingVideo.content}`.trim();
+
+        // 上传到 Cloudflare Stream (现在通过安全的 Edge Function)
+        const result = await cloudflareStreamService.uploadVideo(
+          file, 
+          uploadingVideo.title, 
+          fullDescription
+        );
 
         clearInterval(progressInterval);
 
-        // 更新为处理状态
+        // 更新为处理中状态
         setUploadingVideos(prev => 
           prev.map(uv => 
             uv.file === file 
@@ -197,41 +220,10 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
           )
         );
 
-        // 保存到数据库
-        const uploadingVideo = uploadingVideos.find(uv => uv.file === file) || 
-                              { 
-                                title: file.name.replace(/\.[^/.]+$/, ''), 
-                                description: '', 
-                                content: '', 
-                                tags: [], 
-                                selectedProducts: [],
-                                category: '产品介绍'
-                              };
-
-        const { data: videoData, error: dbError } = await supabase
-          .from('product_videos')
-          .insert({
-            title: uploadingVideo.title,
-            description: `${uploadingVideo.description}\n\n${uploadingVideo.content}`.trim(),
-            cloudflare_video_id: result.videoId,
-            thumbnail_url: result.thumbnailUrl,
-            video_url: result.videoUrl,
-            duration_seconds: result.duration,
-            supplier_id: user?.id,
-            status: 'active',
-            is_active: true
-          })
-          .select()
-          .single();
-
-        if (dbError) {
-          throw new Error(`数据库保存失败: ${dbError.message}`);
-        }
-
         // 创建视频与产品的关联
-        if (uploadingVideo.selectedProducts && uploadingVideo.selectedProducts.length > 0) {
+        if (result.databaseVideoId && uploadingVideo.selectedProducts && uploadingVideo.selectedProducts.length > 0) {
           const associations = uploadingVideo.selectedProducts.map(productId => ({
-            video_id: videoData.id,
+            video_id: result.databaseVideoId,
             product_id: productId
           }));
 
@@ -244,25 +236,86 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
           }
         }
 
-        // 更新成功状态
-        setUploadingVideos(prev => 
-          prev.map(uv => 
-            uv.file === file 
-              ? { 
-                  ...uv, 
-                  progress: 100, 
-                  status: 'success'
-                }
-              : uv
-          )
-        );
+        // 开始轮询视频处理状态
+        try {
+          const processingResult = await cloudflareStreamService.pollVideoStatus(
+            result.videoId,
+            {
+              maxAttempts: 60, // 10分钟超时
+              intervalMs: 10000, // 每10秒检查一次
+              onProgress: (progressResult: import('@/services/cloudflareStreamService').VideoProcessingResult) => {
+                // 更新进度状态
+                setUploadingVideos(prev => 
+                  prev.map(uv => 
+                    uv.file === file 
+                      ? { 
+                          ...uv, 
+                          progress: progressResult.readyToStream ? 100 : 95,
+                          status: progressResult.readyToStream ? 'success' : 'processing'
+                        }
+                      : uv
+                  )
+                );
+              }
+            }
+          );
 
-        onUploadComplete?.(videoData);
+          // 处理完成，更新最终状态
+          setUploadingVideos(prev => 
+            prev.map(uv => 
+              uv.file === file 
+                ? { 
+                    ...uv, 
+                    progress: 100, 
+                    status: 'success',
+                    result: {
+                      ...result,
+                      thumbnailUrl: processingResult.thumbnailUrl || '',
+                      videoUrl: processingResult.videoUrl || '',
+                      duration: processingResult.duration
+                    }
+                  }
+                : uv
+            )
+          );
 
-        toast({
-          title: '视频上传成功',
-          description: `"${uploadingVideo.title}" 已上传并保存`
-        });
+          // 传递数据库视频记录信息
+          onUploadComplete?.({ 
+            id: result.databaseVideoId, 
+            title: uploadingVideo.title,
+            videoUrl: processingResult.videoUrl,
+            thumbnailUrl: processingResult.thumbnailUrl
+          });
+
+          toast({
+            title: '视频处理完成',
+            description: `"${uploadingVideo.title}" 已上传并处理完成`
+          });
+
+        } catch (pollError) {
+          console.warn('视频处理轮询超时或失败:', pollError);
+          
+          // 轮询失败，但上传成功，提示后台处理
+          setUploadingVideos(prev => 
+            prev.map(uv => 
+              uv.file === file 
+                ? { 
+                    ...uv, 
+                    progress: 100, 
+                    status: 'success',
+                    result
+                  }
+                : uv
+            )
+          );
+
+          onUploadComplete?.({ id: result.databaseVideoId, title: uploadingVideo.title });
+
+          toast({
+            title: '视频上传成功',
+            description: `"${uploadingVideo.title}" 已上传，正在后台处理中，稍后可在视频列表查看`
+          });
+        }
 
       } catch (error) {
         // 更新错误状态
@@ -289,7 +342,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     }
   };
 
-  const updateVideoInfo = (file: File, field: keyof UploadingVideo, value: any) => {
+  const updateVideoInfo = (file: File, field: keyof UploadingVideo, value: string | string[]) => {
     setUploadingVideos(prev =>
       prev.map(uv =>
         uv.file === file ? { ...uv, [field]: value } : uv
@@ -456,7 +509,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
                   </div>
 
                   {(uploadingVideo.status === 'pending' || uploadingVideo.status === 'uploading' || uploadingVideo.status === 'processing') && (
-                    <div className="space-y-6">
+                    <div className="space-y-6 relative">
                       {/* 基础信息 */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -639,6 +692,29 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
                             <Upload className="h-4 w-4" />
                             开始上传
                           </Button>
+                        </div>
+                      )}
+
+                      {/* 上传/处理中的蒙版 */}
+                      {(uploadingVideo.status === 'uploading' || uploadingVideo.status === 'processing') && (
+                        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm rounded-lg flex flex-col items-center justify-center z-10">
+                          <div className="flex flex-col items-center gap-3 text-center">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <div className="space-y-1">
+                              <p className="font-medium">
+                                {uploadingVideo.status === 'uploading' ? '正在上传视频...' : '正在处理视频...'}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {uploadingVideo.status === 'uploading' 
+                                  ? '请稍候，视频正在上传到云端' 
+                                  : 'Cloudflare 正在处理视频，生成播放链接和缩略图'
+                                }
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                进度: {uploadingVideo.progress}%
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>

@@ -13,7 +13,7 @@ export const useMaterials = (filters = {}, pagination = {}) => {
       }
       return result.data || [];
     },
-    staleTime: 5 * 60 * 1000, // 5分钟
+    staleTime: 30 * 1000, // 30秒 - 减少缓存时间以便快速看到新上传的视频
   });
 };
 

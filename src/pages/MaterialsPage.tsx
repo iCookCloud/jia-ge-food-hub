@@ -377,6 +377,20 @@ const MaterialsPage = () => {
                             src={video.thumbnail_url || video.thumbnail} 
                             alt={video.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            crossOrigin="anonymous"
+                            referrerPolicy="no-referrer"
+                            loading="lazy"
+                            onError={(e) => {
+                              console.error('图片加载失败:', video.thumbnail_url || video.thumbnail);
+                              // 尝试重新加载一次
+                              const img = e.target as HTMLImageElement;
+                              if (!img.dataset.retried) {
+                                img.dataset.retried = 'true';
+                                setTimeout(() => {
+                                  img.src = img.src + '?retry=' + Date.now();
+                                }, 1000);
+                              }
+                            }}
                           />
                           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors flex items-center justify-center">
                             <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -473,6 +487,20 @@ const MaterialsPage = () => {
                           src={video.thumbnail_url || video.thumbnail} 
                           alt={video.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          crossOrigin="anonymous"
+                          referrerPolicy="no-referrer"
+                          loading="lazy"
+                          onError={(e) => {
+                            console.error('图片加载失败:', video.thumbnail_url || video.thumbnail);
+                            // 尝试重新加载一次
+                            const img = e.target as HTMLImageElement;
+                            if (!img.dataset.retried) {
+                              img.dataset.retried = 'true';
+                              setTimeout(() => {
+                                img.src = img.src + '?retry=' + Date.now();
+                              }, 1000);
+                            }
+                          }}
                         />
                         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors flex items-center justify-center">
                           <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">

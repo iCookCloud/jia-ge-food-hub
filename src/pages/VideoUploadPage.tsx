@@ -1,16 +1,42 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { VideoUpload } from "@/components/upload/VideoUpload";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Video, ArrowLeft } from "lucide-react";
+import { Video, ArrowLeft, ChevronDown, ChevronRight, Info } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { cloudflareStreamService } from "@/services/cloudflareStreamService";
 
 export default function VideoUploadPage() {
   const navigate = useNavigate();
-  const [uploadedVideos, setUploadedVideos] = useState<any[]>([]);
+  const [uploadedVideos, setUploadedVideos] = useState<{
+    id: string;
+    title: string;
+    videoUrl?: string;
+    thumbnailUrl?: string;
+  }[]>([]);
+  const [showInstructions, setShowInstructions] = useState(false);
 
-  const handleUploadComplete = (video: any) => {
+  // 页面加载时检查未完成的视频
+  useEffect(() => {
+    const checkPendingVideos = async () => {
+      try {
+        await cloudflareStreamService.checkPendingVideos();
+        console.log('已检查并更新未完成的视频状态');
+      } catch (error) {
+        console.error('检查未完成视频失败:', error);
+      }
+    };
+
+    checkPendingVideos();
+  }, []);
+
+  const handleUploadComplete = (video: {
+    id: string;
+    title: string;
+    videoUrl?: string;
+    thumbnailUrl?: string;
+  }) => {
     setUploadedVideos(prev => [...prev, video]);
   };
 
@@ -38,29 +64,46 @@ export default function VideoUploadPage() {
           </div>
         </div>
 
-        {/* 上传说明 */}
+        {/* 可折叠的上传说明 */}
         <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-lg">上传说明</CardTitle>
+          <CardHeader 
+            className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => setShowInstructions(!showInstructions)}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Info className="h-4 w-4 text-primary" />
+                <CardTitle className="text-base">上传说明</CardTitle>
+              </div>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                {showInstructions ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <div className="flex items-start gap-2">
-              <span className="text-primary font-medium">•</span>
-              <span>支持格式：MP4、MOV、AVI、WMV、WebM</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-primary font-medium">•</span>
-              <span>文件大小：最大 500MB</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-primary font-medium">•</span>
-              <span>视频会自动上传到 Cloudflare Stream 进行处理和优化</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-primary font-medium">•</span>
-              <span>上传完成后，视频将在视频中心展示，其他用户可以查看</span>
-            </div>
-          </CardContent>
+          {showInstructions && (
+            <CardContent className="pt-0 space-y-3 text-sm text-muted-foreground">
+              <div className="flex items-start gap-2">
+                <span className="text-primary font-medium">•</span>
+                <span>支持格式：MP4、MOV、AVI、WMV、WebM</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-primary font-medium">•</span>
+                <span>文件大小：最大 500MB</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-primary font-medium">•</span>
+                <span>视频会自动上传到 Cloudflare Stream 进行处理和优化</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-primary font-medium">•</span>
+                <span>上传完成后，视频将在视频中心展示，其他用户可以查看</span>
+              </div>
+            </CardContent>
+          )}
         </Card>
 
         {/* 视频上传组件 */}
