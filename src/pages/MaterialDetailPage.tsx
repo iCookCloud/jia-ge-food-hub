@@ -216,27 +216,6 @@ const MaterialDetailPage = () => {
                   </p>
                   
                   {/* Tags - 暂时隐藏，因为数据库中没有tags字段 */}
-                  
-                  {/* Related Products - 通过关联表获取 */}
-                  {video.video_product_associations?.length > 0 && (
-                    <div className="mt-4 p-4 bg-muted rounded-lg">
-                      <h4 className="font-medium mb-2">相关商品</h4>
-                      <div className="space-y-2">
-                        {video.video_product_associations.map((association: VideoProductAssociation) => (
-                          <Link key={association.product_id} to={`/products/${association.product_id}`}>
-                            <div className="flex items-center justify-between p-2 rounded border hover:bg-background transition-colors">
-                              <span className="font-medium">
-                                {association.products?.standard_chinese_name || association.products?.standard_english_name || "未知商品"}
-                              </span>
-                              <span className="text-sm text-muted-foreground">
-                                价格: ¥{association.products?.unit_price || "未知"}
-                              </span>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
