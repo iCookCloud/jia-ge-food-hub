@@ -378,7 +378,7 @@ const ProductsPage = () => {
                     }
                   `}>
                     {convertedProducts.map((product, index) => (
-                      <ProductCard key={`${product.id}-${index}`} product={product} />
+                      <ProductCard key={`${product.id}-${index}`} product={product} mode={viewMode} />
                     ))}
                   </div>
                   
