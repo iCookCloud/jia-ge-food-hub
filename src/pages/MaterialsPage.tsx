@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,6 +27,27 @@ import {
 import { Link } from "react-router-dom";
 import { useMaterials } from "@/hooks/useMaterials";
 import { useAuth } from "@/hooks/useAuth";
+
+// 视频数据类型定义
+interface VideoItem {
+  id: string;
+  title: string;
+  description?: string;
+  thumbnail?: string;
+  thumbnail_url?: string;
+  duration?: string;
+  duration_seconds?: number;
+  category?: string;
+  supplier?: string;
+  supplier_credentials?: {
+    company_name?: string;
+  };
+  uploadDate?: string;
+  created_at?: string;
+  views?: number;
+  tags?: string[];
+  relatedProducts?: string[];
+}
 
 // Mock video data for fallback
 const mockVideos = [
@@ -84,28 +105,129 @@ const mockVideos = [
   }
 ];
 
+// 防抖Hook
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
 const MaterialsPage = () => {
   const { user } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState("全部");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSupplier, setSelectedSupplier] = useState("全部");
   const [activeTab, setActiveTab] = useState("all");
+  
+  // 对搜索词进行防抖处理，500ms延迟
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  
+  // 搜索状态指示器
+  const isSearching = searchTerm !== debouncedSearchTerm;
+  
+  // 分页状态管理
+  const [currentPage, setCurrentPage] = useState(1);
+  const [allVideos, setAllVideos] = useState<VideoItem[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
+  const ITEMS_PER_PAGE = 9; // 每页显示9个视频
 
   const categories = ["全部", "产品介绍", "操作教程", "客户案例", "行业资讯"];
   
   const filters = {
-    search: searchTerm,
+    search: debouncedSearchTerm,
     category: selectedCategory === "全部" ? undefined : selectedCategory,
     supplier: selectedSupplier === "全部" ? undefined : selectedSupplier,
     user_only: activeTab === "mine" ? user?.id : undefined
   };
 
-  const { data: videos = [], isLoading, error } = useMaterials(filters);
+  const pagination = {
+    page: currentPage,
+    limit: ITEMS_PER_PAGE
+  };
   
-  // Use mock data as fallback
-  const displayVideos = videos.length > 0 ? videos : (activeTab === "all" ? mockVideos : []);
+  const { data: videos = [], isLoading, error } = useMaterials(filters, pagination);
   
-  const filteredVideos = displayVideos.filter((video: any) => {
+  // Use mock data as fallback for first page only
+  const displayVideos = videos.length > 0 ? videos : (activeTab === "all" && currentPage === 1 ? mockVideos : []);
+  
+  // 管理数据累积和重置
+  useEffect(() => {
+    if (videos && videos.length > 0) {
+      if (currentPage === 1) {
+        // 第一页或过滤条件改变时，重置数据
+        setAllVideos(videos);
+        setHasMore(videos.length === ITEMS_PER_PAGE);
+      } else {
+        // 加载更多时，累积数据
+        setAllVideos(prev => {
+          const existingIds = new Set(prev.map(v => v.id));
+          const newVideos = videos.filter(v => !existingIds.has(v.id));
+          return [...prev, ...newVideos];
+        });
+        setHasMore(videos.length === ITEMS_PER_PAGE);
+      }
+    }
+    setIsLoadingMore(false);
+  }, [videos, currentPage]);
+
+  // 当过滤条件改变时，重置分页状态
+  useEffect(() => {
+    setCurrentPage(1);
+    setAllVideos([]);
+    setHasMore(true);
+  }, [selectedCategory, debouncedSearchTerm, selectedSupplier, activeTab]);
+
+  // 加载更多处理函数
+  const handleLoadMore = useCallback(() => {
+    if (!isLoadingMore && hasMore && !isLoading) {
+      setIsLoadingMore(true);
+      setCurrentPage(prev => prev + 1);
+    }
+  }, [isLoadingMore, hasMore, isLoading]);
+
+  // 无限滚动功能
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = document.documentElement.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = document.documentElement.clientHeight;
+      
+      // 当滚动到距离底部200px时触发加载更多
+      if (scrollTop + clientHeight >= scrollHeight - 200) {
+        handleLoadMore();
+      }
+    };
+
+    // 防抖处理
+    let timeoutId: NodeJS.Timeout;
+    const debouncedHandleScroll = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(handleScroll, 100);
+    };
+
+    window.addEventListener('scroll', debouncedHandleScroll);
+    return () => {
+      window.removeEventListener('scroll', debouncedHandleScroll);
+      clearTimeout(timeoutId);
+    };
+  }, [hasMore, isLoadingMore, isLoading, handleLoadMore]);
+
+  // 使用累积的数据而不是当前页数据
+  const finalDisplayVideos = allVideos.length > 0 ? allVideos : displayVideos;
+  
+  const filteredVideos = finalDisplayVideos.filter((video: VideoItem) => {
     const matchesCategory = selectedCategory === "全部" || video.category === selectedCategory;
     const matchesSearch = video.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          video.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -160,11 +282,16 @@ const MaterialsPage = () => {
                   <div className="flex-1">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                      {isSearching && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                        </div>
+                      )}
                       <Input
                         placeholder="搜索视频标题、描述或标签..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
+                        className={`pl-10 ${isSearching ? 'pr-10' : ''}`}
                       />
                     </div>
                   </div>
@@ -214,9 +341,33 @@ const MaterialsPage = () => {
                   </Card>
                 ))}
               </div>
+            ) : error ? (
+              <div className="text-center py-12">
+                <p className="text-destructive mb-4">加载视频时出现错误</p>
+                <Button 
+                  variant="outline" 
+                  onClick={() => window.location.reload()}
+                >
+                  重新加载
+                </Button>
+              </div>
+            ) : filteredVideos.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground mb-4">没有找到符合条件的视频</p>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSearchTerm("");
+                    setSelectedCategory("全部");
+                    setSelectedSupplier("全部");
+                  }}
+                >
+                  清除筛选条件
+                </Button>
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredVideos.map((video: any) => (
+                {filteredVideos.map((video: VideoItem) => (
                   <Link key={video.id} to={`/materials/${video.id}`}>
                     <Card className="group hover:shadow-lg transition-all duration-300 hover-scale">
                       <CardContent className="p-0">
@@ -291,12 +442,29 @@ const MaterialsPage = () => {
                 ))}
               </div>
             )}
+
+            {/* Loading More Skeleton */}
+            {isLoadingMore && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                {[...Array(3)].map((_, i) => (
+                  <Card key={`loading-${i}`} className="animate-pulse">
+                    <CardContent className="p-0">
+                      <div className="aspect-video bg-muted rounded-t-lg"></div>
+                      <div className="p-4 space-y-2">
+                        <div className="h-4 bg-muted rounded w-3/4"></div>
+                        <div className="h-3 bg-muted rounded w-1/2"></div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
           
           {/* My Materials Tab */}
           <TabsContent value="mine" className="mt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredVideos.filter((video: any) => video.supplier === user?.email || video.supplier_id === user?.id).map((video: any) => (
+              {filteredVideos.filter((video: VideoItem) => video.supplier === user?.email).map((video: VideoItem) => (
                 <Link key={video.id} to={`/materials/${video.id}`}>
                   <Card className="group hover:shadow-lg transition-all duration-300 hover-scale">
                     <CardContent className="p-0">
@@ -340,7 +508,7 @@ const MaterialsPage = () => {
           <TabsContent value="stats" className="mt-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               {[
-                { label: "我的视频", value: displayVideos.filter((v: any) => v.supplier === user?.email || v.supplier_id === user?.id).length, icon: Video },
+                { label: "我的视频", value: displayVideos.filter((v: VideoItem) => v.supplier === user?.email).length, icon: Video },
                 { label: "总观看", value: "5.8K", icon: Eye },
                 { label: "转化订单", value: 23, icon: TrendingUp },
                 { label: "视频引用", value: 45, icon: BarChart }
@@ -362,9 +530,25 @@ const MaterialsPage = () => {
         </Tabs>
 
         {/* Load More */}
-        <div className="flex justify-center mt-8">
-          <Button variant="outline">加载更多视频</Button>
-        </div>
+        {filteredVideos.length > 0 && hasMore && (
+          <div className="flex flex-col items-center mt-8 gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleLoadMore}
+              disabled={isLoadingMore || isLoading}
+            >
+              {isLoadingMore ? "加载中..." : "加载更多视频"}
+            </Button>
+            <p className="text-xs text-muted-foreground">或滚动到底部自动加载</p>
+          </div>
+        )}
+        
+        {/* No More Data Message */}
+        {filteredVideos.length > 0 && !hasMore && (
+          <div className="flex justify-center mt-8">
+            <p className="text-muted-foreground text-sm">没有更多视频了</p>
+          </div>
+        )}
       </div>
     </Layout>
   );
