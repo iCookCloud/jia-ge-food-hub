@@ -8,14 +8,20 @@ export interface Product {
   standard_chinese_name: string | null;
   category_english: string | null;
   category_chinese: string | null;
+  subcategory: string | null;
   unit_price: string | null;
   unit: string | null;
   specifications: string | null;
   product_image: string | null;
+  outer_box_dimensions: string | null;
+  storage_requirements: string | null;
+  requires_cold_chain: boolean | null;
+  is_fragile: boolean | null;
   is_active: boolean | null;
   user_id: string | null;
   vendor: string | null;
   created_at: string | null;
+  updated_at: string | null;
 }
 
 export const useProducts = (filters = {}, pagination = {}) => {

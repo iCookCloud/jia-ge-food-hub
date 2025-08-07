@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, MessageCircle, Star, Plus, Minus } from "lucide-react";
+import { Building2, MessageCircle, Plus, Minus, Snowflake, AlertTriangle, Package2, Star } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 
 interface ProductCardProps {
@@ -12,6 +12,12 @@ interface ProductCardProps {
     price: string;
     unit: string;
     specifications?: string;
+    sku?: string;
+    subcategory?: string;
+    dimensions?: string;
+    storageRequirements?: string;
+    requiresColdChain?: boolean;
+    isFragile?: boolean;
     supplier: {
       name: string;
       verified: boolean;
@@ -24,6 +30,16 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   const { addItem, updateQuantity, getItemQuantity } = useCart();
   const currentQuantity = getItemQuantity(product.id);
+
+  // 存储要求转换
+  const getStorageText = (requirement?: string) => {
+    switch (requirement?.toLowerCase()) {
+      case 'dry': return '常温存储';
+      case 'cold': return '冷藏存储';
+      case 'frozen': return '冷冻存储';
+      default: return requirement || '常规存储';
+    }
+  };
 
   const handleAddToCart = () => {
     if (currentQuantity === 0) {
@@ -64,50 +80,94 @@ export function ProductCard({ product }: ProductCardProps) {
 
       <CardContent className="p-4">
         <div className="space-y-2">
-          <h3 className="font-semibold text-sm line-clamp-2 text-foreground group-hover:text-primary transition-colors">
-            {product.name}
-          </h3>
+          {/* 第1行：商品名称 + SKU + 标签 */}
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-semibold text-sm line-clamp-2 text-foreground group-hover:text-primary transition-colors flex-1">
+              {product.name}
+              {product.sku && (
+                <span className="text-xs text-muted-foreground font-normal ml-1">
+                  • {product.sku.trim()}
+                </span>
+              )}
+            </h3>
+            <div className="flex flex-col gap-1 flex-shrink-0">
+              {product.subcategory && (
+                <Badge variant="outline" className="text-xs px-1 py-0">
+                  {product.subcategory.trim()}
+                </Badge>
+              )}
+              <div className="flex gap-1">
+                {product.requiresColdChain && (
+                  <Badge variant="secondary" className="text-xs px-1 py-0 bg-blue-100 text-blue-700">
+                    <Snowflake className="h-2 w-2 mr-0.5" />
+                    冷链
+                  </Badge>
+                )}
+                {product.isFragile && (
+                  <Badge variant="secondary" className="text-xs px-1 py-0 bg-red-100 text-red-700">
+                    <AlertTriangle className="h-2 w-2 mr-0.5" />
+                    易碎
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
           
+          {/* 第2行：规格信息 */}
           {product.specifications && (
             <p className="text-xs text-muted-foreground line-clamp-1">
-              {product.specifications}
+              规格：{product.specifications.trim()}
             </p>
           )}
 
+          {/* 第3行：包装尺寸 + 存储要求 */}
+          {(product.dimensions || product.storageRequirements) && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {product.dimensions && (
+                <span className="flex items-center gap-1">
+                  <Package2 className="h-3 w-3" />
+                  {product.dimensions.trim()}
+                </span>
+              )}
+              {product.dimensions && product.storageRequirements && (
+                <span>|</span>
+              )}
+              {product.storageRequirements && (
+                <span>{getStorageText(product.storageRequirements)}</span>
+              )}
+            </div>
+          )}
+
+          {/* 第4行：价格 + 评分 */}
           <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <div className="flex items-baseline space-x-1">
-                <span className="text-lg font-bold text-primary">
-                  ¥{product.price}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  /{product.unit}
-                </span>
-              </div>
+            <div className="flex items-baseline space-x-1">
+              <span className="text-lg font-bold text-primary">
+                ¥{product.price}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                /{product.unit}
+              </span>
             </div>
             
-            <div className="flex items-center space-x-1">
-              {product.rating && (
-                <>
-                  <Star className="h-3 w-3 text-warning fill-current" />
-                  <span className="text-xs text-muted-foreground">{product.rating}</span>
-                </>
-              )}
-            </div>
+            {product.rating && (
+              <div className="flex items-center space-x-1">
+                <Star className="h-3 w-3 text-warning fill-current" />
+                <span className="text-xs text-muted-foreground">{product.rating}</span>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-1">
-              <Building2 className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground truncate">
-                {product.supplier.name}
-              </span>
-              {product.supplier.verified && (
-                <Badge variant="secondary" className="h-4 px-1 text-xs">
-                  认证
-                </Badge>
-              )}
-            </div>
+          {/* 第5行：供应商 + 认证标识 */}
+          <div className="flex items-center space-x-1">
+            <Building2 className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground truncate">
+              {product.supplier.name}
+            </span>
+            {product.supplier.verified && (
+              <Badge variant="secondary" className="h-4 px-1 text-xs">
+                认证
+              </Badge>
+            )}
           </div>
         </div>
       </CardContent>

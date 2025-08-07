@@ -25,13 +25,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Search, 
   Filter, 
-  SlidersHorizontal,
-  MapPin,
-  Star,
   Package,
   Grid3X3,
   List,
@@ -129,16 +125,19 @@ const ProductsPage = () => {
     price: product.unit_price || "0.00",
     unit: product.unit || "个",
     specifications: product.specifications || "暂无规格说明",
+    sku: product.sku,
+    subcategory: product.subcategory,
+    dimensions: product.outer_box_dimensions,
+    storageRequirements: product.storage_requirements,
+    requiresColdChain: product.requires_cold_chain || false,
+    isFragile: product.is_fragile || false,
     category: product.category_chinese || product.category_english || "其他",
-    origin: "暂无产地信息",
     supplier: {
       name: product.vendor || "未知供应商",
-      verified: true,
-      location: "暂无地址"
+      verified: true // 硬编码：所有供应商都显示为已认证
     },
-    rating: 4.5 + Math.random() * 0.5, // Mock rating
-    inStock: product.is_active || false,
-    featured: false
+    rating: parseFloat((4.0 + Math.random() * 1.0).toFixed(2)), // 4.0-5.0，保留2位小数
+    inStock: product.is_active || false
   }));
 
   const FilterSection = () => (
