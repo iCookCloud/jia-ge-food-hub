@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { productService } from "@/services/api";
+import { materialService } from "@/services/coreDataService";
 // Remove suppliers import for now
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,7 +18,14 @@ interface SearchResult {
   type: 'product' | 'supplier' | 'video';
   image?: string;
   url: string;
-  metadata?: any;
+  metadata?: {
+    price?: number;
+    unit?: string;
+    vendor?: string;
+    verified?: boolean;
+    duration?: string;
+    views?: number;
+  };
 }
 
 interface GlobalSearchProps {
@@ -91,19 +99,30 @@ export function GlobalSearch({ children }: GlobalSearchProps) {
           });
         }
 
-        // Mock video search results
-        if (searchTerm.includes('视频') || searchTerm.includes('教程') || searchTerm.includes('展示')) {
-          results.push({
-            id: 'video-1',
-            title: '三文鱼切片教程视频',
-            description: '专业厨师演示三文鱼切片技巧',
-            type: 'video',
-            url: '/materials/1',
-            metadata: {
-              duration: '5:30',
-              views: 1250
-            }
-          });
+        // Search videos using server API
+        try {
+          const videoResult = await materialService.getAll(
+            { search: query }, 
+            { page: 1, limit: 5 }
+          );
+          
+          if (videoResult.data) {
+            videoResult.data.forEach(video => {
+              results.push({
+                id: video.id,
+                title: video.title || '未命名视频',
+                description: video.description || '暂无描述',
+                type: 'video',
+                image: video.thumbnail_url,
+                url: `/materials/${video.id}`,
+                metadata: {
+                  duration: video.duration ? `${Math.floor(video.duration / 60)}:${(video.duration % 60).toString().padStart(2, '0')}` : undefined
+                }
+              });
+            });
+          }
+        } catch (videoError) {
+          // 视频搜索失败时继续处理其他结果
         }
 
         // Sort results by relevance (exact matches first)
@@ -161,6 +180,10 @@ export function GlobalSearch({ children }: GlobalSearchProps) {
         )}
       </DialogTrigger>
       <DialogContent className="max-w-2xl p-0">
+        {/* 隐藏的标题和描述用于无障碍性 */}
+        <DialogTitle className="sr-only">全局搜索</DialogTitle>
+        <DialogDescription className="sr-only">搜索商品、供应商和视频内容</DialogDescription>
+        
         <div className="border-b border-border p-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />

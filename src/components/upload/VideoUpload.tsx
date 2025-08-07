@@ -65,7 +65,6 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
       }
       setProductsLoaded(true);
     } catch (error) {
-      console.error('Failed to load products:', error);
       toast({
         title: "加载失败",
         description: "无法加载产品列表",
@@ -118,7 +117,6 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     });
     
     if (invalidFiles.length > 0) {
-      console.log('无效文件:', invalidFiles.map(f => ({ name: f.name, type: f.type })));
       toast({
         title: '文件类型不支持',
         description: '请上传 MP4、MOV、AVI、WMV 或 WebM 格式的视频文件',
@@ -232,7 +230,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
             .insert(associations);
 
           if (associationError) {
-            console.error('创建产品关联失败:', associationError);
+            // 关联失败但不影响主要上传流程，静默处理
           }
         }
 
@@ -293,7 +291,6 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
           });
 
         } catch (pollError) {
-          console.warn('视频处理轮询超时或失败:', pollError);
           
           // 轮询失败，但上传成功，提示后台处理
           setUploadingVideos(prev => 

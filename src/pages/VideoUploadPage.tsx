@@ -22,9 +22,7 @@ export default function VideoUploadPage() {
     const checkPendingVideos = async () => {
       try {
         await cloudflareStreamService.checkPendingVideos();
-        console.log('已检查并更新未完成的视频状态');
       } catch (error) {
-        console.error('检查未完成视频失败:', error);
       }
     };
 
@@ -41,7 +39,6 @@ export default function VideoUploadPage() {
   };
 
   const handleUploadError = (error: string) => {
-    console.error('视频上传错误:', error);
   };
 
   return (
