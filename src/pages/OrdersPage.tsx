@@ -13,45 +13,19 @@ import {
   Download,
   Eye,
   ArrowUpRight,
-  Target
+  Target,
+  Package
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useProductLists } from "@/hooks/useProductLists";
+import { formatDateTime } from "@/lib/utils";
 
 const OrdersPage = () => {
   const [activeTab, setActiveTab] = useState("lists");
-  const { data: realProductLists } = useProductLists();
+  const { data: productLists, isLoading } = useProductLists();
 
-  // Mock data
-  const productLists = [
-    {
-      id: "LIST001",
-      name: "优质海鲜拼盘",
-      total_amount: 2580,
-      status: "shared",
-      created_at: "2024-01-15",
-      share_code: "HXP001",
-      items: [
-        { name: "挪威三文鱼片", quantity: 2, price: 256 },
-        { name: "澳洲龙虾", quantity: 1, price: 680 }
-      ]
-    },
-    {
-      id: "LIST002", 
-      name: "火锅食材套餐",
-      total_amount: 1200,
-      status: "draft",
-      created_at: "2024-01-12",
-      share_code: "",
-      items: [
-        { name: "优质牛肉卷", quantity: 3, price: 180 },
-        { name: "新鲜蔬菜拼盘", quantity: 2, price: 120 }
-      ]
-    }
-  ];
-
-  // Use real data if available, otherwise use mock data
-  const displayLists = realProductLists && realProductLists.length > 0 ? realProductLists : productLists;
+  // 使用真实数据，如果没有数据则显示空数组
+  const displayLists = productLists || [];
 
   const getStatusBadge = (status: string) => {
     const colors = {
@@ -79,10 +53,10 @@ const OrdersPage = () => {
         {/* Stats Overview */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
-            { label: "总货单", value: productLists.length, icon: ShoppingCart },
-            { label: "总金额", value: "¥3,780", icon: DollarSign },
-            { label: "已分享", value: 1, icon: Users },
-            { label: "本月创建", value: "¥2,580", icon: TrendingUp }
+            { label: "总货单", value: displayLists.length, icon: ShoppingCart },
+            { label: "总金额", value: `¥${displayLists.reduce((sum, list) => sum + list.total_amount, 0).toLocaleString()}`, icon: DollarSign },
+            { label: "已分享", value: displayLists.filter(list => list.status === 'shared').length, icon: Users },
+            { label: "草稿", value: displayLists.filter(list => list.status === 'draft').length, icon: TrendingUp }
           ].map((stat, index) => (
             <Card key={index}>
               <CardContent className="p-4">
@@ -105,8 +79,38 @@ const OrdersPage = () => {
 
           {/* My Product Lists */}
           <TabsContent value="lists" className="mt-6">
-            <div className="space-y-4">
-              {displayLists.map((list) => (
+            {isLoading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <Card key={index} className="animate-pulse">
+                    <CardContent className="p-6">
+                      <div className="h-6 bg-muted rounded w-1/3 mb-2"></div>
+                      <div className="h-4 bg-muted rounded w-1/2 mb-4"></div>
+                      <div className="h-4 bg-muted rounded w-full mb-2"></div>
+                      <div className="h-4 bg-muted rounded w-3/4"></div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : displayLists.length === 0 ? (
+              <Card className="p-12 text-center">
+                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  还没有创建任何货单
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  去商品页面添加商品到购物车，然后生成货单吧
+                </p>
+                <Button asChild>
+                  <Link to="/products">
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    去选购商品
+                  </Link>
+                </Button>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {displayLists.map((list) => (
                 <Card key={list.id}>
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
@@ -122,7 +126,6 @@ const OrdersPage = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-bold text-primary">¥{list.total_amount}</p>
-                        <p className="text-sm text-muted-foreground">{list.created_at}</p>
                       </div>
                     </div>
 
@@ -138,28 +141,29 @@ const OrdersPage = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4 pt-4 border-t">
                       <span className="text-sm text-muted-foreground">
                         <Calendar className="w-4 h-4 inline mr-1" />
-                        {list.created_at}
+                        {formatDateTime(list.created_at)}
                       </span>
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm">
-                          <Eye className="w-4 h-4 mr-2" />
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="text-sm px-3">
+                          <Eye className="w-4 h-4 mr-1" />
                           查看详情
                         </Button>
                         {list.status === "draft" && (
-                          <Button size="sm">
-                            <ArrowUpRight className="w-4 h-4 mr-2" />
+                          <Button size="sm" className="text-sm px-3">
+                            <ArrowUpRight className="w-4 h-4 mr-1" />
                             分享货单
                           </Button>
                         )}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
         </Tabs>
