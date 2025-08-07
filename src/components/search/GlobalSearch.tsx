@@ -81,7 +81,7 @@ export function GlobalSearch({ children }: GlobalSearchProps) {
               description: specs || '暂无规格说明',
               type: 'product',
               image: product.product_image,
-              url: `/product/${product.id}`,
+              url: `/products/${product.id}`,
               metadata: {
                 price: product.unit_price,
                 unit: product.unit,
