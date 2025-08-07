@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 export interface CartItem {
   id: string;
@@ -26,11 +26,31 @@ const cartStorage = {
   },
   set: (items: CartItem[]) => {
     localStorage.setItem('cart-items', JSON.stringify(items));
+    // 触发自定义事件，通知其他组件购物车已更新
+    window.dispatchEvent(new Event('cart-updated'));
   }
 };
 
 export const useCart = () => {
   const [items, setItemsState] = useState<CartItem[]>(() => cartStorage.get());
+
+  // 监听 localStorage 变化，确保跨页面状态同步
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setItemsState(cartStorage.get());
+    };
+
+    // 监听 storage 事件（跨标签页）
+    window.addEventListener('storage', handleStorageChange);
+    
+    // 监听自定义事件（同一标签页内的页面切换）
+    window.addEventListener('cart-updated', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('cart-updated', handleStorageChange);
+    };
+  }, []);
 
   const addItem = useCallback((product: Omit<CartItem, 'quantity'>, quantity: number = 1) => {
     setItemsState(prevItems => {
