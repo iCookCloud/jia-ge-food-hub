@@ -47,15 +47,15 @@ export const productService = {
   async getAll(filters: FilterParams = {}, pagination: PaginationParams = {}) {
     let query = supabase
       .from('products')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('is_active', true);
 
     // 应用过滤器
-    if (filters.category) {
+    if (filters.category && filters.category !== '全部') {
       query = query.eq('category_chinese', filters.category);
     }
     if (filters.search) {
-      query = query.or(`standard_chinese_name.ilike.%${filters.search}%,standard_english_name.ilike.%${filters.search}%`);
+      query = query.or(`standard_chinese_name.ilike.%${filters.search}%,standard_english_name.ilike.%${filters.search}%,specifications.ilike.%${filters.search}%`);
     }
 
     // 应用分页
@@ -64,8 +64,27 @@ export const productService = {
       query = query.range(offset, offset + pagination.limit - 1);
     }
 
-    const { data, error } = await query.order('created_at', { ascending: false });
-    return { data, error };
+    // 应用排序
+    const sortBy = filters.sortBy || 'created_at';
+    const ascending = filters.sortOrder === 'asc';
+    
+    if (sortBy === 'price') {
+      // 价格排序：unit_price字段
+      query = query.order('unit_price', { ascending, nullsFirst: false });
+    } else if (sortBy === 'name') {
+      // 名称排序：优先中文名，再英文名
+      query = query.order('standard_chinese_name', { ascending, nullsFirst: false })
+                   .order('standard_english_name', { ascending, nullsFirst: false });
+    } else if (sortBy === 'updated_at') {
+      // 更新时间排序
+      query = query.order('updated_at', { ascending, nullsFirst: false });
+    } else {
+      // 默认按创建时间排序
+      query = query.order('created_at', { ascending: false });
+    }
+
+    const { data, error, count } = await query;
+    return { data, error, count };
   },
 
   async getById(id: string) {

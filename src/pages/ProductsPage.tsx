@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { ProductCard } from "@/components/product/ProductCard";
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useProducts } from "@/hooks/useProducts";
+import { useInfiniteProducts } from "@/hooks/useInfiniteProducts";
 import { useCart } from "@/hooks/useCart";
+import { InfiniteScroll } from "@/components/common/InfiniteScroll";
+import { useDebounce } from "@/hooks/useDebounce";
 import { CreateProductListDialog } from "@/components/cart/CreateProductListDialog";
 import { 
   Select,
@@ -41,7 +43,6 @@ const categories = ["全部", "海鲜", "肉类", "蔬菜", "调料", "冷冻食
 const origins = ["全部", "本地", "挪威", "澳大利亚", "意大利", "厄瓜多尔"];
 
 const ProductsPage = () => {
-  const { data: products = [], isLoading, error } = useProducts();
   const { items: cartItems, getTotalItems, getTotalAmount, clearCart } = useCart();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("全部");
@@ -53,8 +54,75 @@ const ProductsPage = () => {
   const totalItems = getTotalItems();
   const totalAmount = getTotalAmount();
 
+  // 防抖搜索查询
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+
+  // 构建查询参数
+  const queryParams = useMemo(() => {
+    let sortField = "created_at";
+    let sortOrder: "asc" | "desc" = "desc";
+    
+    switch (sortBy) {
+      case "price-low":
+        sortField = "price";
+        sortOrder = "asc";
+        break;
+      case "price-high":
+        sortField = "price";
+        sortOrder = "desc";
+        break;
+      case "name":
+        sortField = "name";
+        sortOrder = "asc";
+        break;
+      case "newest":
+        sortField = "created_at";
+        sortOrder = "desc";
+        break;
+      case "featured":
+      default:
+        // 推荐排序：优先显示最近更新的商品
+        sortField = "updated_at";
+        sortOrder = "desc";
+        break;
+    }
+    
+    return {
+      search: debouncedSearchQuery,
+      category: selectedCategory,
+      sortBy: sortField,
+      sortOrder,
+      limit: 12
+    };
+  }, [debouncedSearchQuery, selectedCategory, sortBy]);
+
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteProducts(queryParams);
+
+  // 合并所有页面的产品数据，确保去重
+  const allProducts = useMemo(() => {
+    const products = data?.pages.flatMap(page => page.data) || [];
+    // 使用 Map 去重，以产品ID为key
+    const uniqueProductsMap = new Map();
+    products.forEach(product => {
+      if (!uniqueProductsMap.has(product.id)) {
+        uniqueProductsMap.set(product.id, product);
+      }
+    });
+    return Array.from(uniqueProductsMap.values());
+  }, [data]);
+
+  // 获取总数
+  const totalCount = data?.pages[0]?.count || 0;
+
   // Convert database products to the format expected by ProductCard
-  const convertedProducts = products.map(product => ({
+  const convertedProducts = allProducts.map(product => ({
     id: product.id,
     name: product.standard_chinese_name || product.standard_english_name || product.sku,
     image: product.product_image || "/placeholder.svg",
@@ -72,31 +140,6 @@ const ProductsPage = () => {
     inStock: product.is_active || false,
     featured: false
   }));
-
-  // Filter products based on selected criteria
-  const filteredProducts = convertedProducts.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         product.specifications.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === "全部" || product.category === selectedCategory;
-    const matchesOrigin = selectedOrigin === "全部" || product.origin === selectedOrigin;
-
-    return matchesSearch && matchesCategory && matchesOrigin;
-  });
-
-  // Sort products
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    switch (sortBy) {
-      case "price-low":
-        return parseFloat(a.price) - parseFloat(b.price);
-      case "price-high":
-        return parseFloat(b.price) - parseFloat(a.price);
-      case "rating":
-        return (b.rating || 0) - (a.rating || 0);
-      case "featured":
-      default:
-        return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
-    }
-  });
 
   const FilterSection = () => (
     <div className="space-y-6">
@@ -243,17 +286,21 @@ const ProductsPage = () => {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-4">
                 <p className="text-sm text-muted-foreground">
-                  共找到 {sortedProducts.length} 个商品
+                  {convertedProducts.length} / {totalCount} 个商品
                 </p>
-                {isLoading && (
+                {(isLoading || isFetchingNextPage) && (
                   <div className="flex items-center space-x-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                    <span className="text-sm text-muted-foreground">加载中...</span>
+                    <span className="text-sm text-muted-foreground">
+                      {isLoading ? '加载中...' : '加载更多...'}
+                    </span>
                   </div>
                 )}
-                <Badge variant="outline">
-                  {selectedCategory !== "全部" && selectedCategory}
-                </Badge>
+                {selectedCategory !== "全部" && (
+                  <Badge variant="outline">
+                    {selectedCategory}
+                  </Badge>
+                )}
               </div>
 
               <div className="flex items-center space-x-2">
@@ -264,9 +311,10 @@ const ProductsPage = () => {
                   </SelectTrigger>
                   <SelectContent className="z-50 bg-popover">
                     <SelectItem value="featured">推荐排序</SelectItem>
+                    <SelectItem value="newest">最新发布</SelectItem>
                     <SelectItem value="price-low">价格从低到高</SelectItem>
                     <SelectItem value="price-high">价格从高到低</SelectItem>
-                    <SelectItem value="rating">评分最高</SelectItem>
+                    <SelectItem value="name">商品名称</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -292,59 +340,83 @@ const ProductsPage = () => {
               </div>
             </div>
 
-            {/* Products Grid/List */}
-            {isLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Card key={i} className="overflow-hidden">
-                    <Skeleton className="h-48 w-full" />
-                    <CardContent className="p-4">
-                      <Skeleton className="h-4 w-full mb-2" />
-                      <Skeleton className="h-4 w-3/4 mb-2" />
-                      <Skeleton className="h-4 w-1/2" />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : error ? (
-              <Card className="p-12 text-center">
-                <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  加载失败
-                </h3>
-                <p className="text-muted-foreground mb-4">
-                  无法加载商品数据，请刷新页面重试
-                </p>
-              </Card>
-            ) : sortedProducts.length > 0 ? (
-              <div className={`
-                ${viewMode === "grid" 
-                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" 
-                  : "space-y-4"
-                }
-              `}>
-                {sortedProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
-            ) : (
-              <Card className="p-12 text-center">
-                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  未找到匹配的商品
-                </h3>
-                <p className="text-muted-foreground mb-4">
-                  请尝试调整搜索条件或筛选条件
-                </p>
-                <Button onClick={() => {
-                  setSearchQuery("");
-                  setSelectedCategory("全部");
-                  setSelectedOrigin("全部");
-                }}>
-                  清除筛选条件
-                </Button>
-              </Card>
-            )}
+            {/* Products Grid/List with Infinite Scroll */}
+            <InfiniteScroll
+              hasNextPage={hasNextPage || false}
+              isLoading={isFetchingNextPage}
+              onLoadMore={fetchNextPage}
+              threshold={300}
+            >
+              {isLoading && convertedProducts.length === 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <Card key={i} className="overflow-hidden">
+                      <Skeleton className="h-48 w-full" />
+                      <CardContent className="p-4">
+                        <Skeleton className="h-4 w-full mb-2" />
+                        <Skeleton className="h-4 w-3/4 mb-2" />
+                        <Skeleton className="h-4 w-1/2" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : error ? (
+                <Card className="p-12 text-center">
+                  <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                    加载失败
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    无法加载商品数据，请刷新页面重试
+                  </p>
+                </Card>
+              ) : convertedProducts.length > 0 ? (
+                <>
+                  <div className={`
+                    ${viewMode === "grid" 
+                      ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" 
+                      : "space-y-4"
+                    }
+                  `}>
+                    {convertedProducts.map((product, index) => (
+                      <ProductCard key={`${product.id}-${index}`} product={product} />
+                    ))}
+                  </div>
+                  
+                  {/* 加载更多指示器 */}
+                  {isFetchingNextPage && (
+                    <div className="flex justify-center items-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                      <span className="ml-3 text-muted-foreground">加载更多商品...</span>
+                    </div>
+                  )}
+                  
+                  {/* 没有更多数据提示 */}
+                  {!hasNextPage && convertedProducts.length > 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">已加载全部 {totalCount} 个商品</p>
+                    </div>
+                  )}
+                </>
+              ) : !isLoading ? (
+                <Card className="p-12 text-center">
+                  <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                    未找到匹配的商品
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    请尝试调整搜索条件或筛选条件
+                  </p>
+                  <Button onClick={() => {
+                    setSearchQuery("");
+                    setSelectedCategory("全部");
+                    setSelectedOrigin("全部");
+                  }}>
+                    清除筛选条件
+                  </Button>
+                </Card>
+              ) : null}
+            </InfiniteScroll>
           </main>
         </div>
       </div>

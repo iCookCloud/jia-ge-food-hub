@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useProducts } from "@/hooks/useProducts";
+import { productService } from "@/services/api";
 // Remove suppliers import for now
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,7 @@ export function GlobalSearch({ children }: GlobalSearchProps) {
   const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
 
-  const { data: products = [], isLoading: productsLoading } = useProducts();
+  // 不再预先加载所有产品，改为按需搜索
 
   // Handle keyboard shortcut
   useEffect(() => {
@@ -49,7 +49,7 @@ export function GlobalSearch({ children }: GlobalSearchProps) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Perform search with debounce
+  // Perform search with debounce - 直接从服务器搜索
   useEffect(() => {
     if (!query.trim()) {
       setSearchResults([]);
@@ -59,64 +59,73 @@ export function GlobalSearch({ children }: GlobalSearchProps) {
 
     setIsSearching(true);
     
-    const searchTimer = setTimeout(() => {
-      const searchTerm = query.toLowerCase();
-      const results: SearchResult[] = [];
+    const searchTimer = setTimeout(async () => {
+      try {
+        const searchTerm = query.toLowerCase();
+        const results: SearchResult[] = [];
 
-      // Search products
-      products.forEach(product => {
-        const name = product.standard_chinese_name || product.standard_english_name || product.sku;
-        const specs = product.specifications || '';
+        // Search products using server API
+        const productResult = await productService.getAll(
+          { search: query }, 
+          { page: 1, limit: 10 }
+        );
         
-        if (name.toLowerCase().includes(searchTerm) || 
-            specs.toLowerCase().includes(searchTerm) ||
-            product.sku.toLowerCase().includes(searchTerm)) {
+        if (productResult.data) {
+          productResult.data.forEach(product => {
+            const name = product.standard_chinese_name || product.standard_english_name || product.sku;
+            const specs = product.specifications || '';
+            
+            results.push({
+              id: product.id,
+              title: name,
+              description: specs || '暂无规格说明',
+              type: 'product',
+              image: product.product_image,
+              url: `/product/${product.id}`,
+              metadata: {
+                price: product.unit_price,
+                unit: product.unit,
+                vendor: product.vendor
+              }
+            });
+          });
+        }
+
+        // Mock video search results
+        if (searchTerm.includes('视频') || searchTerm.includes('教程') || searchTerm.includes('展示')) {
           results.push({
-            id: product.id,
-            title: name,
-            description: specs || '暂无规格说明',
-            type: 'product',
-            image: product.product_image,
-            url: `/product/${product.id}`,
+            id: 'video-1',
+            title: '三文鱼切片教程视频',
+            description: '专业厨师演示三文鱼切片技巧',
+            type: 'video',
+            url: '/materials/1',
             metadata: {
-              price: product.unit_price,
-              unit: product.unit,
-              vendor: product.vendor
+              duration: '5:30',
+              views: 1250
             }
           });
         }
-      });
 
-      // Mock video search results
-      if (searchTerm.includes('视频') || searchTerm.includes('教程') || searchTerm.includes('展示')) {
-        results.push({
-          id: 'video-1',
-          title: '三文鱼切片教程视频',
-          description: '专业厨师演示三文鱼切片技巧',
-          type: 'video',
-          url: '/materials/1',
-          metadata: {
-            duration: '5:30',
-            views: 1250
-          }
+        // Sort results by relevance (exact matches first)
+        results.sort((a, b) => {
+          const aExact = a.title.toLowerCase().startsWith(searchTerm);
+          const bExact = b.title.toLowerCase().startsWith(searchTerm);
+          if (aExact && !bExact) return -1;
+          if (!aExact && bExact) return 1;
+          return 0;
         });
+
+        setSearchResults(results.slice(0, 20)); // Limit to 20 results
+      } catch (error) {
+        console.error('Search error:', error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
       }
-
-      // Sort results by relevance (exact matches first)
-      results.sort((a, b) => {
-        const aExact = a.title.toLowerCase().startsWith(searchTerm);
-        const bExact = b.title.toLowerCase().startsWith(searchTerm);
-        if (aExact && !bExact) return -1;
-        if (!aExact && bExact) return 1;
-        return 0;
-      });
-
-      setSearchResults(results.slice(0, 20)); // Limit to 20 results
-      setIsSearching(false);
-    }, 200); // 200ms debounce
+    }, 300); // 300ms debounce
 
     return () => clearTimeout(searchTimer);
-  }, [query]); // Only depend on query, not products
+  }, [query]);
 
   const handleResultClick = (result: SearchResult) => {
     navigate(result.url);
@@ -196,7 +205,7 @@ export function GlobalSearch({ children }: GlobalSearchProps) {
                 </div>
               </div>
             </div>
-          ) : isSearching || productsLoading ? (
+          ) : isSearching ? (
             <div className="p-4 space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="flex items-center space-x-3 p-3">

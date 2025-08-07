@@ -13,7 +13,8 @@ import { Upload, X, Video, Play, Clock, Package, Tag } from 'lucide-react';
 import { cloudflareStreamService, VideoUploadResult } from '@/services/cloudflareStreamService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useProducts, Product } from '@/hooks/useProducts';
+import { productService } from '@/services/api';
+import { Product } from '@/hooks/useProducts';
 
 interface VideoUploadProps {
   onUploadComplete?: (video: any) => void;
@@ -41,11 +42,34 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingVideos, setUploadingVideos] = useState<UploadingVideo[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsLoaded, setProductsLoaded] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   
-  // 获取产品列表
-  const { data: products = [], isLoading: productsLoading } = useProducts();
+  // 懒加载产品列表 - 只有在需要时才加载
+  const loadProducts = async () => {
+    if (productsLoaded || productsLoading) return;
+    
+    setProductsLoading(true);
+    try {
+      const result = await productService.getAll({}, { page: 1, limit: 100 });
+      if (result.data) {
+        setProducts(result.data);
+      }
+      setProductsLoaded(true);
+    } catch (error) {
+      console.error('Failed to load products:', error);
+      toast({
+        title: "加载失败",
+        description: "无法加载产品列表",
+        variant: "destructive",
+      });
+    } finally {
+      setProductsLoading(false);
+    }
+  };
   
   // 视频分类选项
   const videoCategories = [
@@ -541,6 +565,19 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
                         </p>
                         {productsLoading ? (
                           <div className="text-sm text-muted-foreground">加载产品列表中...</div>
+                        ) : !productsLoaded ? (
+                          <div className="text-center py-4">
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={loadProducts}
+                              className="flex items-center gap-2"
+                            >
+                              <Package className="h-4 w-4" />
+                              加载产品列表
+                            </Button>
+                          </div>
                         ) : (
                           <div className="max-h-40 overflow-y-auto border rounded p-3 space-y-2">
                             {products.length === 0 ? (
