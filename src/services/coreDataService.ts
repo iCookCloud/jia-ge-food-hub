@@ -22,12 +22,10 @@ export const materialService = {
     // 修复分页逻辑：确保offset计算正确
     if (pagination.page && pagination.limit) {
       const offset = (pagination.page - 1) * pagination.limit;
-      console.log(`[材料服务] 分页参数: page=${pagination.page}, limit=${pagination.limit}, offset=${offset}`);
       query = query.range(offset, offset + pagination.limit - 1);
     }
 
     const { data, error } = await query.order('created_at', { ascending: false });
-    console.log(`[材料服务] 返回数据: ${data?.length || 0} 条记录`);
     return { data, error };
   },
 
