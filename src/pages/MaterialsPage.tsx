@@ -164,21 +164,33 @@ const MaterialsPage = () => {
   
   // 管理数据累积和重置
   useEffect(() => {
-    if (videos && videos.length > 0) {
-      if (currentPage === 1) {
-        // 第一页或过滤条件改变时，重置数据
-        setAllVideos(videos);
-        setHasMore(videos.length === ITEMS_PER_PAGE);
-      } else {
-        // 加载更多时，累积数据
-        setAllVideos(prev => {
-          const existingIds = new Set(prev.map(v => v.id));
-          const newVideos = videos.filter(v => !existingIds.has(v.id));
-          return [...prev, ...newVideos];
-        });
-        setHasMore(videos.length === ITEMS_PER_PAGE);
-      }
+    console.log(`[MaterialsPage] useEffect触发: currentPage=${currentPage}, videos.length=${videos?.length || 0}`);
+    
+    if (currentPage === 1) {
+      // 第一页或过滤条件改变时，重置数据
+      setAllVideos(videos || []);
+      const shouldHaveMore = videos && videos.length === ITEMS_PER_PAGE;
+      setHasMore(shouldHaveMore);
+      console.log(`[MaterialsPage] 重置数据: ${videos?.length || 0} 条记录, hasMore=${shouldHaveMore}`);
+    } else if (videos && videos.length > 0) {
+      // 加载更多时，累积数据
+      setAllVideos(prev => {
+        const existingIds = new Set(prev.map(v => v.id));
+        const newVideos = videos.filter(v => !existingIds.has(v.id));
+        const updatedVideos = [...prev, ...newVideos];
+        console.log(`[MaterialsPage] 累积数据: 新增${newVideos.length}条, 总计${updatedVideos.length}条`);
+        return updatedVideos;
+      });
+      // 只有当返回的数据等于期望的每页数据量时，才认为还有更多数据
+      const shouldHaveMore = videos.length === ITEMS_PER_PAGE;
+      setHasMore(shouldHaveMore);
+      console.log(`[MaterialsPage] 更新hasMore: ${shouldHaveMore} (返回${videos.length}条，期望${ITEMS_PER_PAGE}条)`);
+    } else if (currentPage > 1) {
+      // 如果不是第一页，但返回空数据或没有数据，说明已经没有更多了
+      setHasMore(false);
+      console.log(`[MaterialsPage] 没有更多数据了: currentPage=${currentPage}`);
     }
+    
     setIsLoadingMore(false);
   }, [videos, currentPage]);
 
@@ -191,30 +203,46 @@ const MaterialsPage = () => {
 
   // 加载更多处理函数
   const handleLoadMore = useCallback(() => {
+    console.log(`[MaterialsPage] handleLoadMore调用: isLoadingMore=${isLoadingMore}, hasMore=${hasMore}, isLoading=${isLoading}`);
     if (!isLoadingMore && hasMore && !isLoading) {
+      console.log(`[MaterialsPage] 开始加载更多: currentPage=${currentPage} -> ${currentPage + 1}`);
       setIsLoadingMore(true);
       setCurrentPage(prev => prev + 1);
     }
-  }, [isLoadingMore, hasMore, isLoading]);
+  }, [isLoadingMore, hasMore, isLoading, currentPage]);
 
   // 无限滚动功能
   useEffect(() => {
+    // 只在"全部视频"标签页启用无限滚动
+    if (activeTab !== "all") {
+      return;
+    }
+
     const handleScroll = () => {
+      // 更严格的条件检查
+      if (!hasMore || isLoadingMore || isLoading) {
+        return;
+      }
+
       const scrollTop = document.documentElement.scrollTop;
       const scrollHeight = document.documentElement.scrollHeight;
       const clientHeight = document.documentElement.clientHeight;
       
-      // 当滚动到距离底部200px时触发加载更多
-      if (scrollTop + clientHeight >= scrollHeight - 200) {
+      // 当滚动到距离底部300px时触发加载更多，增加触发距离避免过早触发
+      const threshold = 300;
+      const scrolledToBottom = scrollTop + clientHeight >= scrollHeight - threshold;
+      
+      if (scrolledToBottom) {
+        console.log(`[MaterialsPage] 滚动触发加载更多: scrollTop=${scrollTop}, clientHeight=${clientHeight}, scrollHeight=${scrollHeight}`);
         handleLoadMore();
       }
     };
 
-    // 防抖处理
+    // 增加防抖时间，减少触发频率
     let timeoutId: NodeJS.Timeout;
     const debouncedHandleScroll = () => {
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(handleScroll, 100);
+      timeoutId = setTimeout(handleScroll, 200); // 从100ms增加到200ms
     };
 
     window.addEventListener('scroll', debouncedHandleScroll);
@@ -222,7 +250,7 @@ const MaterialsPage = () => {
       window.removeEventListener('scroll', debouncedHandleScroll);
       clearTimeout(timeoutId);
     };
-  }, [hasMore, isLoadingMore, isLoading, handleLoadMore]);
+  }, [hasMore, isLoadingMore, isLoading, handleLoadMore, activeTab]);
 
   // 使用累积的数据而不是当前页数据
   const finalDisplayVideos = allVideos.length > 0 ? allVideos : displayVideos;
