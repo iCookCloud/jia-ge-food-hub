@@ -17,7 +17,7 @@ import {
 import { Search } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useProducts } from "@/hooks/useProducts";
-import { useVideos } from "@/hooks/useVideos";
+import { useMaterials } from "@/hooks/useMaterials";
 
 // Helper: format seconds to mm:ss
 const formatDuration = (seconds?: number | null) => {
@@ -27,13 +27,13 @@ const formatDuration = (seconds?: number | null) => {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 };
 
-const GlobalSearch = () => {
+const GlobalSearch: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const navigate = useNavigate();
 
   const { data: products } = useProducts();
-  const { data: videos } = useVideos();
+  const { data: materials } = useMaterials();
 
   useEffect(() => {
     if (!open) {
@@ -66,14 +66,14 @@ const GlobalSearch = () => {
     });
   }
 
-  if (videos) {
-    videos.forEach((video: any) => {
+  if (materials) {
+    materials.forEach((material: any) => {
       items.push({
-        id: video.id,
-        title: video.title,
+        id: material.id,
+        title: material.title,
         type: "video",
-        image: video.thumbnail_url,
-        durationLabel: formatDuration(video?.duration_seconds ?? 0),
+        image: material.thumbnail_url,
+        durationLabel: formatDuration(material?.duration_seconds ?? 0),
       });
     });
   }
@@ -85,18 +85,22 @@ const GlobalSearch = () => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-[200px] justify-between md:w-[300px] lg:w-[400px]"
-        >
-          <Search className="mr-2 h-4 w-4" />
-          搜索商品或物料...
-          <span className="ml-auto text-muted-foreground">
-            {/* cmd + k */}
-          </span>
-        </Button>
+        {children ? (
+          <div>{children}</div>
+        ) : (
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-[200px] justify-between md:w-[300px] lg:w-[400px]"
+          >
+            <Search className="mr-2 h-4 w-4" />
+            搜索商品或物料...
+            <span className="ml-auto text-muted-foreground">
+              {/* cmd + k */}
+            </span>
+          </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0 md:w-[300px] lg:w-[400px]">
         <Command>
