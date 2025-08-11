@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useMaterial } from "@/hooks/useMaterials";
 import { Database } from "@/integrations/supabase/types";
+import { globalErpService } from "@/services/globalErpService";
 import { 
   Play,
   Clock,
@@ -20,19 +21,57 @@ import {
   ExternalLink
 } from "lucide-react";
 
-type VideoProductAssociation = Database['public']['Tables']['video_product_associations']['Row'] & {
-  products?: Database['public']['Tables']['products']['Row'];
-};
+type VideoProductAssociation = Database['public']['Tables']['video_product_associations']['Row'];
 
 const MaterialDetailPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [isLiked, setIsLiked] = useState(false);
+  const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
   
   const { data: video, isLoading, error } = useMaterial(id || "");
 
   // 暂时硬编码为空数组，后续可以实现推荐算法
   const relatedVideos: any[] = [];
+
+  const handleProductClick = async (association: VideoProductAssociation) => {
+    if (!association.product_sku) {
+      toast({
+        title: "无法访问",
+        description: "商品信息不完整",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoadingProductId(association.id);
+
+    try {
+      // 通过SKU查找Global ERP商品
+      const product = await globalErpService.fetchProductBySku(association.product_sku);
+      
+      if (product) {
+        // 商品存在，跳转到商品详情页
+        navigate(`/products/${product.id}`);
+      } else {
+        // 商品未找到，显示提示
+        toast({
+          title: "商品已下架",
+          description: `商品 ${association.product_name} (${association.product_sku}) 在当前目录中不可用`,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch product:', error);
+      toast({
+        title: "加载失败",
+        description: "无法加载商品信息，请稍后重试",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingProductId(null);
+    }
+  };
 
   const handleShare = async () => {
     if (!video) return;
@@ -233,20 +272,34 @@ const MaterialDetailPage = () => {
               </CardHeader>
               <CardContent className="space-y-3 pt-0">
                 {video.video_product_associations?.length > 0 ? (
-                  video.video_product_associations.map((association: VideoProductAssociation) => (
-                    <Link key={association.product_id} to={`/products/${association.product_id}`}>
-                      <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border hover:bg-muted transition-colors group">
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-muted rounded flex items-center justify-center flex-shrink-0">
-                          <Package className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm sm:text-base group-hover:text-primary transition-colors line-clamp-2">
-                            {association.products?.standard_chinese_name || association.products?.standard_english_name || "未知商品"}
-                          </h4>
-                          <p className="text-primary font-semibold text-sm">¥{association.products?.unit_price || "未知"}</p>
-                        </div>
+                  video.video_product_associations.map((association: VideoProductAssociation, index: number) => (
+                    <button
+                      key={association.id || index}
+                      className="w-full flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => handleProductClick(association)}
+                      disabled={loadingProductId === association.id || !association.product_sku}
+                    >
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-muted rounded flex items-center justify-center flex-shrink-0">
+                        <Package className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" />
                       </div>
-                    </Link>
+                      <div className="flex-1 min-w-0 text-left">
+                        <h4 className="font-medium text-sm sm:text-base text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                          {association.product_name || association.product_snapshot?.standard_chinese_name || "未知商品"}
+                        </h4>
+                        <p className="text-primary font-semibold text-sm">
+                          ¥{association.product_snapshot?.price || "未知"}
+                        </p>
+                        {association.product_sku && (
+                          <p className="text-xs text-muted-foreground">SKU: {association.product_sku}</p>
+                        )}
+                      </div>
+                      {loadingProductId === association.id && (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
+                      )}
+                      {association.product_sku && loadingProductId !== association.id && (
+                        <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      )}
+                    </button>
                   ))
                 ) : (
                   <p className="text-muted-foreground text-xs sm:text-sm text-center py-4">

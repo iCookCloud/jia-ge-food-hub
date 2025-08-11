@@ -42,7 +42,7 @@ export const globalErpService = {
       url.searchParams.append('offset', pagination.offset.toString());
     }
     if (filters.search) {
-      url.searchParams.append('or', `standard_chinese_name.ilike.*${filters.search}*,specification.ilike.*${filters.search}*`);
+      url.searchParams.append('or', `(standard_chinese_name.ilike.*${filters.search}*,specification.ilike.*${filters.search}*)`);
     }
     if (filters.category && filters.category !== '全部') {
       url.searchParams.append('category', `eq.${filters.category}`);
@@ -75,6 +75,23 @@ export const globalErpService = {
     const url = new URL(`${GLOBAL_ERP_BASE_URL}/products`);
     url.searchParams.append('select', PRODUCT_FIELDS);
     url.searchParams.append('id', `eq.${id}`);
+    url.searchParams.append('limit', '1');
+    
+    const response = await fetch(url.toString(), { headers: getHeaders() });
+    
+    if (!response.ok) {
+      throw new Error(`Global ERP API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.length > 0 ? data[0] : null;
+  },
+
+  async fetchProductBySku(sku: string) {
+    const url = new URL(`${GLOBAL_ERP_BASE_URL}/products`);
+    url.searchParams.append('select', PRODUCT_FIELDS);
+    url.searchParams.append('sku', `eq.${sku}`);
+    url.searchParams.append('is_active', 'eq.true');
     url.searchParams.append('limit', '1');
     
     const response = await fetch(url.toString(), { headers: getHeaders() });
