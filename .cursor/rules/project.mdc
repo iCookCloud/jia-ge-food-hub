@@ -1,0 +1,6 @@
+---
+alwaysApply: true
+---
+# IMPORTANT
+**产品信息**: 涉及产品相关功能修改时，优先使用globalErpService和product_snapshot快照数据，禁止直接查询本地products表。
+**运行项目**：禁止运行npm run dev。只需要npm run build即可，后台已配好对应的静态web服务。
