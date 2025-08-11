@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,6 +27,7 @@ import {
 import { Link } from "react-router-dom";
 import { useMaterials } from "@/hooks/useMaterials";
 import { useAuth } from "@/hooks/useAuth";
+import { useDebounce } from "@/hooks/useDebounce";
 
 // 视频数据类型定义
 interface VideoItem {
@@ -105,23 +106,6 @@ const mockVideos = [
   }
 ];
 
-// 防抖Hook
-const useDebounce = (value: string, delay: number) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-};
-
 const MaterialsPage = () => {
   const { user } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState("全部");
@@ -145,17 +129,17 @@ const MaterialsPage = () => {
 
   const categories = ["全部", "产品介绍", "操作教程", "客户案例", "行业资讯"];
   
-  const filters = {
+  const filters = useMemo(() => ({
     search: debouncedSearchTerm,
     category: selectedCategory === "全部" ? undefined : selectedCategory,
     supplier: selectedSupplier === "全部" ? undefined : selectedSupplier,
     user_only: activeTab === "mine" ? user?.id : undefined
-  };
+  }), [debouncedSearchTerm, selectedCategory, selectedSupplier, activeTab, user?.id]);
 
-  const pagination = {
+  const pagination = useMemo(() => ({
     page: currentPage,
     limit: ITEMS_PER_PAGE
-  };
+  }), [currentPage]);
   
   const { data: videos = [], isLoading, error } = useMaterials(filters, pagination);
   
@@ -164,29 +148,67 @@ const MaterialsPage = () => {
   
   // 管理数据累积和重置
   useEffect(() => {
-    if (videos && videos.length > 0) {
-      if (currentPage === 1) {
-        // 第一页或过滤条件改变时，重置数据
-        setAllVideos(videos);
-        setHasMore(videos.length === ITEMS_PER_PAGE);
-      } else {
-        // 加载更多时，累积数据
-        setAllVideos(prev => {
-          const existingIds = new Set(prev.map(v => v.id));
-          const newVideos = videos.filter(v => !existingIds.has(v.id));
-          return [...prev, ...newVideos];
-        });
-        setHasMore(videos.length === ITEMS_PER_PAGE);
-      }
+    // 只有在数据真正加载完成后才处理状态
+    if (isLoading) {
+      return;
     }
+    
+    if (currentPage === 1) {
+      // 第一页或过滤条件改变时，重置数据
+      setAllVideos(videos || []);
+      const shouldHaveMore = videos && videos.length === ITEMS_PER_PAGE;
+      setHasMore(shouldHaveMore);
+    } else if (videos && videos.length > 0) {
+      // 加载更多时，累积数据
+      setAllVideos(prev => {
+        const existingIds = new Set(prev.map(v => v.id));
+        const newVideos = videos.filter(v => !existingIds.has(v.id));
+        const updatedVideos = [...prev, ...newVideos];
+        return updatedVideos;
+      });
+      // 只有当返回的数据等于期望的每页数据量时，才认为还有更多数据
+      const shouldHaveMore = videos.length === ITEMS_PER_PAGE;
+      setHasMore(shouldHaveMore);
+    } else if (currentPage > 1) {
+      // 如果不是第一页，但返回空数据或没有数据，说明已经没有更多了
+      setHasMore(false);
+    }
+    
     setIsLoadingMore(false);
-  }, [videos, currentPage]);
+  }, [videos, currentPage, isLoading]);
 
-  // 当过滤条件改变时，重置分页状态
+
+  // 记录上一次的过滤条件，用于精确检测变化
+  const prevFiltersForReset = useRef({
+    selectedCategory,
+    debouncedSearchTerm,
+    selectedSupplier,
+    activeTab
+  });
+  
+  // 当过滤条件真正改变时，重置分页状态
   useEffect(() => {
-    setCurrentPage(1);
-    setAllVideos([]);
-    setHasMore(true);
+    const prev = prevFiltersForReset.current;
+    const hasRealChange = 
+      prev.selectedCategory !== selectedCategory ||
+      prev.debouncedSearchTerm !== debouncedSearchTerm ||
+      prev.selectedSupplier !== selectedSupplier ||
+      prev.activeTab !== activeTab;
+    
+    // 更新记录的过滤条件
+    prevFiltersForReset.current = {
+      selectedCategory,
+      debouncedSearchTerm,
+      selectedSupplier,
+      activeTab
+    };
+    
+    // 只有在确实有变化时才重置状态
+    if (hasRealChange) {
+      setCurrentPage(1);
+      setAllVideos([]);
+      setHasMore(true);
+    }
   }, [selectedCategory, debouncedSearchTerm, selectedSupplier, activeTab]);
 
   // 加载更多处理函数
@@ -195,26 +217,44 @@ const MaterialsPage = () => {
       setIsLoadingMore(true);
       setCurrentPage(prev => prev + 1);
     }
-  }, [isLoadingMore, hasMore, isLoading]);
+  }, [isLoadingMore, hasMore, isLoading, currentPage]);
 
   // 无限滚动功能
   useEffect(() => {
+    // 只在"全部视频"标签页启用无限滚动
+    if (activeTab !== "all") {
+      return;
+    }
+
     const handleScroll = () => {
+      // 更严格的条件检查
+      if (!hasMore || isLoadingMore || isLoading) {
+        return;
+      }
+      
+      // 额外检查：如果是第一页且没有数据，不触发加载更多
+      if (currentPage === 1 && allVideos.length === 0) {
+        return;
+      }
+
       const scrollTop = document.documentElement.scrollTop;
       const scrollHeight = document.documentElement.scrollHeight;
       const clientHeight = document.documentElement.clientHeight;
       
-      // 当滚动到距离底部200px时触发加载更多
-      if (scrollTop + clientHeight >= scrollHeight - 200) {
+      // 当滚动到距离底部400px时触发加载更多
+      const threshold = 400;
+      const scrolledToBottom = scrollTop + clientHeight >= scrollHeight - threshold;
+      
+      if (scrolledToBottom) {
         handleLoadMore();
       }
     };
 
-    // 防抖处理
+    // 增加防抖时间，减少触发频率
     let timeoutId: NodeJS.Timeout;
     const debouncedHandleScroll = () => {
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(handleScroll, 100);
+      timeoutId = setTimeout(handleScroll, 200); // 从100ms增加到200ms
     };
 
     window.addEventListener('scroll', debouncedHandleScroll);
@@ -222,9 +262,10 @@ const MaterialsPage = () => {
       window.removeEventListener('scroll', debouncedHandleScroll);
       clearTimeout(timeoutId);
     };
-  }, [hasMore, isLoadingMore, isLoading, handleLoadMore]);
+  }, [hasMore, isLoadingMore, isLoading, handleLoadMore, activeTab]);
 
   // 使用累积的数据而不是当前页数据
+  // 添加保护：如果allVideos为空但displayVideos有数据，使用displayVideos（防止数据意外清空）
   const finalDisplayVideos = allVideos.length > 0 ? allVideos : displayVideos;
   
   const filteredVideos = finalDisplayVideos.filter((video: VideoItem) => {

@@ -158,4 +158,32 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* iOS Safe Area Support */
+  :root {
+    --safe-area-inset-top: env(safe-area-inset-top, 0px);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+@layer utilities {
+  /* iOS Safe Area Utilities */
+  .ios-safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  
+  .ios-safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  
+  /* iOS-specific navigation height adjustments */
+  @supports (padding-top: env(safe-area-inset-top)) {
+    .ios-header-height {
+      height: calc(3.5rem + env(safe-area-inset-top, 0px)); /* h-14 + safe area */
+    }
+    
+    .ios-header-height-desktop {
+      height: calc(4rem + env(safe-area-inset-top, 0px)); /* h-16 + safe area */
+    }
+  }
 }

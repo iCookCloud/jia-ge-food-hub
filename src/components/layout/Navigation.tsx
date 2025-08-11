@@ -73,7 +73,7 @@ export function DesktopNavigation() {
   const { user, userRole, profile, signOut, isAdmin } = useAuth();
   
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 ios-safe-top">
       <div className="container flex h-16 items-center px-4">
         {/* Logo */}
         <Link to="/" className="flex items-center space-x-2 mr-8">
@@ -214,7 +214,7 @@ export function MobileNavigation() {
   return (
     <>
       {/* Top Header */}
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur lg:hidden ios-safe-top">
         <div className="flex h-14 items-center justify-between px-4">
           <Link to="/" className="flex items-center space-x-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-primary">

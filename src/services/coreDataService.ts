@@ -19,6 +19,7 @@ export const materialService = {
       query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
     }
 
+    // 修复分页逻辑：确保offset计算正确
     if (pagination.page && pagination.limit) {
       const offset = (pagination.page - 1) * pagination.limit;
       query = query.range(offset, offset + pagination.limit - 1);
