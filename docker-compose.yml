@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  web:
+    image: ${NGINX_IMAGE}
+    container_name: ${CONTAINER_NAME}
+    restart: unless-stopped
+    ports:
+      - "${EXTERNAL_PORT}:${INTERNAL_PORT}"
+    volumes:
+      - ./dist:/usr/share/nginx/html:ro  # 直接挂载构建好的 dist 目录
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro  # 挂载 nginx 配置
