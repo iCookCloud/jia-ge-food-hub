@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { PostgrestError } from '@supabase/supabase-js';
+import { globalErpService } from './globalErpService';
 
 export interface ApiResponse<T> {
   data: T | null;
@@ -42,85 +43,87 @@ export const handleApiError = (error: PostgrestError | Error): string => {
 
 // 专用的服务函数，避免动态表名的类型问题
 
+// Global ERP 数据映射函数
+const mapGlobalErpProduct = (item: any) => ({
+  id: item.id,
+  sku: item.sku,
+  standard_chinese_name: item.standard_chinese_name,
+  standard_english_name: null,
+  category_chinese: item.category,
+  unit_price: item.price?.toString() || null,
+  specifications: item.specification,
+  product_image: item.main_image_url,
+  is_active: item.is_active,
+  weight: item.weight,
+  variants: item.variants,
+  created_at: item.created_at,
+  updated_at: item.updated_at
+});
+
 // 产品相关操作
 export const productService = {
   async getAll(filters: FilterParams = {}, pagination: PaginationParams = {}) {
-    let query = supabase
-      .from('products')
-      .select('*', { count: 'exact' })
-      .eq('is_active', true);
-
-    // 应用过滤器
-    if (filters.category && filters.category !== '全部') {
-      query = query.eq('category_chinese', filters.category);
+    try {
+      // 转换page参数为offset参数
+      const globalErpPagination = {
+        limit: pagination.limit,
+        offset: pagination.page && pagination.limit 
+          ? (pagination.page - 1) * pagination.limit 
+          : pagination.offset
+      };
+      
+      const { data, count } = await globalErpService.fetchProducts(filters, globalErpPagination);
+      return { 
+        data: data.map(mapGlobalErpProduct), 
+        error: null, 
+        count 
+      };
+    } catch (error) {
+      return { 
+        data: null, 
+        error: { message: error instanceof Error ? error.message : 'Unknown error' }, 
+        count: 0 
+      };
     }
-    if (filters.search) {
-      query = query.or(`standard_chinese_name.ilike.%${filters.search}%,standard_english_name.ilike.%${filters.search}%,specifications.ilike.%${filters.search}%`);
-    }
-
-    // 应用分页
-    if (pagination.page && pagination.limit) {
-      const offset = (pagination.page - 1) * pagination.limit;
-      query = query.range(offset, offset + pagination.limit - 1);
-    }
-
-    // 应用排序
-    const sortBy = filters.sortBy || 'created_at';
-    const ascending = filters.sortOrder === 'asc';
-    
-    if (sortBy === 'price') {
-      // 价格排序：unit_price字段
-      query = query.order('unit_price', { ascending, nullsFirst: false });
-    } else if (sortBy === 'name') {
-      // 名称排序：优先中文名，再英文名
-      query = query.order('standard_chinese_name', { ascending, nullsFirst: false })
-                   .order('standard_english_name', { ascending, nullsFirst: false });
-    } else if (sortBy === 'updated_at') {
-      // 更新时间排序
-      query = query.order('updated_at', { ascending, nullsFirst: false });
-    } else {
-      // 默认按创建时间排序
-      query = query.order('created_at', { ascending: false });
-    }
-
-    const { data, error, count } = await query;
-    return { data, error, count };
   },
 
   async getById(id: string) {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('id', id)
-      .single();
-    return { data, error };
+    try {
+      const data = await globalErpService.fetchProductById(id);
+      if (!data) {
+        return { data: null, error: { message: 'Product not found' } };
+      }
+      return { data: mapGlobalErpProduct(data), error: null };
+    } catch (error) {
+      return { 
+        data: null, 
+        error: { message: error instanceof Error ? error.message : 'Unknown error' } 
+      };
+    }
   },
 
   async create(productData: any) {
-    const { data, error } = await supabase
-      .from('products')
-      .insert(productData)
-      .select()
-      .single();
-    return { data, error };
+    // 产品创建应通过Global ERP进行
+    return { 
+      data: null, 
+      error: { message: 'Product creation should be done through Global ERP system' } 
+    };
   },
 
   async update(id: string, productData: any) {
-    const { data, error } = await supabase
-      .from('products')
-      .update({ ...productData, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-    return { data, error };
+    // 产品更新应通过Global ERP进行
+    return { 
+      data: null, 
+      error: { message: 'Product updates should be done through Global ERP system' } 
+    };
   },
 
   async delete(id: string) {
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', id);
-    return { data: null, error };
+    // 产品删除应通过Global ERP进行
+    return { 
+      data: null, 
+      error: { message: 'Product deletion should be done through Global ERP system' } 
+    };
   }
 };
 

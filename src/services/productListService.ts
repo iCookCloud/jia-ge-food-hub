@@ -7,6 +7,7 @@ interface CartItem {
   unit: string;
   image?: string;
   specifications?: string;
+  sku?: string;
   supplier: {
     name: string;
     verified: boolean;
@@ -39,13 +40,27 @@ export const productListService = {
         return { data: null, error: listError };
       }
 
-      // 创建货单商品项
+      // 创建货单商品项，包含产品快照
       const items = cartItems.map(item => ({
         product_list_id: productList.id,
         product_id: item.id,
         quantity: item.quantity,
         unit_price: parseFloat(item.price),
-        position: 0
+        position: 0,
+        // 产品快照
+        product_snapshot: {
+          id: item.id,
+          sku: item.sku || '',
+          standard_chinese_name: item.name,
+          price: parseFloat(item.price),
+          specification: item.specifications,
+          main_image_url: item.image,
+          source: 'global_erp',
+          snapshot_time: new Date().toISOString()
+        },
+        product_sku: item.sku,
+        product_name: item.name,
+        snapshot_source: 'global_erp'
       }));
 
       const { error: itemsError } = await supabase
@@ -70,14 +85,8 @@ export const productListService = {
         .select(`
           *,
           product_list_items (
-            id,
-            product_id,
-            quantity,
-            unit_price,
-            products (
-              standard_chinese_name,
-              unit
-            )
+            id, quantity, unit_price,
+            product_sku, product_name, product_snapshot
           )
         `)
         .order('created_at', { ascending: false });
@@ -86,11 +95,14 @@ export const productListService = {
         return { data: [], error };
       }
 
-      // 转换数据格式以匹配UI期望的格式
+      // 转换数据格式以匹配UI期望的格式，使用快照数据
       const formattedData = data?.map(list => ({
         ...list,
         items: list.product_list_items?.map(item => ({
-          name: item.products?.standard_chinese_name || item.product_id,
+          name: item.product_name || item.product_snapshot?.standard_chinese_name,
+          sku: item.product_sku,
+          image: item.product_snapshot?.main_image_url,
+          specifications: item.product_snapshot?.specification,
           quantity: item.quantity,
           price: item.unit_price
         })) || []
@@ -110,14 +122,8 @@ export const productListService = {
         .select(`
           *,
           product_list_items (
-            id,
-            product_id,
-            quantity,
-            unit_price,
-            products (
-              standard_chinese_name,
-              unit
-            )
+            id, quantity, unit_price,
+            product_sku, product_name, product_snapshot
           )
         `)
         .eq('id', id)

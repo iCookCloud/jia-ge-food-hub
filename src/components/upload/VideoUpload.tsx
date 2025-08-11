@@ -14,6 +14,7 @@ import { cloudflareStreamService, VideoUploadResult } from '@/services/cloudflar
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { productService } from '@/services/api';
+import { globalErpService } from '@/services/globalErpService';
 import { Product } from '@/hooks/useProducts';
 
 interface VideoUploadProps {
@@ -72,6 +73,50 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
       });
     } finally {
       setProductsLoading(false);
+    }
+  };
+
+  // 创建视频产品关联（带快照）
+  const createVideoProductAssociations = async (videoId: string, selectedProducts: string[]) => {
+    const associations = [];
+    
+    for (const productId of selectedProducts) {
+      try {
+        // 从Global ERP获取最新产品信息
+        const productData = await globalErpService.fetchProductById(productId);
+        
+        if (productData) {
+          associations.push({
+            video_id: videoId,
+            original_product_id: productId,
+            product_snapshot: {
+              id: productData.id,
+              sku: productData.sku,
+              standard_chinese_name: productData.standard_chinese_name,
+              price: productData.price,
+              main_image_url: productData.main_image_url,
+              specification: productData.specification,
+              source: 'global_erp',
+              snapshot_time: new Date().toISOString()
+            },
+            product_sku: productData.sku,
+            product_name: productData.standard_chinese_name,
+            snapshot_source: 'global_erp'
+          });
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch product ${productId} for video association:`, error);
+      }
+    }
+    
+    if (associations.length > 0) {
+      const { error } = await supabase
+        .from('video_product_associations')
+        .insert(associations);
+        
+      if (error) {
+        console.error('Failed to create video-product associations:', error);
+      }
     }
   };
   
@@ -218,20 +263,9 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
           )
         );
 
-        // 创建视频与产品的关联
+        // 创建视频与产品的关联（带快照）
         if (result.databaseVideoId && uploadingVideo.selectedProducts && uploadingVideo.selectedProducts.length > 0) {
-          const associations = uploadingVideo.selectedProducts.map(productId => ({
-            video_id: result.databaseVideoId,
-            product_id: productId
-          }));
-
-          const { error: associationError } = await supabase
-            .from('video_product_associations')
-            .insert(associations);
-
-          if (associationError) {
-            // 关联失败但不影响主要上传流程，静默处理
-          }
+          await createVideoProductAssociations(result.databaseVideoId, uploadingVideo.selectedProducts);
         }
 
         // 开始轮询视频处理状态

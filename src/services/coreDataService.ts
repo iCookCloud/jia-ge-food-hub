@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { globalErpService } from './globalErpService';
 import { FilterParams, PaginationParams } from './api';
 
 // 材料/视频内容服务
@@ -35,12 +36,9 @@ export const materialService = {
       .select(`
         *,
         video_product_associations (
-          product_id,
-          products (
-            standard_chinese_name,
-            standard_english_name,
-            unit_price
-          )
+          product_sku,
+          product_name,
+          product_snapshot
         )
       `)
       .eq('id', id)
@@ -76,10 +74,9 @@ export const orderService = {
         *,
         order_items (
           *,
-          products (
-            standard_chinese_name,
-            standard_english_name
-          )
+          product_sku,
+          product_name,
+          product_snapshot
         )
       `);
 
@@ -103,12 +100,9 @@ export const orderService = {
         *,
         order_items (
           *,
-          products (
-            standard_chinese_name,
-            standard_english_name,
-            unit_price,
-            unit
-          )
+          product_sku,
+          product_name,
+          product_snapshot
         )
       `)
       .eq('id', id)
@@ -143,18 +137,22 @@ export const orderService = {
 export const statisticsService = {
   async getDashboardStats() {
     const [
-      productsCount,
+      productsResult,
       ordersCount,
       videosCount
     ] = await Promise.all([
-      supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true),
+      globalErpService.fetchProducts({}, { limit: 1000 }).then(result => ({ 
+        data: null, 
+        error: null, 
+        count: result.data?.length || 0 
+      })),
       supabase.from('orders').select('id', { count: 'exact', head: true }),
       supabase.from('product_videos').select('id', { count: 'exact', head: true }).eq('is_active', true).eq('status', 'ready')
     ]);
 
     return {
       data: {
-        products: productsCount.count || 0,
+        products: productsResult.count || 0,
         suppliers: 0, // 移除供应商功能
         orders: ordersCount.count || 0,
         videos: videosCount.count || 0

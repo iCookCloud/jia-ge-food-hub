@@ -20,7 +20,6 @@ import MaterialDetailPage from "./pages/MaterialDetailPage";
 import VideoUploadPage from "./pages/VideoUploadPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
-import ProductCreatePage from "./pages/ProductCreatePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -79,11 +78,6 @@ const App = () => (
             <Route path="/orders" element={
               <ProtectedRoute>
                 <OrdersPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/products/create" element={
-              <ProtectedRoute>
-                <ProductCreatePage />
               </ProtectedRoute>
             } />
             <Route path="/profile" element={

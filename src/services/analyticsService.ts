@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { globalErpService } from './globalErpService';
 import { handleApiError } from './api';
 
 export interface AnalyticsData {
@@ -24,11 +25,12 @@ export const analyticsService = {
   async getDashboardStats(dateRange?: DateRange) {
     try {
       const promises = [
-        // 商品总数
-        supabase
-          .from('products')
-          .select('id', { count: 'exact', head: true })
-          .eq('is_active', true),
+        // 商品总数 - 从Global ERP获取
+        globalErpService.fetchProducts({}, { limit: 1000 }).then(result => ({ 
+          data: null, 
+          error: null, 
+          count: result.data?.length || 0 
+        })),
 
 
         // 订单总数
@@ -93,35 +95,33 @@ export const analyticsService = {
       const { data, error } = await supabase
         .from('order_items')
         .select(`
-          product_id,
           quantity,
           unit_price,
-          products (
-            standard_chinese_name,
-            standard_english_name,
-            product_image
-          )
+          product_sku,
+          product_name,
+          product_snapshot
         `)
         .limit(100); // 先获取较多数据用于统计
 
       if (error) throw error;
 
-      // 按产品ID统计销量和收入
+      // 按产品SKU统计销量和收入
       const productStats = data?.reduce((acc, item) => {
-        const productId = item.product_id;
-        if (!productId) return acc;
+        const productSku = item.product_sku;
+        if (!productSku) return acc;
 
-        if (!acc[productId]) {
-          acc[productId] = {
-            product_id: productId,
+        if (!acc[productSku]) {
+          acc[productSku] = {
+            product_sku: productSku,
+            product_name: item.product_name,
             totalQuantity: 0,
             totalRevenue: 0,
-            product: item.products
+            product_snapshot: item.product_snapshot
           };
         }
 
-        acc[productId].totalQuantity += item.quantity;
-        acc[productId].totalRevenue += item.quantity * parseFloat(String(item.unit_price) || '0');
+        acc[productSku].totalQuantity += item.quantity;
+        acc[productSku].totalRevenue += item.quantity * parseFloat(String(item.unit_price) || '0');
 
         return acc;
       }, {} as Record<string, any>) || {};
