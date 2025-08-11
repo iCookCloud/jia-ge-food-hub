@@ -13,7 +13,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { getRoleDisplayName, getRoleColor } from "@/hooks/useRole";
 import { Badge } from "@/components/ui/badge";
-import GlobalSearch from "@/components/search/GlobalSearch";
+import { GlobalSearch } from "@/components/search/GlobalSearch";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { 
   Package, 
