@@ -20,6 +20,9 @@ import {
   Plus,
   Minus
 } from "lucide-react";
+import { ProductRelatedCases } from "@/components/product/ProductRelatedCases";
+import { ProductSupplierInfo } from "@/components/product/ProductSupplierInfo";
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
 //
 
@@ -263,9 +266,11 @@ const ProductDetailPage = () => {
         {/* Detailed Information Tabs */}
         <Card className="mb-8">
           <Tabs defaultValue="details" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="details">商品详情</TabsTrigger>
-              <TabsTrigger value="specs">规格参数</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+              <TabsTrigger value="details" className="text-xs sm:text-sm">商品详情</TabsTrigger>
+              <TabsTrigger value="specs" className="text-xs sm:text-sm">规格参数</TabsTrigger>
+              <TabsTrigger value="cases" className="text-xs sm:text-sm">应用案例</TabsTrigger>
+              <TabsTrigger value="supplier" className="text-xs sm:text-sm">供应商</TabsTrigger>
             </TabsList>
 
             <TabsContent value="details" className="p-6 space-y-4">
@@ -352,6 +357,49 @@ const ProductDetailPage = () => {
                   </div>
                 </div>
               </div>
+            </TabsContent>
+
+            <TabsContent value="cases" className="p-6">
+              {product.id ? (
+                <ErrorBoundary fallback={
+                  <div className="text-center py-8 text-muted-foreground">
+                    案例信息加载失败，但不影响商品浏览
+                  </div>
+                }>
+                  <ProductRelatedCases
+                    productId={product.id}
+                    productCategory={product.category_chinese || product.category_english}
+                    maxCases={6}
+                    showTitle={false}
+                    layout="grid"
+                  />
+                </ErrorBoundary>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  商品信息加载中...
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="supplier" className="p-6">
+              {product.supplier_id ? (
+                <ErrorBoundary fallback={
+                  <div className="text-center py-8 text-muted-foreground">
+                    供应商信息加载失败，但不影响商品浏览
+                  </div>
+                }>
+                  <ProductSupplierInfo
+                    supplierId={product.supplier_id}
+                    productId={product.id}
+                    showTitle={false}
+                    compact={false}
+                  />
+                </ErrorBoundary>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  该商品暂无供应商信息
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </Card>

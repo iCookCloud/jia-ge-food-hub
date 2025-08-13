@@ -8,14 +8,17 @@ import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, X, Video, Play, Clock, Package, Tag, Loader2 } from 'lucide-react';
+import { Upload, X, Video, Play, Clock, Package, Tag, Loader2, Images, FileImage } from 'lucide-react';
 import { cloudflareStreamService, VideoUploadResult } from '@/services/cloudflareStreamService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { productService } from '@/services/api';
 import { globalErpService } from '@/services/globalErpService';
 import { Product } from '@/hooks/useProducts';
+
+type UploadMode = 'video' | 'images';
 
 interface VideoUploadProps {
   onUploadComplete?: (video: {
@@ -41,12 +44,24 @@ interface UploadingVideo {
   category: string;
 }
 
+interface UploadingImage {
+  file: File;
+  progress: number;
+  status: 'pending' | 'uploading' | 'success' | 'error';
+  error?: string;
+  result?: { path: string; publicUrl: string };
+  title: string;
+  description: string;
+}
+
 export const VideoUpload: React.FC<VideoUploadProps> = ({
   onUploadComplete,
   onUploadError
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadMode, setUploadMode] = useState<UploadMode>('video');
   const [uploadingVideos, setUploadingVideos] = useState<UploadingVideo[]>([]);
+  const [uploadingImages, setUploadingImages] = useState<UploadingImage[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
@@ -149,56 +164,102 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
 
     const fileArray = Array.from(files);
     
-    // 验证文件类型 - 使用更宽松的检测
-    const validTypes = ['video/mp4', 'video/mov', 'video/avi', 'video/wmv', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
-    const validExtensions = ['.mp4', '.mov', '.avi', '.wmv', '.webm', '.qt'];
-    
-    const invalidFiles = fileArray.filter(file => {
-      const hasValidType = validTypes.includes(file.type);
-      const hasValidExtension = validExtensions.some(ext => 
-        file.name.toLowerCase().endsWith(ext)
-      );
-      return !hasValidType && !hasValidExtension;
-    });
-    
-    if (invalidFiles.length > 0) {
-      toast({
-        title: '文件类型不支持',
-        description: '请上传 MP4、MOV、AVI、WMV 或 WebM 格式的视频文件',
-        variant: 'destructive'
+    if (uploadMode === 'video') {
+      // 验证视频文件类型
+      const validVideoTypes = ['video/mp4', 'video/mov', 'video/avi', 'video/wmv', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
+      const validVideoExtensions = ['.mp4', '.mov', '.avi', '.wmv', '.webm', '.qt'];
+      
+      const invalidFiles = fileArray.filter(file => {
+        const hasValidType = validVideoTypes.includes(file.type);
+        const hasValidExtension = validVideoExtensions.some(ext => 
+          file.name.toLowerCase().endsWith(ext)
+        );
+        return !hasValidType && !hasValidExtension;
       });
-      return;
-    }
+      
+      if (invalidFiles.length > 0) {
+        toast({
+          title: '文件类型不支持',
+          description: '请上传 MP4、MOV、AVI、WMV 或 WebM 格式的视频文件',
+          variant: 'destructive'
+        });
+        return;
+      }
 
-    // 验证文件大小 (限制为500MB)
-    const maxSize = 500 * 1024 * 1024; // 500MB
-    const oversizedFiles = fileArray.filter(file => file.size > maxSize);
-    
-    if (oversizedFiles.length > 0) {
-      toast({
-        title: '文件太大',
-        description: '视频文件大小不能超过 500MB',
-        variant: 'destructive'
+      // 验证视频文件大小 (限制为500MB)
+      const maxVideoSize = 500 * 1024 * 1024; // 500MB
+      const oversizedFiles = fileArray.filter(file => file.size > maxVideoSize);
+      
+      if (oversizedFiles.length > 0) {
+        toast({
+          title: '文件太大',
+          description: '视频文件大小不能超过 500MB',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // 创建上传视频状态
+      const newUploadingVideos: UploadingVideo[] = fileArray.map(file => ({
+        file,
+        progress: 0,
+        status: 'pending',
+        title: file.name.replace(/\.[^/.]+$/, ''),
+        description: '',
+        content: '',
+        tags: [],
+        selectedProducts: [],
+        category: '产品介绍'
+      }));
+
+      setUploadingVideos(prev => [...prev, ...newUploadingVideos]);
+      
+    } else if (uploadMode === 'images') {
+      // 验证图片文件类型
+      const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      const validImageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+      
+      const invalidFiles = fileArray.filter(file => {
+        const hasValidType = validImageTypes.includes(file.type);
+        const hasValidExtension = validImageExtensions.some(ext => 
+          file.name.toLowerCase().endsWith(ext)
+        );
+        return !hasValidType && !hasValidExtension;
       });
-      return;
+      
+      if (invalidFiles.length > 0) {
+        toast({
+          title: '文件类型不支持',
+          description: '请上传 JPG、PNG、GIF 或 WebP 格式的图片文件',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // 验证图片文件大小 (限制为10MB)
+      const maxImageSize = 10 * 1024 * 1024; // 10MB
+      const oversizedFiles = fileArray.filter(file => file.size > maxImageSize);
+      
+      if (oversizedFiles.length > 0) {
+        toast({
+          title: '文件太大',
+          description: '图片文件大小不能超过 10MB',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // 创建上传图片状态
+      const newUploadingImages: UploadingImage[] = fileArray.map(file => ({
+        file,
+        progress: 0,
+        status: 'pending',
+        title: file.name.replace(/\.[^/.]+$/, ''),
+        description: ''
+      }));
+
+      setUploadingImages(prev => [...prev, ...newUploadingImages]);
     }
-
-    // 创建上传视频状态 - 初始状态为 pending，不自动开始上传
-    const newUploadingVideos: UploadingVideo[] = fileArray.map(file => ({
-      file,
-      progress: 0,
-      status: 'pending', // 等待用户填写信息
-      title: file.name.replace(/\.[^/.]+$/, ''), // 去掉文件扩展名作为默认标题
-      description: '',
-      content: '',
-      tags: [],
-      selectedProducts: [],
-      category: '产品介绍'
-    }));
-
-    setUploadingVideos(prev => [...prev, ...newUploadingVideos]);
-
-    // 不自动开始上传，等待用户点击上传按钮
   };
 
   const startUpload = (file: File) => {
@@ -425,6 +486,136 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     setUploadingVideos(prev => prev.filter(uv => uv.file !== file));
   };
 
+  const removeUploadingImage = (file: File) => {
+    setUploadingImages(prev => prev.filter(ui => ui.file !== file));
+    // 释放内存中的预览URL
+    if (file.type.startsWith('image/')) {
+      URL.revokeObjectURL(URL.createObjectURL(file));
+    }
+  };
+
+  const updateImageInfo = (file: File, field: keyof UploadingImage, value: string) => {
+    setUploadingImages(prev =>
+      prev.map(ui =>
+        ui.file === file ? { ...ui, [field]: value } : ui
+      )
+    );
+  };
+
+  const startImageUpload = (file: File) => {
+    uploadImages([file]);
+  };
+
+  const uploadImages = async (files: File[]) => {
+    for (const file of files) {
+      try {
+        // 更新状态为上传中
+        setUploadingImages(prev => 
+          prev.map(ui => 
+            ui.file === file ? { ...ui, status: 'uploading', progress: 0 } : ui
+          )
+        );
+
+        // 模拟进度更新
+        const progressInterval = setInterval(() => {
+          setUploadingImages(prev => 
+            prev.map(ui => 
+              ui.file === file && ui.status === 'uploading'
+                ? { ...ui, progress: Math.min(ui.progress + 10, 90) }
+                : ui
+            )
+          );
+        }, 200);
+
+        // 获取当前上传图片的信息
+        const uploadingImage = uploadingImages.find(ui => ui.file === file) || 
+                              { 
+                                title: file.name.replace(/\.[^/.]+$/, ''), 
+                                description: ''
+                              };
+
+        // 使用 storageService 上传图片到 Supabase Storage
+        const { storageService } = await import('@/services/storageService');
+        const result = await storageService.uploadFile(file, {
+          bucket: 'product-images',
+          folder: 'upload-images',
+          allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+          maxSize: 10 // 10MB
+        });
+
+        clearInterval(progressInterval);
+
+        if (result.error) {
+          throw new Error(result.error);
+        }
+
+        // 保存图片信息到数据库
+        if (result.data && user) {
+          try {
+            const { error } = await supabase
+              .from('uploaded_images')
+              .insert({
+                title: uploadingImage.title,
+                description: uploadingImage.description,
+                file_path: result.data.path,
+                public_url: result.data.publicUrl,
+                file_size: file.size,
+                mime_type: file.type,
+                uploaded_by: user.id,
+                bucket_name: 'product-images',
+                folder_path: 'upload-images'
+              });
+            
+            if (error) {
+              console.warn('Failed to save image info to database:', error);
+            }
+          } catch (dbError) {
+            console.warn('Database error:', dbError);
+          }
+        }
+
+        // 更新成功状态
+        setUploadingImages(prev => 
+          prev.map(ui => 
+            ui.file === file 
+              ? { 
+                  ...ui, 
+                  progress: 100, 
+                  status: 'success',
+                  result: result.data!
+                }
+              : ui
+          )
+        );
+
+        toast({
+          title: '图片上传成功',
+          description: `"${uploadingImage.title}" 已成功上传`
+        });
+
+      } catch (error) {
+        // 更新错误状态
+        setUploadingImages(prev => 
+          prev.map(ui => 
+            ui.file === file 
+              ? { 
+                  ...ui, 
+                  status: 'error', 
+                  error: error instanceof Error ? error.message : '上传失败' 
+                }
+              : ui
+          )
+        );
+        
+        toast({
+          title: '图片上传失败',
+          description: error instanceof Error ? error.message : '上传失败',
+          variant: 'destructive'
+        });
+      }
+    }
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
@@ -445,6 +636,41 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* 上传模式选择器 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">选择上传类型</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RadioGroup 
+            value={uploadMode} 
+            onValueChange={(value: UploadMode) => setUploadMode(value)}
+            className="grid grid-cols-2 gap-4"
+          >
+            <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-gray-50">
+              <RadioGroupItem value="video" id="video" />
+              <Label htmlFor="video" className="flex items-center gap-2 cursor-pointer flex-1">
+                <Video className="h-5 w-5" />
+                <div>
+                  <div className="font-medium">上传视频</div>
+                  <div className="text-xs text-muted-foreground">MP4, MOV, AVI, WMV, WebM</div>
+                </div>
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-gray-50">
+              <RadioGroupItem value="images" id="images" />
+              <Label htmlFor="images" className="flex items-center gap-2 cursor-pointer flex-1">
+                <Images className="h-5 w-5" />
+                <div>
+                  <div className="font-medium">上传多图</div>
+                  <div className="text-xs text-muted-foreground">JPG, PNG, GIF, WebP</div>
+                </div>
+              </Label>
+            </div>
+          </RadioGroup>
+        </CardContent>
+      </Card>
+
       {/* 拖拽上传区域 */}
       <Card 
         className={`border-2 border-dashed transition-colors cursor-pointer ${
@@ -458,18 +684,28 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
         onClick={() => fileInputRef.current?.click()}
       >
         <CardContent className="flex flex-col items-center justify-center p-8 text-center">
-          <Video className="h-16 w-16 text-muted-foreground mb-4" />
+          {uploadMode === 'video' ? (
+            <Video className="h-16 w-16 text-muted-foreground mb-4" />
+          ) : (
+            <Images className="h-16 w-16 text-muted-foreground mb-4" />
+          )}
           <div className="space-y-2">
             <p className="text-lg font-medium">
-              拖拽视频文件到此处或点击选择
+              {uploadMode === 'video' ? 
+                '拖拽视频文件到此处或点击选择' : 
+                '拖拽图片文件到此处或点击选择'
+              }
             </p>
             <p className="text-sm text-muted-foreground">
-              支持格式: MP4, MOV, AVI, WMV, WebM | 最大大小: 500MB
+              {uploadMode === 'video' ? 
+                '支持格式: MP4, MOV, AVI, WMV, WebM | 最大大小: 500MB' :
+                '支持格式: JPG, PNG, GIF, WebP | 最大大小: 10MB'
+              }
             </p>
           </div>
           <Button className="mt-4">
             <Upload className="h-4 w-4 mr-2" />
-            选择视频文件
+            {uploadMode === 'video' ? '选择视频文件' : '选择图片文件'}
           </Button>
         </CardContent>
       </Card>
@@ -479,12 +715,12 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
         ref={fileInputRef}
         type="file"
         multiple
-        accept="video/*"
+        accept={uploadMode === 'video' ? 'video/*' : 'image/*'}
         onChange={(e) => handleFileSelect(e.target.files)}
         className="hidden"
       />
 
-      {/* 上传进度列表 */}
+      {/* 视频上传进度列表 */}
       {uploadingVideos.length > 0 && (
         <div className="space-y-4">
           <Label className="text-lg font-semibold">上传进度</Label>
@@ -609,7 +845,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
                           <div className="flex gap-2">
                             <Input
                               placeholder="输入标签后按回车添加"
-                              onKeyPress={(e) => {
+                              onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                   addTag(uploadingVideo.file, e.currentTarget.value);
                                   e.currentTarget.value = '';
@@ -766,6 +1002,118 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
                       视频已成功上传到 Cloudflare Stream 并保存到数据库
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 图片上传进度列表 */}
+      {uploadingImages.length > 0 && (
+        <div className="space-y-4">
+          <Label className="text-lg font-semibold">图片上传进度</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {uploadingImages.map((uploadingImage, index) => (
+              <Card key={index}>
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    {/* 图片预览 */}
+                    <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
+                      {uploadingImage.file.type.startsWith('image/') ? (
+                        <img 
+                          src={URL.createObjectURL(uploadingImage.file)}
+                          alt={uploadingImage.file.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <FileImage className="h-12 w-12 text-muted-foreground" />
+                      )}
+                    </div>
+                    
+                    {/* 文件信息 */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-medium truncate" title={uploadingImage.file.name}>
+                          {uploadingImage.file.name}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeUploadingImage(uploadingImage.file)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{formatFileSize(uploadingImage.file.size)}</span>
+                        <Badge 
+                          variant={
+                            uploadingImage.status === 'success' ? 'default' :
+                            uploadingImage.status === 'error' ? 'destructive' : 'secondary'
+                          }
+                          className="text-xs"
+                        >
+                          {uploadingImage.status === 'pending' ? '等待上传' :
+                           uploadingImage.status === 'uploading' ? '上传中' :
+                           uploadingImage.status === 'success' ? '完成' : '失败'}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* 标题和描述输入 */}
+                    {uploadingImage.status === 'pending' && (
+                      <div className="space-y-2">
+                        <Input
+                          value={uploadingImage.title}
+                          onChange={(e) => updateImageInfo(uploadingImage.file, 'title', e.target.value)}
+                          placeholder="图片标题"
+                          className="text-sm"
+                        />
+                        <Textarea
+                          value={uploadingImage.description}
+                          onChange={(e) => updateImageInfo(uploadingImage.file, 'description', e.target.value)}
+                          placeholder="图片描述"
+                          rows={2}
+                          className="text-sm resize-none"
+                        />
+                        <Button 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => startImageUpload(uploadingImage.file)}
+                          disabled={!uploadingImage.title.trim()}
+                        >
+                          <Upload className="h-3 w-3 mr-1" />
+                          上传
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* 进度条 */}
+                    {uploadingImage.status === 'uploading' && (
+                      <div className="space-y-1">
+                        <Progress value={uploadingImage.progress} className="h-2" />
+                        <div className="text-xs text-center text-muted-foreground">
+                          {uploadingImage.progress}%
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 错误信息 */}
+                    {uploadingImage.status === 'error' && uploadingImage.error && (
+                      <div className="text-xs text-destructive bg-destructive/10 p-2 rounded">
+                        {uploadingImage.error}
+                      </div>
+                    )}
+
+                    {/* 成功信息 */}
+                    {uploadingImage.status === 'success' && (
+                      <div className="text-xs text-green-700 bg-green-50 p-2 rounded">
+                        图片上传成功
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}

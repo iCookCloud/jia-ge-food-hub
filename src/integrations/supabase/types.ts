@@ -244,6 +244,9 @@ export type Database = {
           is_primary: boolean | null
           product_id: string
           sort_order: number | null
+          user_id: string | null
+          is_active: boolean | null
+          updated_at: string | null
         }
         Insert: {
           created_at?: string
@@ -252,6 +255,9 @@ export type Database = {
           is_primary?: boolean | null
           product_id: string
           sort_order?: number | null
+          user_id?: string | null
+          is_active?: boolean | null
+          updated_at?: string | null
         }
         Update: {
           created_at?: string
@@ -260,8 +266,75 @@ export type Database = {
           is_primary?: boolean | null
           product_id?: string
           sort_order?: number | null
+          user_id?: string | null
+          is_active?: boolean | null
+          updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "product_images_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      uploaded_images: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          file_path: string
+          public_url: string
+          file_size: number
+          mime_type: string
+          uploaded_by: string
+          bucket_name: string
+          folder_path: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          file_path: string
+          public_url: string
+          file_size: number
+          mime_type: string
+          uploaded_by: string
+          bucket_name: string
+          folder_path?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          file_path?: string
+          public_url?: string
+          file_size?: number
+          mime_type?: string
+          uploaded_by?: string
+          bucket_name?: string
+          folder_path?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "uploaded_images_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       product_list_items: {
         Row: {

@@ -11,6 +11,8 @@ import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import ProductsPage from "./pages/ProductsPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
+import SupplierDetailPage from "./pages/SupplierDetailPage";
+import ProjectManagementPage from "./pages/ProjectManagementPage";
 import QuotationsPage from "./pages/QuotationsPage";
 import OrdersPage from "./pages/OrdersPage";
 import ProfilePage from "./pages/ProfilePage";
@@ -53,6 +55,16 @@ const App = () => (
                 <ProductDetailPage />
               </PublicRoute>
             } />
+            <Route path="/suppliers/:id" element={
+              <PublicRoute>
+                <SupplierDetailPage />
+              </PublicRoute>
+            } />
+            <Route path="/supplier/:id" element={
+              <PublicRoute>
+                <SupplierDetailPage />
+              </PublicRoute>
+            } />
             
             {/* Protected routes - require authentication */}
             <Route path="/materials" element={
@@ -88,6 +100,11 @@ const App = () => (
             <Route path="/settings" element={
               <ProtectedRoute>
                 <SettingsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/projects" element={
+              <ProtectedRoute>
+                <ProjectManagementPage />
               </ProtectedRoute>
             } />
             

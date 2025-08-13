@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { PostgrestError } from '@supabase/supabase-js';
 import { globalErpService } from './globalErpService';
+import { recommendationAPI } from '@/api/recommendations';
 
 export interface ApiResponse<T> {
   data: T | null;
@@ -144,4 +145,130 @@ export const applyTextSearch = (query: any, searchTerm: string, columns: string[
     return query.or(searchConditions);
   }
   return query;
+};
+
+// 推荐系统API扩展
+export const recommendationApiService = {
+  // 获取案例推荐
+  async getCaseRecommendations(caseId: number, params: any = {}) {
+    try {
+      const response = await recommendationAPI.getCaseRecommendations(caseId, params);
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: handleApiError(error as Error)
+      };
+    }
+  },
+
+  // 获取个性化推荐
+  async getPersonalizedRecommendations(userId: string, params: any = {}) {
+    try {
+      const response = await recommendationAPI.getPersonalizedRecommendations(userId, params);
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: handleApiError(error as Error)
+      };
+    }
+  },
+
+  // 获取通用推荐
+  async getGeneralRecommendations(params: any = {}) {
+    try {
+      const response = await recommendationAPI.getGeneralRecommendations(params);
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: handleApiError(error as Error)
+      };
+    }
+  },
+
+  // 获取相似商品
+  async getSimilarProducts(productId: string, params: any = {}) {
+    try {
+      const response = await recommendationAPI.getSimilarProducts(productId, params);
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: handleApiError(error as Error)
+      };
+    }
+  },
+
+  // 获取案例完整信息
+  async getCaseComplete(caseId: number, params: any = {}) {
+    try {
+      const response = await recommendationAPI.getCaseComplete(caseId, params);
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: handleApiError(error as Error)
+      };
+    }
+  },
+
+  // 获取成本预估
+  async getCostEstimation(caseId: number, budgetLevel: 'low' | 'medium' | 'high' = 'medium') {
+    try {
+      const response = await recommendationAPI.getCostEstimation(caseId, budgetLevel);
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: handleApiError(error as Error)
+      };
+    }
+  },
+
+  // 更新用户偏好
+  async updateUserPreferences(userId: string, preferences: any) {
+    try {
+      const response = await recommendationAPI.updateUserPreferences(userId, preferences);
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: handleApiError(error as Error)
+      };
+    }
+  },
+
+  // 记录推荐反馈
+  async recordFeedback(params: {
+    user_id?: string;
+    recommendation_id: string;
+    product_id: string;
+    action: 'like' | 'dislike' | 'view' | 'add_to_cart' | 'purchase';
+    metadata?: Record<string, any>;
+  }) {
+    try {
+      const response = await recommendationAPI.recordFeedback(params);
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: handleApiError(error as Error)
+      };
+    }
+  },
+
+  // 获取推荐统计
+  async getRecommendationStats(params: any = {}) {
+    try {
+      const response = await recommendationAPI.getStats(params);
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: handleApiError(error as Error)
+      };
+    }
+  }
 };
