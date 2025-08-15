@@ -18,8 +18,8 @@ export const useCategoryTree = () => {
   return useQuery({
     queryKey: ['category-tree'],
     queryFn: () => categoryService.getCategoryTree(),
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 0, // 数据立即过期，但保留缓存用于更新
+    gcTime: 5 * 60 * 1000, // 5分钟后清理缓存
     refetchOnMount: 'always', // 每次挂载都重新获取
     refetchOnWindowFocus: false, // 避免窗口聚焦时重复请求
   });
@@ -318,13 +318,14 @@ export const useCreateCategory = () => {
     }) => categoryService.createCategory(categoryData),
     
     onSuccess: (data) => {
-      // 强制重新获取所有分类相关数据
-      queryClient.refetchQueries({ queryKey: ['categories'] });
-      queryClient.refetchQueries({ queryKey: ['category-tree'] });
-      queryClient.refetchQueries({ queryKey: ['category-paths'] });
-      queryClient.refetchQueries({ queryKey: ['categories-by-level'] });
-      queryClient.refetchQueries({ queryKey: ['child-categories'] });
-      queryClient.refetchQueries({ queryKey: ['category-statistics'] });
+      // 让所有分类相关缓存失效，触发重新获取
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['category-tree'] });
+      queryClient.invalidateQueries({ queryKey: ['category-paths'] });
+      queryClient.invalidateQueries({ queryKey: ['categories-by-level'] });
+      queryClient.invalidateQueries({ queryKey: ['child-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['category-by-id'] });
+      queryClient.invalidateQueries({ queryKey: ['category-statistics'] });
       
       toast({
         title: "创建成功",
@@ -357,12 +358,15 @@ export const useUpdateCategory = () => {
     }) => categoryService.updateCategory(categoryId, updates),
     
     onSuccess: (data) => {
-      // 强制重新获取所有分类相关数据
-      queryClient.refetchQueries({ queryKey: ['categories'], type: 'active' });
-      queryClient.refetchQueries({ queryKey: ['category-tree'], type: 'active' });
-      queryClient.refetchQueries({ queryKey: ['category-paths'], type: 'active' });
-      queryClient.refetchQueries({ queryKey: ['category-by-slug'], type: 'active' });
-      queryClient.refetchQueries({ queryKey: ['category-statistics'], type: 'active' });
+      // 让所有分类相关缓存失效，触发重新获取
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['category-tree'] });
+      queryClient.invalidateQueries({ queryKey: ['category-paths'] });
+      queryClient.invalidateQueries({ queryKey: ['categories-by-level'] });
+      queryClient.invalidateQueries({ queryKey: ['child-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['category-by-id'] });
+      queryClient.invalidateQueries({ queryKey: ['category-by-slug'] });
+      queryClient.invalidateQueries({ queryKey: ['category-statistics'] });
       
       toast({
         title: "更新成功",
@@ -389,11 +393,14 @@ export const useDeleteCategory = () => {
     mutationFn: (categoryId: number) => categoryService.deleteCategory(categoryId),
     
     onSuccess: () => {
-      // 强制重新获取所有分类相关数据
-      queryClient.refetchQueries({ queryKey: ['categories'] });
-      queryClient.refetchQueries({ queryKey: ['category-tree'] });
-      queryClient.refetchQueries({ queryKey: ['category-paths'] });
-      queryClient.refetchQueries({ queryKey: ['category-statistics'] });
+      // 让所有分类相关缓存失效，触发重新获取
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['category-tree'] });
+      queryClient.invalidateQueries({ queryKey: ['category-paths'] });
+      queryClient.invalidateQueries({ queryKey: ['categories-by-level'] });
+      queryClient.invalidateQueries({ queryKey: ['child-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['category-by-id'] });
+      queryClient.invalidateQueries({ queryKey: ['category-statistics'] });
       
       toast({
         title: "删除成功",

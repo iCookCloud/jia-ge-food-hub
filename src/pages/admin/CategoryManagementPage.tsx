@@ -9,8 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   useCategoryTree, 
   useCategoryStatistics, 
-  useDeleteCategory,
-  useCategoryById
+  useDeleteCategory
 } from '@/hooks/useCategories';
 import { CategoryTree, ProductCategory } from '@/services/categoryService';
 import { CategoryForm } from '@/components/category/CategoryForm';
@@ -55,6 +54,7 @@ const CategoryTreeNode: React.FC<CategoryTreeNodeProps> = ({
 }) => {
   const isExpanded = expandedIds.has(category.id);
   const hasChildren = category.children && category.children.length > 0;
+  
   
   // 搜索高亮
   const highlightText = (text: string) => {
@@ -205,23 +205,20 @@ const CategoryTreeNode: React.FC<CategoryTreeNodeProps> = ({
 const CategoryManagementPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
+  const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null);
   const [parentCategory, setParentCategory] = useState<CategoryTree | undefined>();
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [deletingCategory, setDeletingCategory] = useState<ProductCategory | null>(null);
   
   const { data: categoryTree, isLoading } = useCategoryTree();
   const { data: statistics } = useCategoryStatistics();
-  const { data: editingCategory, isLoading: isLoadingEditingCategory } = useCategoryById(editingCategoryId);
   
-  // 调试日志
-  console.log('CategoryManagementPage 渲染, categoryTree:', categoryTree);
-  console.log('正在编辑的分类:', editingCategory);
+  
   const deleteCategory = useDeleteCategory();
   const { toast } = useToast();
   
   const handleEdit = (category: ProductCategory) => {
-    setEditingCategoryId(category.id); // 设置要编辑的分类ID，触发数据获取
+    setEditingCategory(category); // 直接设置要编辑的分类数据
     setParentCategory(undefined);
     setShowForm(true);
   };
@@ -246,13 +243,13 @@ const CategoryManagementPage: React.FC = () => {
   };
   
   const handleAddChild = (parent: CategoryTree) => {
-    setEditingCategoryId(null);
+    setEditingCategory(null);
     setParentCategory(parent);
     setShowForm(true);
   };
   
   const handleAddRoot = () => {
-    setEditingCategoryId(null);
+    setEditingCategory(null);
     setParentCategory(undefined);
     setShowForm(true);
   };
@@ -353,16 +350,15 @@ const CategoryManagementPage: React.FC = () => {
           <CategoryForm
             category={editingCategory}
             parentCategory={parentCategory}
-            isLoading={isLoadingEditingCategory}
-            isEditMode={!!editingCategoryId}
+            isEditMode={!!editingCategory}
             onSuccess={() => {
               setShowForm(false);
-              setEditingCategoryId(null);
+              setEditingCategory(null);
               setParentCategory(undefined);
             }}
             onCancel={() => {
               setShowForm(false);
-              setEditingCategoryId(null);
+              setEditingCategory(null);
               setParentCategory(undefined);
             }}
           />

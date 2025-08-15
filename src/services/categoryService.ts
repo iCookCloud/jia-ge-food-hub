@@ -72,7 +72,6 @@ export interface CategoryStatistics {
 export interface CategoryTree extends ProductCategory {
   children?: CategoryTree[];
   product_count?: number;
-  parent?: CategoryTree;
 }
 
 export const categoryService = {
@@ -206,7 +205,8 @@ export const categoryService = {
         if (parent) {
           parent.children = parent.children || [];
           parent.children.push(categoryNode);
-          categoryNode.parent = parent;
+          // 移除循环引用，避免序列化问题
+          // categoryNode.parent = parent;
         }
       } else {
         rootCategories.push(categoryNode);
