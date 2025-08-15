@@ -22,23 +22,37 @@ import {
   Eye,
   Plus,
   TrendingUp,
-  BarChart
+  BarChart,
+  Image,
+  FileImage
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useMaterials } from "@/hooks/useMaterials";
 import { useAuth } from "@/hooks/useAuth";
 import { useDebounce } from "@/hooks/useDebounce";
 
-// 视频数据类型定义
-interface VideoItem {
+// 素材数据类型定义
+interface MaterialItem {
   id: string;
   title: string;
   description?: string;
+  content?: string;
+  category?: string;
+  tags?: string[];
+  type: 'video' | 'image';
+  
+  // 视频特有属性
   thumbnail?: string;
   thumbnail_url?: string;
   duration?: string;
   duration_seconds?: number;
-  category?: string;
+  
+  // 图片特有属性
+  public_url?: string;
+  file_path?: string;
+  mime_type?: string;
+  
+  // 通用属性
   supplier?: string;
   supplier_credentials?: {
     company_name?: string;
@@ -46,8 +60,30 @@ interface VideoItem {
   uploadDate?: string;
   created_at?: string;
   views?: number;
-  tags?: string[];
   relatedProducts?: string[];
+  uploaded_by?: string;
+}
+
+// 兼容旧接口
+interface VideoItem extends Omit<MaterialItem, 'type'> {
+  type?: 'video';
+}
+
+// 图片数据类型
+interface ImageItem {
+  id: string;
+  title: string;
+  description?: string;
+  content?: string;
+  category?: string;
+  tags?: string[];
+  public_url?: string;
+  file_path?: string;
+  mime_type?: string;
+  file_size?: number;
+  uploaded_by?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // Mock video data for fallback
@@ -121,13 +157,20 @@ const MaterialsPage = () => {
   
   // 分页状态管理
   const [currentPage, setCurrentPage] = useState(1);
-  const [allVideos, setAllVideos] = useState<VideoItem[]>([]);
+  const [allMaterials, setAllMaterials] = useState<MaterialItem[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   
-  const ITEMS_PER_PAGE = 9; // 每页显示9个视频
+  const ITEMS_PER_PAGE = 9; // 每页显示9个素材
 
-  const categories = ["全部", "产品介绍", "操作教程", "客户案例", "行业资讯"];
+  // 视频和图片通用分类
+  const categories = [
+    "全部", 
+    // 视频分类
+    "产品介绍", "操作教程", "客户案例", "行业资讯", "工艺展示", "质量检测",
+    // 图片分类
+    "产品展示", "使用场景", "生产工艺", "质量检验", "包装运输", "展会活动"
+  ];
   
   const filters = useMemo(() => ({
     search: debouncedSearchTerm,
@@ -141,10 +184,11 @@ const MaterialsPage = () => {
     limit: ITEMS_PER_PAGE
   }), [currentPage]);
   
-  const { data: videos = [], isLoading, error } = useMaterials(filters, pagination);
+  const { data: materials = [], isLoading, error } = useMaterials(filters, pagination);
   
   // Use mock data as fallback for first page only
-  const displayVideos = videos.length > 0 ? videos : (activeTab === "all" && currentPage === 1 ? mockVideos : []);
+  const mockMaterials = mockVideos.map(video => ({ ...video, type: 'video' as const }));
+  const displayMaterials = materials.length > 0 ? materials : (activeTab === "all" && currentPage === 1 ? mockMaterials : []);
   
   // 管理数据累积和重置
   useEffect(() => {
@@ -155,19 +199,19 @@ const MaterialsPage = () => {
     
     if (currentPage === 1) {
       // 第一页或过滤条件改变时，重置数据
-      setAllVideos(videos || []);
-      const shouldHaveMore = videos && videos.length === ITEMS_PER_PAGE;
+      setAllMaterials(materials || []);
+      const shouldHaveMore = materials && materials.length === ITEMS_PER_PAGE;
       setHasMore(shouldHaveMore);
-    } else if (videos && videos.length > 0) {
+    } else if (materials && materials.length > 0) {
       // 加载更多时，累积数据
-      setAllVideos(prev => {
+      setAllMaterials(prev => {
         const existingIds = new Set(prev.map(v => v.id));
-        const newVideos = videos.filter(v => !existingIds.has(v.id));
-        const updatedVideos = [...prev, ...newVideos];
-        return updatedVideos;
+        const newMaterials = materials.filter(v => !existingIds.has(v.id));
+        const updatedMaterials = [...prev, ...newMaterials];
+        return updatedMaterials;
       });
       // 只有当返回的数据等于期望的每页数据量时，才认为还有更多数据
-      const shouldHaveMore = videos.length === ITEMS_PER_PAGE;
+      const shouldHaveMore = materials.length === ITEMS_PER_PAGE;
       setHasMore(shouldHaveMore);
     } else if (currentPage > 1) {
       // 如果不是第一页，但返回空数据或没有数据，说明已经没有更多了
@@ -175,7 +219,7 @@ const MaterialsPage = () => {
     }
     
     setIsLoadingMore(false);
-  }, [videos, currentPage, isLoading]);
+  }, [materials, currentPage, isLoading]);
 
 
   // 记录上一次的过滤条件，用于精确检测变化
@@ -206,7 +250,7 @@ const MaterialsPage = () => {
     // 只有在确实有变化时才重置状态
     if (hasRealChange) {
       setCurrentPage(1);
-      setAllVideos([]);
+      setAllMaterials([]);
       setHasMore(true);
     }
   }, [selectedCategory, debouncedSearchTerm, selectedSupplier, activeTab]);
@@ -221,7 +265,7 @@ const MaterialsPage = () => {
 
   // 无限滚动功能
   useEffect(() => {
-    // 只在"全部视频"标签页启用无限滚动
+    // 只在"全部素材"标签页启用无限滚动
     if (activeTab !== "all") {
       return;
     }
@@ -233,7 +277,7 @@ const MaterialsPage = () => {
       }
       
       // 额外检查：如果是第一页且没有数据，不触发加载更多
-      if (currentPage === 1 && allVideos.length === 0) {
+      if (currentPage === 1 && allMaterials.length === 0) {
         return;
       }
 
@@ -265,26 +309,177 @@ const MaterialsPage = () => {
   }, [hasMore, isLoadingMore, isLoading, handleLoadMore, activeTab]);
 
   // 使用累积的数据而不是当前页数据
-  // 添加保护：如果allVideos为空但displayVideos有数据，使用displayVideos（防止数据意外清空）
-  const finalDisplayVideos = allVideos.length > 0 ? allVideos : displayVideos;
+  // 添加保护：如果allMaterials为空但displayMaterials有数据，使用displayMaterials（防止数据意外清空）
+  const finalDisplayMaterials = allMaterials.length > 0 ? allMaterials : displayMaterials;
   
-  const filteredVideos = finalDisplayVideos.filter((video: VideoItem) => {
-    const matchesCategory = selectedCategory === "全部" || video.category === selectedCategory;
-    const matchesSearch = video.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         video.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         video.tags?.some((tag: string) => tag.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesSupplier = selectedSupplier === "全部" || video.supplier === selectedSupplier || video.supplier_credentials?.company_name === selectedSupplier;
+  const filteredMaterials = finalDisplayMaterials.filter((material: MaterialItem) => {
+    const matchesCategory = selectedCategory === "全部" || material.category === selectedCategory;
+    const matchesSearch = material.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         material.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         material.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         material.tags?.some((tag: string) => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSupplier = selectedSupplier === "全部" || material.supplier === selectedSupplier || material.supplier_credentials?.company_name === selectedSupplier;
     return matchesCategory && matchesSearch && matchesSupplier;
   });
 
   const getCategoryBadge = (category: string) => {
     const colors = {
+      // 视频分类
       "产品介绍": "bg-primary text-primary-foreground",
       "操作教程": "bg-success text-success-foreground", 
       "客户案例": "bg-brand-orange text-white",
-      "行业资讯": "bg-purple-500 text-white"
+      "行业资讯": "bg-purple-500 text-white",
+      "工艺展示": "bg-blue-500 text-white",
+      "质量检测": "bg-green-600 text-white",
+      // 图片分类
+      "产品展示": "bg-primary text-primary-foreground",
+      "使用场景": "bg-indigo-500 text-white",
+      "生产工艺": "bg-orange-500 text-white",
+      "质量检验": "bg-green-600 text-white",
+      "包装运输": "bg-gray-600 text-white",
+      "展会活动": "bg-pink-500 text-white"
     };
     return <Badge className={colors[category] || "bg-muted"}>{category}</Badge>;
+  };
+
+  // 素材卡片组件
+  const MaterialCard = ({ material }: { material: MaterialItem }) => {
+    const isVideo = material.type === 'video';
+    const isImage = material.type === 'image';
+
+    return (
+      <Link to={`/materials/${material.id}`}>
+        <Card className="group hover:shadow-lg transition-all duration-300 hover-scale">
+          <CardContent className="p-0">
+            {/* 素材预览 */}
+            <div className="relative aspect-video overflow-hidden rounded-t-lg">
+              {isVideo && (
+                <>
+                  <img 
+                    src={material.thumbnail_url || material.thumbnail} 
+                    alt={material.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
+                    loading="lazy"
+                    onError={(e) => {
+                      console.error('图片加载失败:', material.thumbnail_url || material.thumbnail);
+                      const img = e.target as HTMLImageElement;
+                      if (!img.dataset.retried) {
+                        img.dataset.retried = 'true';
+                        setTimeout(() => {
+                          img.src = img.src + '?retry=' + Date.now();
+                        }, 1000);
+                      }
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                    <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Play className="w-6 h-6 text-primary ml-1" />
+                    </div>
+                  </div>
+                  {/* 时长标识 */}
+                  <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs flex items-center">
+                    <Clock className="w-3 h-3 mr-1" />
+                    {material.duration_seconds ? `${Math.floor(material.duration_seconds / 60)}:${(material.duration_seconds % 60).toString().padStart(2, '0')}` : material.duration}
+                  </div>
+                </>
+              )}
+              
+              {isImage && (
+                <>
+                  <img 
+                    src={material.public_url} 
+                    alt={material.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
+                    loading="lazy"
+                    onError={(e) => {
+                      console.error('图片加载失败:', material.public_url);
+                      const img = e.target as HTMLImageElement;
+                      if (!img.dataset.retried) {
+                        img.dataset.retried = 'true';
+                        setTimeout(() => {
+                          img.src = img.src + '?retry=' + Date.now();
+                        }, 1000);
+                      }
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-white/80 flex items-center justify-center group-hover:scale-110 transition-transform opacity-0 group-hover:opacity-100">
+                      <Image className="w-5 h-5 text-primary" />
+                    </div>
+                  </div>
+                  {/* 图片类型标识 */}
+                  <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs flex items-center">
+                    <FileImage className="w-3 h-3 mr-1" />
+                    图片
+                  </div>
+                </>
+              )}
+              
+              {/* 分类标识 */}
+              <div className="absolute top-2 left-2">
+                {getCategoryBadge(material.category || (isVideo ? "产品介绍" : "产品展示"))}
+              </div>
+              
+              {/* 类型标识 */}
+              <div className="absolute top-2 right-2">
+                <Badge variant="secondary" className="text-xs">
+                  {isVideo ? (
+                    <><Video className="w-3 h-3 mr-1" />视频</>
+                  ) : (
+                    <><FileImage className="w-3 h-3 mr-1" />图片</>
+                  )}
+                </Badge>
+              </div>
+            </div>
+
+            {/* 素材信息 */}
+            <div className="p-4">
+              <h3 className="font-semibold text-foreground mb-2 line-clamp-2">
+                {material.title}
+              </h3>
+              <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                {material.description}
+              </p>
+              
+              {/* 供应商和统计 */}
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+                <span className="flex items-center">
+                  <User className="w-3 h-3 mr-1" />
+                  {material.supplier_credentials?.company_name || material.supplier || '未知供应商'}
+                </span>
+                <span className="flex items-center">
+                  <Eye className="w-3 h-3 mr-1" />
+                  {material.views || 0}
+                </span>
+              </div>
+              
+              {/* 标签 */}
+              <div className="flex flex-wrap gap-1">
+                {(material.tags || []).slice(0, 3).map((tag: string) => (
+                  <Badge key={tag} variant="outline" className="text-xs">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+              
+              {/* 关联产品 */}
+              {material.relatedProducts?.length > 0 && (
+                <div className="mt-3 pt-3 border-t">
+                  <p className="text-xs text-muted-foreground mb-1">关联商品:</p>
+                  <p className="text-xs font-medium line-clamp-1">
+                    {material.relatedProducts[0]}
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+    );
   };
 
   return (
@@ -293,14 +488,14 @@ const MaterialsPage = () => {
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">视频&素材中心</h1>
-            <p className="text-muted-foreground">观看产品展示视频，了解操作教程，查看行业案例</p>
+            <h1 className="text-3xl font-bold text-foreground mb-2">素材中心</h1>
+            <p className="text-muted-foreground">浏览产品展示素材，观看操作教程，查看行业案例</p>
           </div>
           {user && (
             <Link to="/materials/upload">
               <Button>
                 <Plus className="w-4 h-4 mr-2" />
-                上传视频
+                上传素材
               </Button>
             </Link>
           )}
@@ -309,7 +504,7 @@ const MaterialsPage = () => {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="all">全部视频</TabsTrigger>
+            <TabsTrigger value="all">全部素材</TabsTrigger>
             <TabsTrigger value="mine">我的素材</TabsTrigger>
             <TabsTrigger value="stats">数据统计</TabsTrigger>
           </TabsList>
@@ -329,7 +524,7 @@ const MaterialsPage = () => {
                         </div>
                       )}
                       <Input
-                        placeholder="搜索视频标题、描述或标签..."
+                        placeholder="搜索素材标题、描述或标签..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className={`pl-10 ${isSearching ? 'pr-10' : ''}`}
@@ -384,7 +579,7 @@ const MaterialsPage = () => {
               </div>
             ) : error ? (
               <div className="text-center py-12">
-                <p className="text-destructive mb-4">加载视频时出现错误</p>
+                <p className="text-destructive mb-4">加载素材时出现错误</p>
                 <Button 
                   variant="outline" 
                   onClick={() => window.location.reload()}
@@ -392,9 +587,9 @@ const MaterialsPage = () => {
                   重新加载
                 </Button>
               </div>
-            ) : filteredVideos.length === 0 ? (
+            ) : filteredMaterials.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-muted-foreground mb-4">没有找到符合条件的视频</p>
+                <p className="text-muted-foreground mb-4">没有找到符合条件的素材</p>
                 <Button 
                   variant="outline" 
                   onClick={() => {
@@ -408,92 +603,8 @@ const MaterialsPage = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredVideos.map((video: VideoItem) => (
-                  <Link key={video.id} to={`/materials/${video.id}`}>
-                    <Card className="group hover:shadow-lg transition-all duration-300 hover-scale">
-                      <CardContent className="p-0">
-                        {/* Video Thumbnail */}
-                        <div className="relative aspect-video overflow-hidden rounded-t-lg">
-                          <img 
-                            src={video.thumbnail_url || video.thumbnail} 
-                            alt={video.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            crossOrigin="anonymous"
-                            referrerPolicy="no-referrer"
-                            loading="lazy"
-                            onError={(e) => {
-                              console.error('图片加载失败:', video.thumbnail_url || video.thumbnail);
-                              // 尝试重新加载一次
-                              const img = e.target as HTMLImageElement;
-                              if (!img.dataset.retried) {
-                                img.dataset.retried = 'true';
-                                setTimeout(() => {
-                                  img.src = img.src + '?retry=' + Date.now();
-                                }, 1000);
-                              }
-                            }}
-                          />
-                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                            <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">
-                              <Play className="w-6 h-6 text-primary ml-1" />
-                            </div>
-                          </div>
-                          
-                          {/* Duration Badge */}
-                          <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs flex items-center">
-                            <Clock className="w-3 h-3 mr-1" />
-                            {video.duration_seconds ? `${Math.floor(video.duration_seconds / 60)}:${(video.duration_seconds % 60).toString().padStart(2, '0')}` : video.duration}
-                          </div>
-                          
-                          {/* Category Badge */}
-                          <div className="absolute top-2 left-2">
-                            {getCategoryBadge(video.category || "产品介绍")}
-                          </div>
-                        </div>
-
-                        {/* Video Info */}
-                        <div className="p-4">
-                          <h3 className="font-semibold text-foreground mb-2 line-clamp-2">
-                            {video.title}
-                          </h3>
-                          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                            {video.description}
-                          </p>
-                          
-                          {/* Supplier and Stats */}
-                          <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
-                            <span className="flex items-center">
-                              <User className="w-3 h-3 mr-1" />
-                              {video.supplier_credentials?.company_name || video.supplier}
-                            </span>
-                            <span className="flex items-center">
-                              <Eye className="w-3 h-3 mr-1" />
-                              {video.views || 0}
-                            </span>
-                          </div>
-                          
-                          {/* Tags */}
-                          <div className="flex flex-wrap gap-1">
-                            {(video.tags || []).slice(0, 3).map((tag: string) => (
-                              <Badge key={tag} variant="outline" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                          
-                          {/* Related Products */}
-                          {video.relatedProducts?.length > 0 && (
-                            <div className="mt-3 pt-3 border-t">
-                              <p className="text-xs text-muted-foreground mb-1">关联商品:</p>
-                              <p className="text-xs font-medium line-clamp-1">
-                                {video.relatedProducts[0]}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
+                {filteredMaterials.map((material: MaterialItem) => (
+                  <MaterialCard key={material.id} material={material} />
                 ))}
               </div>
             )}
@@ -519,56 +630,10 @@ const MaterialsPage = () => {
           {/* My Materials Tab */}
           <TabsContent value="mine" className="mt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredVideos.filter((video: VideoItem) => video.supplier === user?.email).map((video: VideoItem) => (
-                <Link key={video.id} to={`/materials/${video.id}`}>
-                  <Card className="group hover:shadow-lg transition-all duration-300 hover-scale">
-                    <CardContent className="p-0">
-                      <div className="relative aspect-video overflow-hidden rounded-t-lg">
-                        <img 
-                          src={video.thumbnail_url || video.thumbnail} 
-                          alt={video.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          crossOrigin="anonymous"
-                          referrerPolicy="no-referrer"
-                          loading="lazy"
-                          onError={(e) => {
-                            console.error('图片加载失败:', video.thumbnail_url || video.thumbnail);
-                            // 尝试重新加载一次
-                            const img = e.target as HTMLImageElement;
-                            if (!img.dataset.retried) {
-                              img.dataset.retried = 'true';
-                              setTimeout(() => {
-                                img.src = img.src + '?retry=' + Date.now();
-                              }, 1000);
-                            }
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                          <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Play className="w-6 h-6 text-primary ml-1" />
-                          </div>
-                        </div>
-                        <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs flex items-center">
-                          <Clock className="w-3 h-3 mr-1" />
-                          {video.duration_seconds ? `${Math.floor(video.duration_seconds / 60)}:${(video.duration_seconds % 60).toString().padStart(2, '0')}` : video.duration}
-                        </div>
-                        <div className="absolute top-2 left-2">
-                          {getCategoryBadge(video.category || "产品介绍")}
-                        </div>
-                      </div>
-                      <div className="p-4">
-                        <h3 className="font-semibold text-foreground mb-2 line-clamp-2">
-                          {video.title}
-                        </h3>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>观看: {video.views || 0}</span>
-                          <span>引用: {video.referenceCount || 0}</span>
-                          <span>转化: {video.conversionCount || 0}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+              {filteredMaterials.filter((material: MaterialItem) => 
+                material.uploaded_by === user?.id || material.supplier === user?.email
+              ).map((material: MaterialItem) => (
+                <MaterialCard key={material.id} material={material} />
               ))}
             </div>
           </TabsContent>
@@ -577,10 +642,10 @@ const MaterialsPage = () => {
           <TabsContent value="stats" className="mt-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               {[
-                { label: "我的视频", value: displayVideos.filter((v: VideoItem) => v.supplier === user?.email).length, icon: Video },
+                { label: "我的素材", value: displayMaterials.filter((m: MaterialItem) => m.uploaded_by === user?.id || m.supplier === user?.email).length, icon: Video },
                 { label: "总观看", value: "5.8K", icon: Eye },
                 { label: "转化订单", value: 23, icon: TrendingUp },
-                { label: "视频引用", value: 45, icon: BarChart }
+                { label: "素材引用", value: 45, icon: BarChart }
               ].map((stat, index) => (
                 <Card key={index}>
                   <CardContent className="p-4">
@@ -599,23 +664,23 @@ const MaterialsPage = () => {
         </Tabs>
 
         {/* Load More */}
-        {filteredVideos.length > 0 && hasMore && (
+        {filteredMaterials.length > 0 && hasMore && (
           <div className="flex flex-col items-center mt-8 gap-2">
             <Button 
               variant="outline" 
               onClick={handleLoadMore}
               disabled={isLoadingMore || isLoading}
             >
-              {isLoadingMore ? "加载中..." : "加载更多视频"}
+              {isLoadingMore ? "加载中..." : "加载更多素材"}
             </Button>
             <p className="text-xs text-muted-foreground">或滚动到底部自动加载</p>
           </div>
         )}
         
         {/* No More Data Message */}
-        {filteredVideos.length > 0 && !hasMore && (
+        {filteredMaterials.length > 0 && !hasMore && (
           <div className="flex justify-center mt-8">
-            <p className="text-muted-foreground text-sm">没有更多视频了</p>
+            <p className="text-muted-foreground text-sm">没有更多素材了</p>
           </div>
         )}
       </div>

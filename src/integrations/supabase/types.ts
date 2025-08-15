@@ -285,6 +285,9 @@ export type Database = {
           id: string
           title: string
           description: string | null
+          content: string | null
+          category: string
+          tags: string[]
           file_path: string
           public_url: string
           file_size: number
@@ -300,6 +303,9 @@ export type Database = {
           id?: string
           title: string
           description?: string | null
+          content?: string | null
+          category?: string
+          tags?: string[]
           file_path: string
           public_url: string
           file_size: number
@@ -315,6 +321,9 @@ export type Database = {
           id?: string
           title?: string
           description?: string | null
+          content?: string | null
+          category?: string
+          tags?: string[]
           file_path?: string
           public_url?: string
           file_size?: number
@@ -332,6 +341,50 @@ export type Database = {
             columns: ["uploaded_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      image_product_associations: {
+        Row: {
+          id: string
+          image_id: string
+          original_product_id: string
+          product_snapshot: Json
+          product_sku: string
+          product_name: string
+          snapshot_source: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          image_id: string
+          original_product_id: string
+          product_snapshot: Json
+          product_sku: string
+          product_name: string
+          snapshot_source?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          image_id?: string
+          original_product_id?: string
+          product_snapshot?: Json
+          product_sku?: string
+          product_name?: string
+          snapshot_source?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "image_product_associations_image_id_fkey"
+            columns: ["image_id"]
+            isOneToOne: false
+            referencedRelation: "uploaded_images"
             referencedColumns: ["id"]
           }
         ]

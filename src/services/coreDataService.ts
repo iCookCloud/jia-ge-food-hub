@@ -2,9 +2,35 @@ import { supabase } from '@/integrations/supabase/client';
 import { globalErpService } from './globalErpService';
 import { FilterParams, PaginationParams } from './api';
 
-// 材料/视频内容服务
+// 材料/素材内容服务（同时支持视频和图片）
 export const materialService = {
   async getAll(filters: FilterParams = {}, pagination: PaginationParams = {}) {
+    // 并行获取视频和图片数据
+    const [videosResult, imagesResult] = await Promise.all([
+      this.getVideos(filters, pagination),
+      this.getImages(filters, pagination)
+    ]);
+
+    // 合并数据并标记类型
+    const videos = (videosResult.data || []).map(video => ({ ...video, type: 'video' }));
+    const images = (imagesResult.data || []).map(image => ({ ...image, type: 'image' }));
+    
+    // 合并并按时间排序
+    const allMaterials = [...videos, ...images]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    // 应用分页到合并后的结果
+    const startIndex = pagination.page && pagination.limit ? (pagination.page - 1) * pagination.limit : 0;
+    const endIndex = pagination.limit ? startIndex + pagination.limit : allMaterials.length;
+    const paginatedData = allMaterials.slice(startIndex, endIndex);
+
+    return { 
+      data: paginatedData, 
+      error: videosResult.error || imagesResult.error 
+    };
+  },
+
+  async getVideos(filters: FilterParams = {}, pagination: PaginationParams = {}) {
     let query = supabase
       .from('product_videos')
       .select(`
@@ -20,10 +46,39 @@ export const materialService = {
       query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
     }
 
-    // 修复分页逻辑：确保offset计算正确
-    if (pagination.page && pagination.limit) {
-      const offset = (pagination.page - 1) * pagination.limit;
-      query = query.range(offset, offset + pagination.limit - 1);
+    if (filters.user_only) {
+      query = query.eq('uploaded_by', filters.user_only);
+    }
+
+    if (filters.category) {
+      query = query.eq('category', filters.category);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+    return { data, error };
+  },
+
+  async getImages(filters: FilterParams = {}, pagination: PaginationParams = {}) {
+    let query = supabase
+      .from('uploaded_images')
+      .select(`
+        *,
+        image_product_associations (
+          product_id: original_product_id
+        )
+      `)
+      .eq('is_active', true);
+
+    if (filters.search) {
+      query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,content.ilike.%${filters.search}%`);
+    }
+
+    if (filters.user_only) {
+      query = query.eq('uploaded_by', filters.user_only);
+    }
+
+    if (filters.category) {
+      query = query.eq('category', filters.category);
     }
 
     const { data, error } = await query.order('created_at', { ascending: false });

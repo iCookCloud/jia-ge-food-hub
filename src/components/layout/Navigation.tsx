@@ -31,7 +31,10 @@ import {
   UserPlus,
   LogIn,
   ShoppingCart,
-  MessageCircle
+  MessageCircle,
+  Folder,
+  Tags,
+  Shield
 } from "lucide-react";
 
 const navigationItems = [
@@ -160,26 +163,19 @@ export function DesktopNavigation() {
                 </div>
 
                 {/* Menu Items */}
-                <DropdownMenuItem onClick={() => navigate('/profile')}>
+                <DropdownMenuItem onClick={() => navigate('/profile/personal')}>
                   <User className="h-4 w-4 mr-2" />
                   个人资料
                 </DropdownMenuItem>
-                
-                {/* Role-specific menu items */}
-                {isAdmin && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => navigate('/admin/products')}>
-                      <Package className="h-4 w-4 mr-2" />
-                      商品管理
-                    </DropdownMenuItem>
-                  </>
-                )}
+                <DropdownMenuItem onClick={() => navigate('/profile')}>
+                  <Shield className="h-4 w-4 mr-2" />
+                  管理中心
+                </DropdownMenuItem>
                 
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate('/settings')}>
                   <Settings className="h-4 w-4 mr-2" />
-                  设置
+                  系统设置
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={signOut}>
                   <LogOut className="h-4 w-4 mr-2" />

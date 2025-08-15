@@ -5,6 +5,7 @@ import { Product } from './useProducts';
 export interface InfiniteProductsParams {
   search?: string;
   category?: string;
+  categoryId?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   limit?: number;

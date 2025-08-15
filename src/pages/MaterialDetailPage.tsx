@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useMaterial } from "@/hooks/useMaterials";
+import { MaterialViewer } from "@/components/material/MaterialViewer";
+import { ProductList } from "@/components/material/ProductCard";
 import { Database } from "@/integrations/supabase/types";
 import { globalErpService } from "@/services/globalErpService";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Play,
   Clock,
@@ -18,10 +21,51 @@ import {
   ArrowLeft,
   Share2,
   Heart,
-  ExternalLink
+  ExternalLink,
+  Video,
+  Image as ImageIcon,
+  Tag,
+  FileImage,
+  ShoppingCart
 } from "lucide-react";
 
+// 统一的素材数据类型
+interface MaterialDetailItem {
+  id: string;
+  title: string;
+  description?: string;
+  content?: string;
+  category?: string;
+  tags?: string[];
+  type: 'video' | 'image';
+  
+  // 视频特有属性
+  cloudflare_video_id?: string;
+  duration_seconds?: number;
+  thumbnail_url?: string;
+  
+  // 图片特有属性
+  public_url?: string;
+  images?: string[];
+  
+  // 统计信息
+  views?: number;
+  likes?: number;
+  shares?: number;
+  
+  // 关联数据
+  video_product_associations?: VideoProductAssociation[];
+  image_product_associations?: ImageProductAssociation[];
+  
+  // 其他属性
+  supplier_id?: string;
+  uploaded_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 type VideoProductAssociation = Database['public']['Tables']['video_product_associations']['Row'];
+type ImageProductAssociation = Database['public']['Tables']['image_product_associations']['Row'];
 
 const MaterialDetailPage = () => {
   const { id } = useParams();
@@ -29,13 +73,107 @@ const MaterialDetailPage = () => {
   const { toast } = useToast();
   const [isLiked, setIsLiked] = useState(false);
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
+  const [material, setMaterial] = useState<MaterialDetailItem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
-  const { data: video, isLoading, error } = useMaterial(id || "");
+  // 获取素材详情数据
+  useEffect(() => {
+    const fetchMaterialDetail = async () => {
+      if (!id) return;
+      
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // 并行查询视频和图片数据
+        const [videoResult, imageResult] = await Promise.all([
+          supabase
+            .from('product_videos')
+            .select(`
+              *,
+              video_product_associations (
+                id,
+                original_product_id,
+                product_sku,
+                product_name,
+                product_snapshot
+              )
+            `)
+            .eq('id', id)
+            .eq('is_active', true)
+            .single(),
+          
+          supabase
+            .from('uploaded_images')
+            .select(`
+              *,
+              image_product_associations (
+                id,
+                original_product_id,
+                product_sku,
+                product_name,
+                product_snapshot
+              )
+            `)
+            .eq('id', id)
+            .eq('is_active', true)
+            .single()
+        ]);
+
+        let materialData: MaterialDetailItem | null = null;
+
+        if (videoResult.data && !videoResult.error) {
+          // 找到视频数据
+          materialData = {
+            ...videoResult.data,
+            type: 'video' as const,
+            video_product_associations: videoResult.data.video_product_associations || []
+          };
+        } else if (imageResult.data && !imageResult.error) {
+          // 找到图片数据
+          materialData = {
+            ...imageResult.data,
+            type: 'image' as const,
+            images: imageResult.data.public_url ? [imageResult.data.public_url] : [],
+            image_product_associations: imageResult.data.image_product_associations || []
+          };
+        } else {
+          setError('素材未找到');
+          return;
+        }
+
+        setMaterial(materialData);
+      } catch (err) {
+        console.error('Failed to fetch material:', err);
+        setError('加载素材时出错');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMaterialDetail();
+  }, [id]);
 
   // 暂时硬编码为空数组，后续可以实现推荐算法
-  const relatedVideos: any[] = [];
+  const relatedMaterials: MaterialDetailItem[] = [];
 
-  const handleProductClick = async (association: VideoProductAssociation) => {
+  // 获取统一的关联商品数据
+  const getProductAssociations = () => {
+    if (!material) return [];
+    
+    if (material.type === 'video' && material.video_product_associations) {
+      return material.video_product_associations;
+    }
+    
+    if (material.type === 'image' && material.image_product_associations) {
+      return material.image_product_associations;
+    }
+    
+    return [];
+  };
+
+  const handleProductClick = async (association: VideoProductAssociation | ImageProductAssociation) => {
     if (!association.product_sku) {
       toast({
         title: "无法访问",
@@ -73,21 +211,44 @@ const MaterialDetailPage = () => {
     }
   };
 
+  // 添加到购物车功能
+  const handleAddToCart = async (association: VideoProductAssociation | ImageProductAssociation) => {
+    setLoadingProductId(association.id);
+
+    try {
+      // 这里集成购物车逻辑
+      // 暂时只显示成功提示
+      toast({
+        title: "添加成功",
+        description: `${association.product_name} 已添加到购物车`,
+      });
+    } catch (error) {
+      console.error('Failed to add to cart:', error);
+      toast({
+        title: "添加失败",
+        description: "无法添加到购物车，请稍后重试",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingProductId(null);
+    }
+  };
+
   const handleShare = async () => {
-    if (!video) return;
+    if (!material) return;
     
     try {
       if (navigator.share) {
         await navigator.share({
-          title: video.title,
-          text: video.description,
+          title: material.title,
+          text: material.description || material.content,
           url: window.location.href,
         });
       } else {
         await navigator.clipboard.writeText(window.location.href);
         toast({
           title: "链接已复制",
-          description: "视频链接已复制到剪贴板",
+          description: "素材链接已复制到剪贴板",
         });
       }
     } catch (error) {
@@ -98,9 +259,20 @@ const MaterialDetailPage = () => {
 
   const getCategoryBadge = (category: string) => {
     const colors = {
+      // 视频分类
       "产品介绍": "bg-primary text-primary-foreground",
       "操作教程": "bg-success text-success-foreground",
-      "客户案例": "bg-brand-orange text-white"
+      "客户案例": "bg-brand-orange text-white",
+      "行业资讯": "bg-purple-500 text-white",
+      "工艺展示": "bg-blue-500 text-white",
+      "质量检测": "bg-green-600 text-white",
+      // 图片分类
+      "产品展示": "bg-primary text-primary-foreground",
+      "使用场景": "bg-indigo-500 text-white",
+      "生产工艺": "bg-orange-500 text-white",
+      "质量检验": "bg-green-600 text-white",
+      "包装运输": "bg-gray-600 text-white",
+      "展会活动": "bg-pink-500 text-white"
     };
     return <Badge className={colors[category] || "bg-muted"}>{category}</Badge>;
   };
@@ -120,17 +292,17 @@ const MaterialDetailPage = () => {
     );
   }
 
-  if (error || !video) {
+  if (error || !material) {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-6">
           <div className="text-center py-12">
-            <h1 className="text-2xl font-bold mb-4">视频未找到</h1>
+            <h1 className="text-2xl font-bold mb-4">素材未找到</h1>
             <p className="text-muted-foreground mb-4">
-              {error ? "加载视频时出错" : "请求的视频不存在"}
+              {error || "请求的素材不存在"}
             </p>
             <Link to="/materials">
-              <Button>返回视频列表</Button>
+              <Button>返回素材中心</Button>
             </Link>
           </div>
         </div>
@@ -146,47 +318,54 @@ const MaterialDetailPage = () => {
           <Link to="/materials">
             <Button variant="ghost" size="sm" className="h-8">
               <ArrowLeft className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">返回视频列表</span>
+              <span className="hidden sm:inline">返回素材中心</span>
               <span className="sm:hidden">返回</span>
             </Button>
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Main Video Content */}
-          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-            {/* Video Player */}
-            <Card>
-              <CardContent className="p-0">
-                <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-                  <iframe
-                    src={`https://customer-fn1cto1c4empk25m.cloudflarestream.com/${video.cloudflare_video_id}/iframe`}
-                    className="w-full h-full border-none"
-                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                    allowFullScreen
-                    title={video.title}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+          {/* Main Material Content */}
+          <div className="lg:col-span-3 space-y-4 sm:space-y-6">
+            {/* Material Viewer */}
+            <MaterialViewer material={material} />
 
-            {/* Video Info */}
+            {/* Material Info */}
             <Card>
               <CardContent className="p-4 sm:p-6">
-                {/* Category and Duration */}
+                {/* Category and Type Info */}
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <div className="flex items-center gap-2 flex-wrap">
-                    {getCategoryBadge(video.category || "产品介绍")}
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Clock className="w-4 h-4 mr-1" />
-                      {video.duration_seconds ? `${Math.floor(video.duration_seconds / 60)}:${(video.duration_seconds % 60).toString().padStart(2, '0')}` : "0:17"}
-                    </div>
+                    {getCategoryBadge(material.category || (material.type === 'video' ? "产品介绍" : "产品展示"))}
+                    
+                    {/* Type Badge */}
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      {material.type === 'video' ? (
+                        <>
+                          <Video className="w-3 h-3" />
+                          视频
+                        </>
+                      ) : (
+                        <>
+                          <ImageIcon className="w-3 h-3" />
+                          图片
+                        </>
+                      )}
+                    </Badge>
+
+                    {/* Duration for videos */}
+                    {material.type === 'video' && material.duration_seconds && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Clock className="w-4 h-4 mr-1" />
+                        {Math.floor(material.duration_seconds / 60)}:{(material.duration_seconds % 60).toString().padStart(2, '0')}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Title */}
                 <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-3 leading-tight">
-                  {video.title}
+                  {material.title}
                 </h1>
 
                 {/* Stats - Split into two rows on mobile */}
@@ -194,11 +373,11 @@ const MaterialDetailPage = () => {
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span className="flex items-center">
                       <Eye className="w-4 h-4 mr-1" />
-                      {video.views || 0} 观看
+                      {material.views || 0} 观看
                     </span>
                     <span className="flex items-center">
                       <Calendar className="w-4 h-4 mr-1" />
-                      {video.created_at ? new Date(video.created_at).toLocaleDateString('zh-CN') : "8/7/2025"}
+                      {material.created_at ? new Date(material.created_at).toLocaleDateString('zh-CN') : "未知时间"}
                     </span>
                   </div>
                   
@@ -212,7 +391,7 @@ const MaterialDetailPage = () => {
                     >
                       <Heart className={`w-4 h-4 mr-1 ${isLiked ? "fill-current" : ""}`} />
                       <span className="hidden sm:inline">喜欢</span>
-                      <span className="ml-1">{(video.likes || 0) + (isLiked ? 1 : 0)}</span>
+                      <span className="ml-1">{(material.likes || 0) + (isLiked ? 1 : 0)}</span>
                     </Button>
                     <Button 
                       variant="outline" 
@@ -227,7 +406,7 @@ const MaterialDetailPage = () => {
                 </div>
 
                 {/* Supplier Info */}
-                {video.supplier_id && (
+                {material.supplier_id && (
                   <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg mb-4 hover:bg-muted/80 transition-colors">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <User className="w-5 h-5 text-primary" />
@@ -238,7 +417,7 @@ const MaterialDetailPage = () => {
                         专业食材供应商
                       </p>
                     </div>
-                    <Link to={`/supplier/${video.supplier_id}`}>
+                    <Link to={`/supplier/${material.supplier_id}`}>
                       <Button variant="ghost" size="sm" className="h-8 px-2 text-xs">
                         <ExternalLink className="w-3 h-3 mr-1" />
                         查看
@@ -247,109 +426,143 @@ const MaterialDetailPage = () => {
                   </div>
                 )}
 
-                {/* Description */}
+                {/* Description and Content */}
                 <div className="space-y-3">
-                  <h3 className="font-semibold">视频介绍</h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {video.description || "暂无描述"}
-                  </p>
+                  <h3 className="font-semibold">
+                    {material.type === 'video' ? '视频介绍' : '图片说明'}
+                  </h3>
                   
-                  {/* Tags - 暂时隐藏，因为数据库中没有tags字段 */}
+                  {/* Description */}
+                  {material.description && (
+                    <p className="text-muted-foreground leading-relaxed">
+                      {material.description}
+                    </p>
+                  )}
+                  
+                  {/* Content */}
+                  {material.content && (
+                    <div className="mt-3">
+                      <h4 className="font-medium text-sm mb-2">详细说明</h4>
+                      <p className="text-muted-foreground leading-relaxed text-sm">
+                        {material.content}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Tags */}
+                  {material.tags && material.tags.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="font-medium text-sm mb-2 flex items-center gap-1">
+                        <Tag className="w-4 h-4" />
+                        标签
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {material.tags.map((tag, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-4 sm:space-y-6">
-            {/* Related Products */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center text-base sm:text-lg">
-                  <Package className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                  关联商品
-                </CardTitle>
+          {/* Enhanced Sidebar */}
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+            {/* Related Products - Enhanced Design */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center text-lg">
+                    <ShoppingCart className="w-5 h-5 mr-2" />
+                    关联商品
+                  </CardTitle>
+                  <Badge variant="secondary" className="text-xs">
+                    {getProductAssociations().length} 个商品
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {material.type === 'video' ? '视频中展示的相关商品' : '图片中展示的相关商品'}
+                </p>
               </CardHeader>
-              <CardContent className="space-y-3 pt-0">
-                {video.video_product_associations?.length > 0 ? (
-                  video.video_product_associations.map((association: VideoProductAssociation, index: number) => (
-                    <button
-                      key={association.id || index}
-                      className="w-full flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={() => handleProductClick(association)}
-                      disabled={loadingProductId === association.id || !association.product_sku}
-                    >
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-muted rounded flex items-center justify-center flex-shrink-0">
-                        <Package className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0 text-left">
-                        <h4 className="font-medium text-sm sm:text-base text-foreground group-hover:text-primary transition-colors line-clamp-2">
-                          {association.product_name || association.product_snapshot?.standard_chinese_name || "未知商品"}
-                        </h4>
-                        <p className="text-primary font-semibold text-sm">
-                          ¥{association.product_snapshot?.price || "未知"}
-                        </p>
-                        {association.product_sku && (
-                          <p className="text-xs text-muted-foreground">SKU: {association.product_sku}</p>
-                        )}
-                      </div>
-                      {loadingProductId === association.id && (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
-                      )}
-                      {association.product_sku && loadingProductId !== association.id && (
-                        <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                      )}
-                    </button>
-                  ))
-                ) : (
-                  <p className="text-muted-foreground text-xs sm:text-sm text-center py-4">
-                    暂无关联商品
-                  </p>
-                )}
+              <CardContent className="pt-0">
+                <ProductList
+                  associations={getProductAssociations()}
+                  onProductClick={handleProductClick}
+                  onAddToCart={handleAddToCart}
+                  loadingProductId={loadingProductId}
+                />
               </CardContent>
             </Card>
 
-            {/* Related Videos */}
+            {/* Related Materials - 改为通用的相关素材 */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center text-base sm:text-lg">
-                  <Play className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                  相关视频
+                  <FileImage className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                  相关素材
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 pt-0">
-                {relatedVideos.length > 0 ? (
-                  relatedVideos.map((relatedVideo: any) => (
-                    <Link key={relatedVideo.id} to={`/materials/${relatedVideo.id}`}>
+                {relatedMaterials.length > 0 ? (
+                  relatedMaterials.map((relatedMaterial: MaterialDetailItem) => (
+                    <Link key={relatedMaterial.id} to={`/materials/${relatedMaterial.id}`}>
                       <div className="flex gap-2 sm:gap-3 group hover:bg-muted p-2 rounded-lg transition-colors">
                         <div className="relative flex-shrink-0">
                           <img 
-                            src={relatedVideo.thumbnail} 
-                            alt={relatedVideo.title}
+                            src={relatedMaterial.type === 'video' ? relatedMaterial.thumbnail_url : relatedMaterial.public_url} 
+                            alt={relatedMaterial.title}
                             className="w-20 h-12 sm:w-24 sm:h-16 object-cover rounded"
                           />
                           <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Play className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                            {relatedMaterial.type === 'video' ? (
+                              <Play className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                            ) : (
+                              <ImageIcon className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                            )}
                           </div>
                           <div className="absolute bottom-1 right-1 bg-black/70 text-white px-1 text-xs rounded">
-                            {relatedVideo.duration}
+                            {relatedMaterial.type === 'video' ? (
+                              relatedMaterial.duration_seconds ? 
+                                `${Math.floor(relatedMaterial.duration_seconds / 60)}:${(relatedMaterial.duration_seconds % 60).toString().padStart(2, '0')}` :
+                                relatedMaterial.duration || '视频'
+                            ) : (
+                              '图片'
+                            )}
+                          </div>
+                          {/* 类型标识 */}
+                          <div className="absolute top-1 left-1">
+                            <Badge variant="secondary" className="text-xs px-1 py-0">
+                              {relatedMaterial.type === 'video' ? '视频' : '图片'}
+                            </Badge>
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium text-xs sm:text-sm line-clamp-2 group-hover:text-primary transition-colors">
-                            {relatedVideo.title}
+                            {relatedMaterial.title}
                           </h4>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {relatedVideo.views} 观看
+                          <p className="text-xs text-muted-foreground mt-1 flex items-center">
+                            <Eye className="w-3 h-3 mr-1" />
+                            {relatedMaterial.views || 0} 观看
                           </p>
+                          {/* 分类显示 */}
+                          {relatedMaterial.category && (
+                            <Badge variant="outline" className="text-xs mt-1">
+                              {relatedMaterial.category}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </Link>
                   ))
                 ) : (
-                  <p className="text-muted-foreground text-xs sm:text-sm text-center py-4">
-                    暂无相关视频
-                  </p>
+                  <div className="text-center py-6 text-muted-foreground">
+                    <FileImage className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-xs sm:text-sm">暂无相关素材</p>
+                  </div>
                 )}
               </CardContent>
             </Card>

@@ -52,6 +52,10 @@ interface UploadingImage {
   result?: { path: string; publicUrl: string };
   title: string;
   description: string;
+  content: string;
+  tags: string[];
+  selectedProducts: string[];
+  category: string;
 }
 
 export const VideoUpload: React.FC<VideoUploadProps> = ({
@@ -134,6 +138,50 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
       }
     }
   };
+
+  // 创建图片产品关联（带快照）
+  const createImageProductAssociations = async (imageId: string, selectedProducts: string[]) => {
+    const associations = [];
+    
+    for (const productId of selectedProducts) {
+      try {
+        // 从Global ERP获取最新产品信息
+        const productData = await globalErpService.fetchProductById(productId);
+        
+        if (productData) {
+          associations.push({
+            image_id: imageId,
+            original_product_id: productId,
+            product_snapshot: {
+              id: productData.id,
+              sku: productData.sku,
+              standard_chinese_name: productData.standard_chinese_name,
+              price: productData.price,
+              main_image_url: productData.main_image_url,
+              specification: productData.specification,
+              source: 'global_erp',
+              snapshot_time: new Date().toISOString()
+            },
+            product_sku: productData.sku,
+            product_name: productData.standard_chinese_name,
+            snapshot_source: 'global_erp'
+          });
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch product ${productId} for image association:`, error);
+      }
+    }
+    
+    if (associations.length > 0) {
+      const { error } = await supabase
+        .from('image_product_associations')
+        .insert(associations);
+        
+      if (error) {
+        console.error('Failed to create image-product associations:', error);
+      }
+    }
+  };
   
   // 视频分类选项
   const videoCategories = [
@@ -143,6 +191,16 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     '行业资讯',
     '工艺展示',
     '质量检测'
+  ];
+
+  // 图片分类选项
+  const imageCategories = [
+    '产品展示',
+    '使用场景',
+    '生产工艺',
+    '质量检验',
+    '包装运输',
+    '展会活动'
   ];
 
   const formatFileSize = (bytes: number) => {
@@ -255,7 +313,11 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
         progress: 0,
         status: 'pending',
         title: file.name.replace(/\.[^/.]+$/, ''),
-        description: ''
+        description: '',
+        content: '',
+        tags: [],
+        selectedProducts: [],
+        category: '产品展示'
       }));
 
       setUploadingImages(prev => [...prev, ...newUploadingImages]);
@@ -494,11 +556,51 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     }
   };
 
-  const updateImageInfo = (file: File, field: keyof UploadingImage, value: string) => {
+  const updateImageInfo = (file: File, field: keyof UploadingImage, value: string | string[]) => {
     setUploadingImages(prev =>
       prev.map(ui =>
         ui.file === file ? { ...ui, [field]: value } : ui
       )
+    );
+  };
+
+  const toggleImageProduct = (file: File, productId: string) => {
+    setUploadingImages(prev =>
+      prev.map(ui => {
+        if (ui.file === file) {
+          const isSelected = ui.selectedProducts.includes(productId);
+          return {
+            ...ui,
+            selectedProducts: isSelected 
+              ? ui.selectedProducts.filter(id => id !== productId)
+              : [...ui.selectedProducts, productId]
+          };
+        }
+        return ui;
+      })
+    );
+  };
+
+  const addImageTag = (file: File, tag: string) => {
+    if (!tag.trim()) return;
+    setUploadingImages(prev =>
+      prev.map(ui => {
+        if (ui.file === file && !ui.tags.includes(tag.trim())) {
+          return { ...ui, tags: [...ui.tags, tag.trim()] };
+        }
+        return ui;
+      })
+    );
+  };
+
+  const removeImageTag = (file: File, tagToRemove: string) => {
+    setUploadingImages(prev =>
+      prev.map(ui => {
+        if (ui.file === file) {
+          return { ...ui, tags: ui.tags.filter(tag => tag !== tagToRemove) };
+        }
+        return ui;
+      })
     );
   };
 
@@ -531,7 +633,11 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
         const uploadingImage = uploadingImages.find(ui => ui.file === file) || 
                               { 
                                 title: file.name.replace(/\.[^/.]+$/, ''), 
-                                description: ''
+                                description: '',
+                                content: '',
+                                tags: [],
+                                selectedProducts: [],
+                                category: '产品展示'
                               };
 
         // 使用 storageService 上传图片到 Supabase Storage
@@ -549,29 +655,45 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
           throw new Error(result.error);
         }
 
+        // 构建完整的描述信息
+        const fullDescription = `${uploadingImage.description}\n\n${uploadingImage.content}`.trim();
+
         // 保存图片信息到数据库
+        let databaseImageId = null;
         if (result.data && user) {
           try {
-            const { error } = await supabase
+            const { data, error } = await supabase
               .from('uploaded_images')
               .insert({
                 title: uploadingImage.title,
-                description: uploadingImage.description,
+                description: fullDescription,
                 file_path: result.data.path,
                 public_url: result.data.publicUrl,
                 file_size: file.size,
                 mime_type: file.type,
                 uploaded_by: user.id,
                 bucket_name: 'product-images',
-                folder_path: 'upload-images'
-              });
+                folder_path: 'upload-images',
+                category: uploadingImage.category,
+                tags: uploadingImage.tags,
+                content: uploadingImage.content
+              })
+              .select('id')
+              .single();
             
             if (error) {
               console.warn('Failed to save image info to database:', error);
+            } else if (data) {
+              databaseImageId = data.id;
             }
           } catch (dbError) {
             console.warn('Database error:', dbError);
           }
+        }
+
+        // 创建图片与产品的关联（带快照）
+        if (databaseImageId && uploadingImage.selectedProducts && uploadingImage.selectedProducts.length > 0) {
+          await createImageProductAssociations(databaseImageId, uploadingImage.selectedProducts);
         }
 
         // 更新成功状态
@@ -1013,12 +1135,51 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
       {uploadingImages.length > 0 && (
         <div className="space-y-4">
           <Label className="text-lg font-semibold">图片上传进度</Label>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-4">
             {uploadingImages.map((uploadingImage, index) => (
               <Card key={index}>
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    {/* 图片预览 */}
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <FileImage className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{uploadingImage.file.name}</span>
+                      </CardTitle>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Badge 
+                        variant={
+                          uploadingImage.status === 'success' ? 'default' :
+                          uploadingImage.status === 'error' ? 'destructive' : 'secondary'
+                        }
+                       >
+                         {uploadingImage.status === 'pending' ? '等待上传' :
+                          uploadingImage.status === 'uploading' ? '上传中' :
+                          uploadingImage.status === 'success' ? '完成' : '失败'}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeUploadingImage(uploadingImage.file)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span>{formatFileSize(uploadingImage.file.size)}</span>
+                    {uploadingImage.status !== 'error' && uploadingImage.status === 'uploading' && (
+                      <>
+                        <span>•</span>
+                        <span>{uploadingImage.progress}%</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* 图片预览 */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
                       {uploadingImage.file.type.startsWith('image/') ? (
                         <img 
@@ -1030,90 +1191,234 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
                         <FileImage className="h-12 w-12 text-muted-foreground" />
                       )}
                     </div>
-                    
-                    {/* 文件信息 */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm font-medium truncate" title={uploadingImage.file.name}>
-                          {uploadingImage.file.name}
+
+                    {/* 元数据输入表单 */}
+                    {(uploadingImage.status === 'pending' || uploadingImage.status === 'uploading') && (
+                      <div className="md:col-span-2 space-y-6 relative">
+                        {/* 基础信息 */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor={`img-title-${index}`} className="text-sm font-medium">图片标题 *</Label>
+                            <Input
+                              id={`img-title-${index}`}
+                              value={uploadingImage.title}
+                              onChange={(e) => updateImageInfo(uploadingImage.file, 'title', e.target.value)}
+                              placeholder="请输入图片标题"
+                              className="mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`img-category-${index}`} className="text-sm font-medium">图片分类</Label>
+                            <Select
+                              value={uploadingImage.category}
+                              onValueChange={(value) => updateImageInfo(uploadingImage.file, 'category', value)}
+                            >
+                              <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="选择分类" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {imageCategories.map(category => (
+                                  <SelectItem key={category} value={category}>
+                                    {category}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeUploadingImage(uploadingImage.file)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{formatFileSize(uploadingImage.file.size)}</span>
-                        <Badge 
-                          variant={
-                            uploadingImage.status === 'success' ? 'default' :
-                            uploadingImage.status === 'error' ? 'destructive' : 'secondary'
-                          }
-                          className="text-xs"
-                        >
-                          {uploadingImage.status === 'pending' ? '等待上传' :
-                           uploadingImage.status === 'uploading' ? '上传中' :
-                           uploadingImage.status === 'success' ? '完成' : '失败'}
-                        </Badge>
-                      </div>
-                    </div>
 
-                    {/* 标题和描述输入 */}
-                    {uploadingImage.status === 'pending' && (
-                      <div className="space-y-2">
-                        <Input
-                          value={uploadingImage.title}
-                          onChange={(e) => updateImageInfo(uploadingImage.file, 'title', e.target.value)}
-                          placeholder="图片标题"
-                          className="text-sm"
-                        />
-                        <Textarea
-                          value={uploadingImage.description}
-                          onChange={(e) => updateImageInfo(uploadingImage.file, 'description', e.target.value)}
-                          placeholder="图片描述"
-                          rows={2}
-                          className="text-sm resize-none"
-                        />
-                        <Button 
-                          size="sm" 
-                          className="w-full"
-                          onClick={() => startImageUpload(uploadingImage.file)}
-                          disabled={!uploadingImage.title.trim()}
-                        >
-                          <Upload className="h-3 w-3 mr-1" />
-                          上传
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* 进度条 */}
-                    {uploadingImage.status === 'uploading' && (
-                      <div className="space-y-1">
-                        <Progress value={uploadingImage.progress} className="h-2" />
-                        <div className="text-xs text-center text-muted-foreground">
-                          {uploadingImage.progress}%
+                        {/* 描述和详细内容 */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor={`img-description-${index}`} className="text-sm font-medium">简短描述</Label>
+                            <Textarea
+                              id={`img-description-${index}`}
+                              value={uploadingImage.description}
+                              onChange={(e) => updateImageInfo(uploadingImage.file, 'description', e.target.value)}
+                              placeholder="请输入图片简短描述"
+                              rows={3}
+                              className="mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`img-content-${index}`} className="text-sm font-medium">详细说明</Label>
+                            <Textarea
+                              id={`img-content-${index}`}
+                              value={uploadingImage.content}
+                              onChange={(e) => updateImageInfo(uploadingImage.file, 'content', e.target.value)}
+                              placeholder="请输入详细的图片说明内容，如拍摄场景、产品特色、使用方法等"
+                              rows={3}
+                              className="mt-1"
+                            />
+                          </div>
                         </div>
-                      </div>
-                    )}
 
-                    {/* 错误信息 */}
-                    {uploadingImage.status === 'error' && uploadingImage.error && (
-                      <div className="text-xs text-destructive bg-destructive/10 p-2 rounded">
-                        {uploadingImage.error}
-                      </div>
-                    )}
+                        {/* 标签管理 */}
+                        <div>
+                          <Label className="text-sm font-medium flex items-center gap-2">
+                            <Tag className="h-4 w-4" />
+                            图片标签
+                          </Label>
+                          <div className="mt-1 space-y-2">
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="输入标签后按回车添加"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    addImageTag(uploadingImage.file, e.currentTarget.value);
+                                    e.currentTarget.value = '';
+                                  }
+                                }}
+                                className="flex-1"
+                              />
+                            </div>
+                            {uploadingImage.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {uploadingImage.tags.map((tag, tagIndex) => (
+                                  <Badge 
+                                    key={tagIndex} 
+                                    variant="secondary" 
+                                    className="text-xs flex items-center gap-1"
+                                  >
+                                    {tag}
+                                    <X 
+                                      className="h-3 w-3 cursor-pointer" 
+                                      onClick={() => removeImageTag(uploadingImage.file, tag)}
+                                    />
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
 
-                    {/* 成功信息 */}
-                    {uploadingImage.status === 'success' && (
-                      <div className="text-xs text-green-700 bg-green-50 p-2 rounded">
-                        图片上传成功
+                        {/* 关联产品 */}
+                        <div>
+                          <Label className="text-sm font-medium flex items-center gap-2">
+                            <Package className="h-4 w-4" />
+                            关联产品
+                          </Label>
+                          <p className="text-xs text-muted-foreground mt-1 mb-2">
+                            选择与此图片相关的产品，方便用户查找和了解
+                          </p>
+                          {productsLoading ? (
+                            <div className="text-sm text-muted-foreground">加载产品列表中...</div>
+                          ) : !productsLoaded ? (
+                            <div className="text-center py-4">
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={loadProducts}
+                                className="flex items-center gap-2"
+                              >
+                                <Package className="h-4 w-4" />
+                                加载产品列表
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="max-h-40 overflow-y-auto border rounded p-3 space-y-2">
+                              {products.length === 0 ? (
+                                <div className="text-sm text-muted-foreground text-center py-4">
+                                  暂无产品数据
+                                </div>
+                              ) : (
+                                products.map((product) => (
+                                  <div key={product.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={`img-product-${product.id}-${index}`}
+                                      checked={uploadingImage.selectedProducts.includes(product.id)}
+                                      onCheckedChange={() => toggleImageProduct(uploadingImage.file, product.id)}
+                                    />
+                                    <Label 
+                                      htmlFor={`img-product-${product.id}-${index}`}
+                                      className="flex-1 text-sm cursor-pointer"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        {product.product_image && (
+                                          <img 
+                                            src={product.product_image} 
+                                            alt={product.standard_chinese_name || product.sku}
+                                            className="w-8 h-8 object-cover rounded"
+                                          />
+                                        )}
+                                        <div>
+                                          <div className="font-medium">
+                                            {product.standard_chinese_name || product.standard_english_name || product.sku}
+                                          </div>
+                                          {product.specifications && (
+                                            <div className="text-xs text-muted-foreground">
+                                              {product.specifications}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </Label>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                          {uploadingImage.selectedProducts.length > 0 && (
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              已选择 {uploadingImage.selectedProducts.length} 个产品
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 上传按钮 */}
+                        {uploadingImage.status === 'pending' && (
+                          <div className="flex justify-end">
+                            <Button 
+                              onClick={() => startImageUpload(uploadingImage.file)}
+                              className="flex items-center gap-2"
+                              disabled={!uploadingImage.title.trim()}
+                            >
+                              <Upload className="h-4 w-4" />
+                              开始上传
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* 上传中的蒙版 */}
+                        {uploadingImage.status === 'uploading' && (
+                          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm rounded-lg flex flex-col items-center justify-center z-10">
+                            <div className="flex flex-col items-center gap-3 text-center">
+                              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                              <div className="space-y-1">
+                                <p className="font-medium">正在上传图片...</p>
+                                <p className="text-sm text-muted-foreground">
+                                  请稍候，图片正在上传到云端
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  进度: {uploadingImage.progress}%
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
+
+                  {/* 进度条 */}
+                  {uploadingImage.status === 'uploading' && (
+                    <Progress value={uploadingImage.progress} className="h-2" />
+                  )}
+
+                  {/* 错误信息 */}
+                  {uploadingImage.status === 'error' && uploadingImage.error && (
+                    <div className="text-sm text-destructive bg-destructive/10 p-3 rounded">
+                      {uploadingImage.error}
+                    </div>
+                  )}
+
+                  {/* 成功信息 */}
+                  {uploadingImage.status === 'success' && uploadingImage.result && (
+                    <div className="bg-green-50 p-3 rounded text-sm text-green-700">
+                      图片已成功上传到 Supabase Storage 并保存到数据库
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}

@@ -10,7 +10,9 @@ import { useInfiniteProducts } from "@/hooks/useInfiniteProducts";
 import { useCart } from "@/hooks/useCart";
 import { InfiniteScroll } from "@/components/common/InfiniteScroll";
 import { useDebounce } from "@/hooks/useDebounce";
-import { CreateProductListDialog } from "@/components/cart/CreateProductListDialog";
+import { CreateProductListForm } from "@/components/cart/CreateProductListForm";
+import { CategorySelector, CategoryBreadcrumbs } from "@/components/category/CategorySelector";
+import { useCategoriesByLevel, useCategoryBySlug } from "@/hooks/useCategories";
 import { 
   Select,
   SelectContent,
@@ -35,17 +37,20 @@ import {
   ShoppingCart
 } from "lucide-react";
 
-const categories = ["全部", "海鲜", "肉类", "蔬菜", "调料", "冷冻食品", "有机食品"];
+// 保留原有的产地选项（后续可以改为从数据库获取）
 const origins = ["全部", "本地", "挪威", "澳大利亚", "意大利", "厄瓜多尔"];
 
 const ProductsPage = () => {
   const { items: cartItems, getTotalItems, getTotalAmount, clearCart } = useCart();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("全部");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(undefined);
   const [selectedOrigin, setSelectedOrigin] = useState("全部");
   const [sortBy, setSortBy] = useState("featured");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+
+  // 获取一级分类用于快速筛选
+  const { data: level1Categories } = useCategoriesByLevel(1);
 
   const totalItems = getTotalItems();
   const totalAmount = getTotalAmount();
@@ -85,12 +90,12 @@ const ProductsPage = () => {
     
     return {
       search: debouncedSearchQuery,
-      category: selectedCategory,
+      category: selectedCategoryId ? selectedCategoryId.toString() : undefined,
       sortBy: sortField,
       sortOrder,
       limit: 12
     };
-  }, [debouncedSearchQuery, selectedCategory, sortBy]);
+  }, [debouncedSearchQuery, selectedCategoryId, sortBy]);
 
   const {
     data,
@@ -144,18 +149,39 @@ const ProductsPage = () => {
     <div className="space-y-6">
       <div>
         <h3 className="font-semibold text-foreground mb-3">商品分类</h3>
-        <div className="space-y-2">
-          {categories.map(category => (
+        <div className="space-y-3">
+          {/* 清除分类选择 */}
+          <Button
+            variant={!selectedCategoryId ? "default" : "ghost"}
+            size="sm"
+            className="w-full justify-start"
+            onClick={() => setSelectedCategoryId(undefined)}
+          >
+            全部商品
+          </Button>
+          
+          {/* 一级分类快速选择 */}
+          {level1Categories?.map(category => (
             <Button
-              key={category}
-              variant={selectedCategory === category ? "default" : "ghost"}
+              key={category.id}
+              variant={selectedCategoryId === category.id ? "default" : "ghost"}
               size="sm"
               className="w-full justify-start"
-              onClick={() => setSelectedCategory(category)}
+              onClick={() => setSelectedCategoryId(category.id)}
             >
-              {category}
+              {category.name}
             </Button>
           ))}
+          
+          {/* 分类选择器 */}
+          <div className="mt-3">
+            <CategorySelector
+              value={selectedCategoryId}
+              onValueChange={(value) => setSelectedCategoryId(value as number)}
+              placeholder="选择详细分类..."
+              className="w-full"
+            />
+          </div>
         </div>
       </div>
 
@@ -189,31 +215,42 @@ const ProductsPage = () => {
           {totalItems > 0 && (
             <Card className="bg-primary/5 border-primary/20">
               <CardContent className="p-4">
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <ShoppingCart className="h-5 w-5 text-primary" />
-                    <div>
-                      <div className="text-sm font-medium text-foreground">
-                        已选 {totalItems} 件商品
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        合计：¥{totalAmount.toFixed(2)}
+                {!showCreateForm ? (
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <ShoppingCart className="h-5 w-5 text-primary" />
+                      <div>
+                        <div className="text-sm font-medium text-foreground">
+                          已选 {totalItems} 件商品
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          合计：¥{totalAmount.toFixed(2)}
+                        </div>
                       </div>
                     </div>
+                    <div className="flex space-x-2">
+                      <Button 
+                        size="sm" 
+                        variant="default"
+                        onClick={() => setShowCreateForm(true)}
+                      >
+                        生成货单
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={clearCart}>
+                        清空
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <Button 
-                      size="sm" 
-                      variant="default"
-                      onClick={() => setShowCreateDialog(true)}
-                    >
-                      生成货单
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={clearCart}>
-                      清空
-                    </Button>
-                  </div>
-                </div>
+                ) : (
+                  <CreateProductListForm
+                    cartItems={cartItems}
+                    onSuccess={() => {
+                      clearCart();
+                      setShowCreateForm(false);
+                    }}
+                    onCancel={() => setShowCreateForm(false)}
+                  />
+                )}
               </CardContent>
             </Card>
           )}
@@ -236,14 +273,14 @@ const ProductsPage = () => {
 
               {/* Quick Category Filters */}
               <div className="flex flex-wrap gap-2">
-                {categories.slice(1, 5).map(category => (
+                {level1Categories?.slice(0, 4).map(category => (
                   <Button
-                    key={category}
-                    variant={selectedCategory === category ? "default" : "outline"}
+                    key={category.id}
+                    variant={selectedCategoryId === category.id ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setSelectedCategory(category)}
+                    onClick={() => setSelectedCategoryId(category.id)}
                   >
-                    {category}
+                    {category.name}
                   </Button>
                 ))}
               </div>
@@ -295,10 +332,12 @@ const ProductsPage = () => {
                     </span>
                   </div>
                 )}
-                {selectedCategory !== "全部" && (
-                  <Badge variant="outline">
-                    {selectedCategory}
-                  </Badge>
+                {selectedCategoryId && (
+                  <CategoryBreadcrumbs 
+                    categoryId={selectedCategoryId} 
+                    showIcon={false}
+                    className="text-xs"
+                  />
                 )}
               </div>
 
@@ -408,7 +447,7 @@ const ProductsPage = () => {
                   </p>
                   <Button onClick={() => {
                     setSearchQuery("");
-                    setSelectedCategory("全部");
+                    setSelectedCategoryId(undefined);
                     setSelectedOrigin("全部");
                   }}>
                     清除筛选条件
@@ -420,14 +459,6 @@ const ProductsPage = () => {
         </div>
       </div>
 
-      <CreateProductListDialog
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
-        cartItems={cartItems}
-        onSuccess={() => {
-          clearCart();
-        }}
-      />
     </Layout>
   );
 };

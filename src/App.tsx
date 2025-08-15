@@ -22,6 +22,10 @@ import MaterialDetailPage from "./pages/MaterialDetailPage";
 import VideoUploadPage from "./pages/VideoUploadPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import CategoryManagementPage from "./pages/admin/CategoryManagementPage";
+import ProductCategoryBatchPage from "./pages/admin/ProductCategoryBatchPage";
+import ProductManagementPage from "./pages/admin/ProductManagementPage";
+import ManagementPage from "./pages/ManagementPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -94,6 +98,11 @@ const App = () => (
             } />
             <Route path="/profile" element={
               <ProtectedRoute>
+                <ManagementPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile/personal" element={
+              <ProtectedRoute>
                 <ProfilePage />
               </ProtectedRoute>
             } />
@@ -117,6 +126,21 @@ const App = () => (
             <Route path="/admin/products" element={
               <AdminRoute>
                 <AdminProductsPage />
+              </AdminRoute>
+            } />
+            <Route path="/admin/categories" element={
+              <AdminRoute>
+                <CategoryManagementPage />
+              </AdminRoute>
+            } />
+            <Route path="/admin/category-batch" element={
+              <AdminRoute>
+                <ProductCategoryBatchPage />
+              </AdminRoute>
+            } />
+            <Route path="/admin/product-management" element={
+              <AdminRoute>
+                <ProductManagementPage />
               </AdminRoute>
             } />
             
