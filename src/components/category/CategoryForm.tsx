@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,8 @@ import { AlertTriangle } from 'lucide-react';
 interface CategoryFormProps {
   category?: ProductCategory;
   parentCategory?: CategoryTree;
+  isLoading?: boolean;
+  isEditMode?: boolean;
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -19,6 +21,8 @@ interface CategoryFormProps {
 export const CategoryForm: React.FC<CategoryFormProps> = ({
   category,
   parentCategory,
+  isLoading = false,
+  isEditMode = false,
   onSuccess,
   onCancel
 }) => {
@@ -27,16 +31,43 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
   const updateCategory = useUpdateCategory();
   
   const [formData, setFormData] = useState({
-    name: category?.name || '',
-    slug: category?.slug || '',
-    description: category?.description || '',
-    icon: category?.icon || '',
-    color: category?.color || '#3B82F6',
-    sort_order: category?.sort_order || 0,
+    name: '',
+    slug: '',
+    description: '',
+    icon: '',
+    color: '#3B82F6',
+    sort_order: 0,
   });
   
-  const isEdit = !!category;
+  // 当category数据加载后，更新表单数据
+  useEffect(() => {
+    if (category) {
+      setFormData({
+        name: category.name || '',
+        slug: category.slug || '',
+        description: category.description || '',
+        icon: category.icon || '',
+        color: category.color || '#3B82F6',
+        sort_order: category.sort_order || 0,
+      });
+    } else {
+      // 重置表单（用于创建新分类）
+      setFormData({
+        name: '',
+        slug: '',
+        description: '',
+        icon: '',
+        color: '#3B82F6',
+        sort_order: 0,
+      });
+    }
+  }, [category]);
+  
+  const isEdit = isEditMode;
   const level = parentCategory ? parentCategory.level + 1 : 1;
+  
+  // 编辑模式下，如果正在加载或者还没有category数据，则显示loading
+  const shouldShowLoading = isEdit && (isLoading || !category);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,11 +108,13 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
     }
   };
   
+  
   return (
     <Card className="mb-6">
       <CardHeader>
         <CardTitle>
           {isEdit ? '编辑分类' : '创建分类'}
+          {shouldShowLoading && <span className="text-sm text-muted-foreground ml-2">加载中...</span>}
         </CardTitle>
         {parentCategory && (
           <p className="text-sm text-muted-foreground">
@@ -99,6 +132,14 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
       </CardHeader>
       
       <CardContent>
+        {shouldShowLoading ? (
+          <div className="py-12 text-center">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <p className="text-muted-foreground">正在加载分类数据...</p>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -187,6 +228,7 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
             </Button>
           </div>
         </form>
+        )}
       </CardContent>
     </Card>
   );

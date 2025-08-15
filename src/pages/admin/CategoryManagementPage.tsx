@@ -212,7 +212,7 @@ const CategoryManagementPage: React.FC = () => {
   
   const { data: categoryTree, isLoading } = useCategoryTree();
   const { data: statistics } = useCategoryStatistics();
-  const { data: editingCategory } = useCategoryById(editingCategoryId);
+  const { data: editingCategory, isLoading: isLoadingEditingCategory } = useCategoryById(editingCategoryId);
   
   // 调试日志
   console.log('CategoryManagementPage 渲染, categoryTree:', categoryTree);
@@ -353,6 +353,8 @@ const CategoryManagementPage: React.FC = () => {
           <CategoryForm
             category={editingCategory}
             parentCategory={parentCategory}
+            isLoading={isLoadingEditingCategory}
+            isEditMode={!!editingCategoryId}
             onSuccess={() => {
               setShowForm(false);
               setEditingCategoryId(null);
