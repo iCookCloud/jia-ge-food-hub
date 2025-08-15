@@ -187,7 +187,48 @@ export const categoryService = {
     return data;
   },
 
-  // 8. 获取产品的分类信息
+  // 8. 获取分类及其所有子分类ID（用于层次搜索）
+  async getCategoryWithChildren(categoryId: number): Promise<number[]> {
+    // 一次性获取所有活跃分类，避免N+1查询
+    const { data: allCategories, error } = await supabase
+      .from('product_categories')
+      .select('id, parent_id')
+      .eq('is_active', true);
+    
+    if (error) {
+      console.error('获取分类失败:', error);
+      return [categoryId];
+    }
+    
+    if (!allCategories) return [categoryId];
+    
+    // 构建父子关系映射
+    const categoryMap = new Map<number, number[]>();
+    allCategories.forEach(cat => {
+      if (cat.parent_id) {
+        if (!categoryMap.has(cat.parent_id)) {
+          categoryMap.set(cat.parent_id, []);
+        }
+        categoryMap.get(cat.parent_id)!.push(cat.id);
+      }
+    });
+    
+    // 递归收集所有子分类ID（内存操作，无网络请求）
+    const collectChildren = (parentId: number): number[] => {
+      const result = [parentId];
+      const children = categoryMap.get(parentId) || [];
+      
+      for (const childId of children) {
+        result.push(...collectChildren(childId));
+      }
+      
+      return result;
+    };
+    
+    return collectChildren(categoryId);
+  },
+
+  // 9. 获取产品的分类信息
   async getProductCategories(productId: string): Promise<CategoryPath[]> {
     const { data, error } = await supabase
       .from('product_category_info')
@@ -204,19 +245,153 @@ export const categoryService = {
     return data || [];
   },
 
-  // 9. 批量操作产品分类（统一接口）
+  // 10. 为产品分配单个分类
+  async assignProductToCategory(
+    productId: string, 
+    categoryId: number, 
+    isPrimary: boolean = false
+  ): Promise<unknown> {
+    const { data, error } = await supabase
+      .from('product_category_relations')
+      .insert({
+        product_id: productId,
+        category_id: categoryId,
+        is_primary: isPrimary
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      // 处理唯一约束错误
+      if (error.code === '23505') {
+        console.warn('产品分类关联已存在，跳过重复添加:', { productId, categoryId });
+        return null; // 静默处理，不抛出错误
+      }
+      console.error('分配产品分类失败:', error);
+      throw new Error('分配产品分类失败');
+    }
+    
+    return data;
+  },
+
+  // 11. 为产品分配多个分类（先清除后添加）
+  async assignProductToCategories(
+    productId: string, 
+    categoryIds: number[]
+  ): Promise<void> {
+    // 先清除现有的分类关联
+    await supabase
+      .from('product_category_relations')
+      .delete()
+      .eq('product_id', productId);
+    
+    // 添加新的分类关联
+    if (categoryIds.length > 0) {
+      const assignments = categoryIds.map((categoryId, index) => ({
+        product_id: productId,
+        category_id: categoryId,
+        is_primary: index === 0 // 第一个分类设为主分类
+      }));
+      
+      const { error } = await supabase
+        .from('product_category_relations')
+        .insert(assignments);
+      
+      if (error) {
+        console.error('分配产品分类失败:', error);
+        throw new Error('分配产品分类失败');
+      }
+    }
+  },
+
+  // 12. 批量操作产品分类（统一接口）
   async batchOperateProductCategories(
     operation: 'assign' | 'replace' | 'remove',
     productIds: string[],
     categoryIds: number[],
     isPrimaryFirst: boolean = true
   ): Promise<unknown[]> {
-    // 由于相关表为空，这里提供一个空实现
-    console.warn('批量操作产品分类功能暂未实现，因为相关数据库表为空');
-    return [];
+    const assignments = productIds.flatMap(productId =>
+      categoryIds.map((categoryId, index) => ({
+        product_id: productId,
+        category_id: categoryId,
+        is_primary: isPrimaryFirst && index === 0
+      }))
+    );
+    
+    switch (operation) {
+      case 'assign': {
+        const { data, error } = await supabase
+          .from('product_category_relations')
+          .insert(assignments)
+          .select();
+        
+        if (error) {
+          // 处理唯一约束错误
+          if (error.code === '23505') {
+            console.warn('批量分配中存在重复关联，部分记录已跳过');
+            // 对于批量操作，我们可以尝试逐一插入来处理重复
+            const results = [];
+            for (const assignment of assignments) {
+              try {
+                const { data: singleData } = await supabase
+                  .from('product_category_relations')
+                  .insert(assignment)
+                  .select()
+                  .single();
+                if (singleData) results.push(singleData);
+              } catch (singleError: any) {
+                if (singleError.code !== '23505') {
+                  console.error('单个分配失败:', singleError);
+                }
+              }
+            }
+            return results;
+          }
+          console.error('批量分配产品分类失败:', error);
+          throw new Error('批量分配产品分类失败');
+        }
+        
+        return data || [];
+      }
+      
+      case 'replace': {
+        // 先删除现有关联
+        await supabase
+          .from('product_category_relations')
+          .delete()
+          .in('product_id', productIds);
+        
+        // 再添加新关联
+        const { data, error } = await supabase
+          .from('product_category_relations')
+          .insert(assignments)
+          .select();
+        
+        if (error) {
+          console.error('批量替换产品分类失败:', error);
+          throw new Error('批量替换产品分类失败');
+        }
+        
+        return data || [];
+      }
+      
+      case 'remove': {
+        await supabase
+          .from('product_category_relations')
+          .delete()
+          .in('product_id', productIds)
+          .in('category_id', categoryIds);
+        
+        return [];
+      }
+      
+      default:
+        throw new Error('不支持的操作类型');
+    }
   },
 
-  // 10. 创建新分类 (管理功能)
+  // 13. 创建新分类 (管理功能)
   async createCategory(categoryData: {
     name: string;
     slug: string;
@@ -242,7 +417,7 @@ export const categoryService = {
     return data;
   },
 
-  // 11. 更新分类 (管理功能)
+  // 14. 更新分类 (管理功能)
   async updateCategory(
     categoryId: number, 
     updates: Partial<ProductCategory>
@@ -262,7 +437,7 @@ export const categoryService = {
     return data;
   },
 
-  // 12. 删除分类 (软删除)
+  // 15. 删除分类 (软删除)
   async deleteCategory(categoryId: number): Promise<void> {
     const { error } = await supabase
       .from('product_categories')
