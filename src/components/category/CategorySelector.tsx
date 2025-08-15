@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Check, ChevronDown, Search, Folder, FolderOpen, X, Star, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -55,12 +55,11 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
   showPopular = true
 }) => {
   const [open, setOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
   const [recentCategories, setRecentCategories] = useState<number[]>(getRecentCategories());
   const searchInputRef = useRef<HTMLInputElement>(null);
   
   const { data: categoryTree, isLoading } = useCategoryTree();
-  const { data: categoryPaths } = useCategoryPaths();
+  const { data: categoryPaths, isLoading: isPathsLoading } = useCategoryPaths();
   
   // 热门分类（基于某种逻辑，这里先硬编码）
   const popularCategoryIds = useMemo(() => [1, 2, 3, 5, 8], []);
@@ -75,36 +74,6 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
     });
   }, [categoryPaths, level]);
   
-  // 智能搜索 - 支持拼音首字母、全路径等
-  const filteredCategories = useMemo(() => {
-    if (!searchValue.trim()) return flatCategories;
-    
-    const searchTerm = searchValue.toLowerCase().trim();
-    const searchWords = searchTerm.split(' ').filter(Boolean);
-    
-    return flatCategories.filter(cat => {
-      const matchFields = [
-        cat.name.toLowerCase(),
-        cat.full_path.toLowerCase(),
-        cat.path_names.join(' ').toLowerCase(),
-        cat.slug?.toLowerCase() || ''
-      ];
-      
-      // 支持多词搜索
-      return searchWords.every(word => 
-        matchFields.some(field => field.includes(word))
-      );
-    }).sort((a, b) => {
-      // 优先显示名称完全匹配的
-      const aNameMatch = a.name.toLowerCase().includes(searchTerm);
-      const bNameMatch = b.name.toLowerCase().includes(searchTerm);
-      if (aNameMatch && !bNameMatch) return -1;
-      if (!aNameMatch && bNameMatch) return 1;
-      
-      // 其次按层级排序，低层级优先
-      return a.level - b.level;
-    });
-  }, [flatCategories, searchValue]);
   
   // 获取当前选中的分类
   const selectedCategories = useMemo(() => {
@@ -181,7 +150,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
     if (multiple) {
       return (
         <div className="flex flex-wrap gap-1 max-w-full">
-          {selectedCategories.slice(0, 2).map(cat => (
+          {selectedCategories?.slice(0, 2)?.map(cat => (
             <Badge 
               key={cat.id} 
               variant="secondary" 
@@ -199,15 +168,13 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
             </Badge>
           )}
           {selectedCategories.length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 w-5 p-0 hover:bg-destructive hover:text-destructive-foreground"
+            <div
+              className="h-5 w-5 p-0 hover:bg-destructive hover:text-destructive-foreground rounded flex items-center justify-center cursor-pointer transition-colors"
               onClick={handleClearAll}
               title="清空所有选择"
             >
               <X className="w-3 h-3" />
-            </Button>
+            </div>
           )}
         </div>
       );
@@ -218,15 +185,13 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
         <span className="truncate flex-1" title={selectedCategories[0]?.full_path}>
           {selectedCategories[0]?.name}
         </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+        <div
+          className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground rounded flex items-center justify-center cursor-pointer transition-colors"
           onClick={handleClearAll}
           title="清除选择"
         >
           <X className="w-3 h-3" />
-        </Button>
+        </div>
       </div>
     );
   };
@@ -277,7 +242,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
     );
   };
   
-  if (isLoading) {
+  if (isLoading || isPathsLoading) {
     return (
       <Button
         variant="outline"
@@ -285,6 +250,20 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
         className={cn("w-full justify-between", className)}
       >
         <span>加载中...</span>
+        <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
+      </Button>
+    );
+  }
+
+  // 数据安全检查
+  if (!categoryPaths || !Array.isArray(categoryPaths)) {
+    return (
+      <Button
+        variant="outline"
+        disabled
+        className={cn("w-full justify-between", className)}
+      >
+        <span>数据加载失败</span>
         <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
       </Button>
     );
@@ -315,72 +294,16 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
             <CommandInput
               ref={searchInputRef}
               placeholder="搜索分类名称、路径..."
-              value={searchValue}
-              onValueChange={setSearchValue}
               className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 border-none"
             />
-            {searchValue && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0"
-                onClick={() => setSearchValue('')}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            )}
           </div>
           
-          <div className="max-h-80 overflow-y-auto">
-            {!searchValue && (
-              <>
-                {/* 最近使用的分类 */}
-                {showRecentUsed && recentCategoryData.length > 0 && (
-                  <>
-                    <div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/30 flex items-center gap-2">
-                      <Clock className="w-3 h-3" />
-                      最近使用
-                    </div>
-                    <CommandGroup className="p-0">
-                      {recentCategoryData.slice(0, 4).map(cat => renderCategoryOption(cat, false))}
-                    </CommandGroup>
-                    <Separator />
-                  </>
-                )}
-                
-                {/* 热门分类 */}
-                {showPopular && popularCategoryData.length > 0 && (
-                  <>
-                    <div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/30 flex items-center gap-2">
-                      <Star className="w-3 h-3" />
-                      热门分类
-                    </div>
-                    <CommandGroup className="p-0">
-                      {popularCategoryData.slice(0, 4).map(cat => renderCategoryOption(cat, false))}
-                    </CommandGroup>
-                    <Separator />
-                  </>
-                )}
-                
-                <div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/30">
-                  所有分类
-                </div>
-              </>
-            )}
-            
-            <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
-              <div>未找到匹配的分类</div>
-              {searchValue && (
-                <div className="mt-2 text-xs">
-                  尝试搜索分类名称或完整路径
-                </div>
-              )}
-            </CommandEmpty>
-            
-            <CommandGroup className="p-0">
-              {(searchValue ? filteredCategories : flatCategories).map(cat => renderCategoryOption(cat))}
+          <CommandList className="max-h-80">
+            <CommandEmpty>未找到匹配的分类</CommandEmpty>
+            <CommandGroup>
+              {flatCategories?.map(cat => renderCategoryOption(cat)) || []}
             </CommandGroup>
-          </div>
+          </CommandList>
           
           {/* 多选模式下的已选择显示 */}
           {multiple && selectedCategories.length > 0 && (
@@ -389,17 +312,15 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
               <div className="p-3 bg-muted/30">
                 <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center justify-between">
                   <span>已选择 {selectedCategories.length} 个分类</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-xs"
+                  <div
+                    className="h-6 text-xs px-2 hover:bg-accent hover:text-accent-foreground rounded cursor-pointer transition-colors flex items-center"
                     onClick={handleClearAll}
                   >
                     清空全部
-                  </Button>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
-                  {selectedCategories.map(cat => (
+                  {selectedCategories?.map(cat => (
                     <Badge
                       key={cat.id}
                       variant="secondary"

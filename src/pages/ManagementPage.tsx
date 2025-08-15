@@ -95,8 +95,8 @@ const ManagementPage: React.FC = () => {
   // 管理员专用功能
   const adminManagementItems = [
     {
-      title: '商品管理',
-      description: '管理产品信息、库存状态和商品属性',
+      title: '商品审核',
+      description: '审核供应商提交的商品信息，确保平台商品质量',
       icon: Package,
       href: '/admin/products',
       badge: '管理员'

@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { CategorySelector, CategoryTag } from '@/components/category/CategorySelector';
+import { SimpleCategorySelector } from '@/components/category/SimpleCategorySelector';
 import { useProductCategories, useBatchOperateProductCategories, useCategories } from '@/hooks/useCategories';
 import { useInfiniteProducts } from '@/hooks/useInfiniteProducts';
 import { useDebounce } from '@/hooks/useDebounce';
