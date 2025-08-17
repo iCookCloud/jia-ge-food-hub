@@ -1,5 +1,4 @@
 import { supabase } from '@/integrations/supabase/client';
-import { globalErpService } from './globalErpService';
 import { FilterParams, PaginationParams } from './api';
 
 // 材料/素材内容服务（同时支持视频和图片）
@@ -196,11 +195,7 @@ export const statisticsService = {
       ordersCount,
       videosCount
     ] = await Promise.all([
-      globalErpService.fetchProducts({}, { limit: 1000 }).then(result => ({ 
-        data: null, 
-        error: null, 
-        count: result.data?.length || 0 
-      })),
+      supabase.from('products_with_categories').select('id', { count: 'exact', head: true }),
       supabase.from('orders').select('id', { count: 'exact', head: true }),
       supabase.from('product_videos').select('id', { count: 'exact', head: true }).eq('is_active', true).eq('status', 'ready')
     ]);

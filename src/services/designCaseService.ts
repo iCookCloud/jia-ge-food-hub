@@ -1,6 +1,5 @@
 // 设计案例服务
 import { supabase } from '@/integrations/supabase/client';
-import { globalErpService } from './globalErpService';
 
 export interface DesignCase {
   id: number;
@@ -139,16 +138,20 @@ export const designCaseService = {
       return [];
     }
     
-    // 2. 获取ERP商品信息
+    // 2. 获取本地商品信息
     const productIds = associations.map(assoc => assoc.product_id);
-    const erpProducts = await globalErpService.fetchProductsByIds(productIds) as Array<{
-      id: string;
-      standard_chinese_name: string;
-      price: number;
-      category: string;
-      supplier_id?: string;
-      [key: string]: unknown;
-    }>;
+    const { data: localProducts } = await supabase
+      .from('products_with_categories')
+      .select('id, standard_chinese_name, unit_price, primary_category_name, vendor, user_id')
+      .in('id', productIds);
+    
+    const erpProducts = (localProducts || []).map(product => ({
+      id: product.id,
+      standard_chinese_name: product.standard_chinese_name || '',
+      price: parseFloat(product.unit_price || '0'),
+      category: product.primary_category_name || '',
+      supplier_id: product.user_id || undefined
+    }));
     
     // 3. 合并关联信息和商品信息
     const recommendations: ProductRecommendation[] = associations.map(assoc => {
@@ -187,16 +190,17 @@ export const designCaseService = {
   // 基于案例风格获取相关商品
   async getStyleBasedRecommendations(style: string, limit = 12) {
     try {
-      const { data: products } = await globalErpService.getProductsByDesignStyle(style, { limit });
+      // 从本地数据库根据风格相关的分类获取商品
+      const { data: products } = await supabase
+        .from('products_with_categories')
+        .select('id, standard_chinese_name, primary_category_name, unit_price')
+        .eq('is_active', true)
+        .ilike('search_text', `%${style}%`)
+        .limit(limit);
       
-      return products.map((product: {
-        id: string;
-        standard_chinese_name: string;
-        category: string;
-        [key: string]: unknown;
-      }) => ({
+      return (products || []).map((product) => ({
         product_id: product.id,
-        category: product.category,
+        category: product.primary_category_name || '',
         priority: 0,
         usage_description: `适用于${style}风格设计`,
         quantity_suggestion: 1,

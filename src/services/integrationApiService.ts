@@ -1,7 +1,7 @@
 // 供应链设计一体化 API 服务
 import { designCaseService, DesignCase, CaseFilters } from './designCaseService';
 import { supplierService, SupplierProfile, SupplierFilters } from './supplierService';
-import { globalErpService } from './globalErpService';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface IntegratedCaseResponse {
   case: DesignCase;
@@ -222,7 +222,25 @@ export const integrationApiService = {
         budget_range: budget
       };
       
-      const { data: products } = await globalErpService.getRecommendedProducts(filters, { limit });
+      // 从本地数据库获取推荐商品
+      let query = supabase
+        .from('products_with_categories')
+        .select('*')
+        .eq('is_active', true);
+      
+      if (style) {
+        query = query.ilike('search_text', `%${style}%`);
+      }
+      
+      if (budget?.min) {
+        query = query.gte('unit_price', budget.min.toString());
+      }
+      
+      if (budget?.max) {
+        query = query.lte('unit_price', budget.max.toString());
+      }
+      
+      const { data: products } = await query.limit(limit);
       
       // 获取相关供应商信息
       const supplierIds = new Set(products.map(p => p.supplier_id).filter(Boolean));
@@ -284,11 +302,21 @@ export const integrationApiService = {
       }
       
       if (searchType === 'all' || searchType === 'products') {
-        const { data: products } = await globalErpService.fetchProducts({
-          search: query,
-          category: filters?.category
-        }, { limit: 10 });
-        results.products = products;
+        let query_builder = supabase
+          .from('products_with_categories')
+          .select('*')
+          .eq('is_active', true);
+        
+        if (query) {
+          query_builder = query_builder.ilike('search_text', `%${query}%`);
+        }
+        
+        if (filters?.category) {
+          query_builder = query_builder.ilike('primary_category_name', `%${filters.category}%`);
+        }
+        
+        const { data: products } = await query_builder.limit(10);
+        results.products = products || [];
       }
       
       if (searchType === 'all' || searchType === 'suppliers') {
@@ -346,7 +374,10 @@ export const integrationApiService = {
   // 批量获取商品详细信息
   async getBatchProductDetails(productIds: string[]) {
     try {
-      const products = await globalErpService.fetchProductsByIds(productIds);
+      const { data: products } = await supabase
+        .from('products_with_categories')
+        .select('*')
+        .in('id', productIds);
       
       // 获取供应商信息
       const supplierIds = new Set(products.map(p => p.supplier_id).filter(Boolean));
@@ -381,7 +412,10 @@ export const integrationApiService = {
     }
   ) {
     try {
-      const products = await globalErpService.fetchProductsByIds(productIds);
+      const { data: products } = await supabase
+        .from('products_with_categories')
+        .select('*')
+        .in('id', productIds);
       const results = [];
       
       for (const product of products) {
