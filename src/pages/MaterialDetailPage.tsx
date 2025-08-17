@@ -9,7 +9,6 @@ import { useMaterial } from "@/hooks/useMaterials";
 import { MaterialViewer } from "@/components/material/MaterialViewer";
 import { ProductList } from "@/components/material/ProductCard";
 import { Database } from "@/integrations/supabase/types";
-import { globalErpService } from "@/services/globalErpService";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Play,
@@ -194,7 +193,7 @@ const MaterialDetailPage = () => {
   };
 
   const handleProductClick = async (association: VideoProductAssociation | ImageProductAssociation) => {
-    if (!association.product_sku) {
+    if (!association.original_product_id) {
       toast({
         title: "无法访问",
         description: "商品信息不完整",
@@ -206,24 +205,13 @@ const MaterialDetailPage = () => {
     setLoadingProductId(association.id);
 
     try {
-      // 通过SKU查找Global ERP商品
-      const product = await globalErpService.fetchProductBySku(association.product_sku);
-      
-      if (product) {
-        // 商品存在，跳转到商品详情页
-        navigate(`/products/${product.id}`);
-      } else {
-        // 商品未找到，显示提示
-        toast({
-          title: "商品已下架",
-          description: `商品 ${association.product_name} (${association.product_sku}) 在当前目录中不可用`,
-        });
-      }
+      // 直接使用 original_product_id 跳转到本地商品详情页
+      navigate(`/products/${association.original_product_id}`);
     } catch (error) {
-      console.error('Failed to fetch product:', error);
+      console.error('Failed to navigate to product:', error);
       toast({
-        title: "加载失败",
-        description: "无法加载商品信息，请稍后重试",
+        title: "访问失败",
+        description: "无法访问商品详情页",
         variant: "destructive"
       });
     } finally {

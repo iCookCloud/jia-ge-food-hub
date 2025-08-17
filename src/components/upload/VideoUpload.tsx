@@ -10,12 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, X, Video, Play, Clock, Package, Tag, Loader2, Images, FileImage } from 'lucide-react';
+import { Upload, X, Video, Clock, Package, Tag, Loader2, Images } from 'lucide-react';
 import { cloudflareStreamService, VideoUploadResult } from '@/services/cloudflareStreamService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { productService } from '@/services/api';
-import { globalErpService } from '@/services/globalErpService';
 import { Product } from '@/hooks/useProducts';
 
 type UploadMode = 'video' | 'images';
@@ -109,8 +108,8 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     
     for (const productId of selectedProducts) {
       try {
-        // 从Global ERP获取最新产品信息
-        const productData = await globalErpService.fetchProductById(productId);
+        // 从本地产品列表获取产品信息
+        const productData = products.find(p => p.id === productId);
         
         if (productData) {
           associations.push({
@@ -120,19 +119,19 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
               id: productData.id,
               sku: productData.sku,
               standard_chinese_name: productData.standard_chinese_name,
-              price: productData.price,
-              main_image_url: productData.main_image_url,
-              specification: productData.specification,
-              source: 'global_erp',
+              price: productData.unit_price,
+              main_image_url: productData.product_image,
+              specification: productData.specifications,
+              source: 'local_products',
               snapshot_time: new Date().toISOString()
             },
             product_sku: productData.sku,
             product_name: productData.standard_chinese_name,
-            snapshot_source: 'global_erp'
+            snapshot_source: 'local_products'
           });
         }
       } catch (error) {
-        console.warn(`Failed to fetch product ${productId} for video association:`, error);
+        console.warn(`Failed to get product ${productId} for video association:`, error);
       }
     }
     
@@ -153,8 +152,8 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     
     for (const productId of selectedProducts) {
       try {
-        // 从Global ERP获取最新产品信息
-        const productData = await globalErpService.fetchProductById(productId);
+        // 从本地产品列表获取产品信息
+        const productData = products.find(p => p.id === productId);
         
         if (productData) {
           associations.push({
@@ -164,19 +163,19 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
               id: productData.id,
               sku: productData.sku,
               standard_chinese_name: productData.standard_chinese_name,
-              price: productData.price,
-              main_image_url: productData.main_image_url,
-              specification: productData.specification,
-              source: 'global_erp',
+              price: productData.unit_price,
+              main_image_url: productData.product_image,
+              specification: productData.specifications,
+              source: 'local_products',
               snapshot_time: new Date().toISOString()
             },
             product_sku: productData.sku,
             product_name: productData.standard_chinese_name,
-            snapshot_source: 'global_erp'
+            snapshot_source: 'local_products'
           });
         }
       } catch (error) {
-        console.warn(`Failed to fetch product ${productId} for image association:`, error);
+        console.warn(`Failed to get product ${productId} for image association:`, error);
       }
     }
     
