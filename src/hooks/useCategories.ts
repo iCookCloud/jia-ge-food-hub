@@ -3,13 +3,23 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { categoryService, ProductCategory, CategoryTree, CategoryStatistics, CategoryPath } from '@/services/categoryService';
 import { useToast } from '@/hooks/use-toast';
 
+// 统一的分类缓存失效函数
+const invalidateAllCategoryQueries = (queryClient: ReturnType<typeof useQueryClient>) => {
+  queryClient.invalidateQueries({ queryKey: ['category-tree'] });
+  queryClient.invalidateQueries({ queryKey: ['category-statistics'] });
+  queryClient.invalidateQueries({ queryKey: ['categories-by-level'] });
+  queryClient.invalidateQueries({ queryKey: ['category-paths'] });
+  queryClient.invalidateQueries({ queryKey: ['categories'] });
+  queryClient.invalidateQueries({ queryKey: ['category-by-slug'] });
+};
+
 // 1. 获取所有分类的Hook
 export const useCategories = (includeStats: boolean = false) => {
   return useQuery({
     queryKey: ['categories', includeStats],
     queryFn: () => categoryService.getAllCategories(includeStats),
-    staleTime: 0, // 每次都重新请求
-    gcTime: 0, // 不缓存
+    staleTime: 5 * 60 * 1000, // 5分钟缓存
+    gcTime: 30 * 60 * 1000,   // 30分钟后清理
   });
 };
 
@@ -18,9 +28,9 @@ export const useCategoryTree = () => {
   return useQuery({
     queryKey: ['category-tree'],
     queryFn: () => categoryService.getCategoryTree(),
-    staleTime: 0, // 数据立即过期，但保留缓存用于更新
-    gcTime: 5 * 60 * 1000, // 5分钟后清理缓存
-    refetchOnMount: 'always', // 每次挂载都重新获取
+    staleTime: 5 * 60 * 1000,  // 5分钟缓存
+    gcTime: 30 * 60 * 1000,    // 30分钟后清理缓存
+    refetchOnMount: false,     // 不每次挂载都重新获取
     refetchOnWindowFocus: false, // 避免窗口聚焦时重复请求
   });
 };
@@ -30,8 +40,8 @@ export const useCategoryPaths = () => {
   return useQuery({
     queryKey: ['category-paths'],
     queryFn: () => categoryService.getCategoryPaths(),
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 10 * 60 * 1000, // 10分钟缓存
+    gcTime: 30 * 60 * 1000,    // 30分钟后清理
   });
 };
 
@@ -41,8 +51,8 @@ export const useCategoriesByLevel = (level: number) => {
     queryKey: ['categories-by-level', level],
     queryFn: () => categoryService.getCategoriesByLevel(level),
     enabled: level > 0 && level <= 3,
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 5 * 60 * 1000,  // 5分钟缓存，与其他保持一致
+    gcTime: 30 * 60 * 1000,    // 30分钟后清理
   });
 };
 
@@ -52,8 +62,8 @@ export const useCategoryBySlug = (slug: string) => {
     queryKey: ['category-by-slug', slug],
     queryFn: () => categoryService.getCategoryBySlug(slug),
     enabled: !!slug,
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 5 * 60 * 1000,  // 5分钟缓存
+    gcTime: 30 * 60 * 1000,    // 30分钟后清理
   });
 };
 
@@ -62,8 +72,8 @@ export const useCategoryStatistics = () => {
   return useQuery({
     queryKey: ['category-statistics'],
     queryFn: () => categoryService.getCategoryStatistics(),
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 2 * 60 * 1000,  // 2分钟缓存（统计数据更新频率较高）
+    gcTime: 10 * 60 * 1000,    // 10分钟后清理
   });
 };
 
@@ -73,8 +83,8 @@ export const useProductCategories = (productId: string) => {
     queryKey: ['product-categories', productId],
     queryFn: () => categoryService.getProductCategories(productId),
     enabled: !!productId,
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 3 * 60 * 1000,  // 3分钟缓存（产品分类可能会变化）
+    gcTime: 15 * 60 * 1000,    // 15分钟后清理
   });
 };
 
@@ -149,8 +159,7 @@ export const useCreateCategory = () => {
     
     onSuccess: (data) => {
       // 让相关缓存失效，触发重新获取
-      queryClient.invalidateQueries({ queryKey: ['category-tree'] });
-      queryClient.invalidateQueries({ queryKey: ['category-statistics'] });
+      invalidateAllCategoryQueries(queryClient);
       
       toast({
         title: "创建成功",
@@ -184,8 +193,7 @@ export const useUpdateCategory = () => {
     
     onSuccess: (data) => {
       // 让相关缓存失效，触发重新获取
-      queryClient.invalidateQueries({ queryKey: ['category-tree'] });
-      queryClient.invalidateQueries({ queryKey: ['category-statistics'] });
+      invalidateAllCategoryQueries(queryClient);
       
       toast({
         title: "更新成功",
@@ -213,8 +221,7 @@ export const useDeleteCategory = () => {
     
     onSuccess: () => {
       // 让相关缓存失效，触发重新获取
-      queryClient.invalidateQueries({ queryKey: ['category-tree'] });
-      queryClient.invalidateQueries({ queryKey: ['category-statistics'] });
+      invalidateAllCategoryQueries(queryClient);
       
       toast({
         title: "删除成功",

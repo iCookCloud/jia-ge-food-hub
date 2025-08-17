@@ -11,6 +11,7 @@ export interface Product {
   subcategory: string | null;
   unit_price: string | null;
   unit: string | null;
+  quantity: string | null;
   specifications: string | null;
   product_image: string | null;
   outer_box_dimensions: string | null;
@@ -24,19 +25,6 @@ export interface Product {
   updated_at: string | null;
 }
 
-export const useProducts = (filters = {}, pagination = {}) => {
-  return useQuery({
-    queryKey: ['products', filters, pagination],
-    queryFn: async () => {
-      const result = await productService.getAll(filters, pagination);
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-      return result.data as Product[];
-    },
-    staleTime: 5 * 60 * 1000, // 5分钟
-  });
-};
 
 export const useProduct = (id: string) => {
   return useQuery({
@@ -49,5 +37,7 @@ export const useProduct = (id: string) => {
       return result.data as Product;
     },
     enabled: !!id,
+    staleTime: 0, // 产品详情不缓存，每次都获取最新数据
+    gcTime: 1 * 60 * 1000, // 1分钟后清理内存
   });
 };
