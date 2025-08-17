@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, X, Video, Clock, Package, Tag, Loader2, Images } from 'lucide-react';
@@ -16,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { productService } from '@/services/api';
 import { Product } from '@/hooks/useProducts';
+import { ProductSelector } from '@/components/product/ProductSelector';
 
 type UploadMode = 'video' | 'images';
 
@@ -73,66 +73,50 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
   const [uploadingVideos, setUploadingVideos] = useState<UploadingVideo[]>([]);
   const [imageCollection, setImageCollection] = useState<ImageCollectionDraft | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [productsLoading, setProductsLoading] = useState(false);
-  const [productsLoaded, setProductsLoaded] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
   
-  // 懒加载产品列表 - 只有在需要时才加载
-  const loadProducts = async () => {
-    if (productsLoaded || productsLoading) return;
+  // 加载产品详情用于创建关联
+  const loadProductsForAssociation = async (productIds: string[]) => {
+    if (productIds.length === 0) return [];
     
-    setProductsLoading(true);
     try {
       const result = await productService.getAll({}, { page: 1, limit: 100 });
       if (result.data) {
-        setProducts(result.data);
+        return result.data.filter((p: Product) => productIds.includes(p.id));
       }
-      setProductsLoaded(true);
     } catch (error) {
-      toast({
-        title: "加载失败",
-        description: "无法加载产品列表",
-        variant: "destructive",
-      });
-    } finally {
-      setProductsLoading(false);
+      console.warn('Failed to load products for association:', error);
     }
+    return [];
   };
 
   // 创建视频产品关联（带快照）
   const createVideoProductAssociations = async (videoId: string, selectedProducts: string[]) => {
+    if (selectedProducts.length === 0) return;
+    
+    const productData = await loadProductsForAssociation(selectedProducts);
     const associations = [];
     
-    for (const productId of selectedProducts) {
-      try {
-        // 从本地产品列表获取产品信息
-        const productData = products.find(p => p.id === productId);
-        
-        if (productData) {
-          associations.push({
-            video_id: videoId,
-            original_product_id: productId,
-            product_snapshot: {
-              id: productData.id,
-              sku: productData.sku,
-              standard_chinese_name: productData.standard_chinese_name,
-              price: productData.unit_price,
-              main_image_url: productData.product_image,
-              specification: productData.specifications,
-              source: 'local_products',
-              snapshot_time: new Date().toISOString()
-            },
-            product_sku: productData.sku,
-            product_name: productData.standard_chinese_name,
-            snapshot_source: 'local_products'
-          });
-        }
-      } catch (error) {
-        console.warn(`Failed to get product ${productId} for video association:`, error);
-      }
+    for (const product of productData) {
+      associations.push({
+        video_id: videoId,
+        original_product_id: product.id,
+        product_snapshot: {
+          id: product.id,
+          sku: product.sku,
+          standard_chinese_name: product.standard_chinese_name,
+          price: product.unit_price,
+          main_image_url: product.product_image,
+          specification: product.specifications,
+          source: 'local_products',
+          snapshot_time: new Date().toISOString()
+        },
+        product_sku: product.sku,
+        product_name: product.standard_chinese_name,
+        snapshot_source: 'local_products'
+      });
     }
     
     if (associations.length > 0) {
@@ -148,35 +132,29 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
 
   // 创建图片产品关联（带快照）
   const createImageProductAssociations = async (imageId: string, selectedProducts: string[]) => {
+    if (selectedProducts.length === 0) return;
+    
+    const productData = await loadProductsForAssociation(selectedProducts);
     const associations = [];
     
-    for (const productId of selectedProducts) {
-      try {
-        // 从本地产品列表获取产品信息
-        const productData = products.find(p => p.id === productId);
-        
-        if (productData) {
-          associations.push({
-            image_id: imageId,
-            original_product_id: productId,
-            product_snapshot: {
-              id: productData.id,
-              sku: productData.sku,
-              standard_chinese_name: productData.standard_chinese_name,
-              price: productData.unit_price,
-              main_image_url: productData.product_image,
-              specification: productData.specifications,
-              source: 'local_products',
-              snapshot_time: new Date().toISOString()
-            },
-            product_sku: productData.sku,
-            product_name: productData.standard_chinese_name,
-            snapshot_source: 'local_products'
-          });
-        }
-      } catch (error) {
-        console.warn(`Failed to get product ${productId} for image association:`, error);
-      }
+    for (const product of productData) {
+      associations.push({
+        image_id: imageId,
+        original_product_id: product.id,
+        product_snapshot: {
+          id: product.id,
+          sku: product.sku,
+          standard_chinese_name: product.standard_chinese_name,
+          price: product.unit_price,
+          main_image_url: product.product_image,
+          specification: product.specifications,
+          source: 'local_products',
+          snapshot_time: new Date().toISOString()
+        },
+        product_sku: product.sku,
+        product_name: product.standard_chinese_name,
+        snapshot_source: 'local_products'
+      });
     }
     
     if (associations.length > 0) {
@@ -541,20 +519,11 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     );
   };
 
-  const toggleProduct = (file: File, productId: string) => {
+  const updateVideoProducts = (file: File, productIds: string[]) => {
     setUploadingVideos(prev =>
-      prev.map(uv => {
-        if (uv.file === file) {
-          const isSelected = uv.selectedProducts.includes(productId);
-          return {
-            ...uv,
-            selectedProducts: isSelected 
-              ? uv.selectedProducts.filter(id => id !== productId)
-              : [...uv.selectedProducts, productId]
-          };
-        }
-        return uv;
-      })
+      prev.map(uv => 
+        uv.file === file ? { ...uv, selectedProducts: productIds } : uv
+      )
     );
   };
 
@@ -608,15 +577,9 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     setImageCollection(prev => prev ? { ...prev, [field]: value } : null);
   };
 
-  const toggleCollectionProduct = (productId: string) => {
+  const updateCollectionProducts = (productIds: string[]) => {
     if (!imageCollection) return;
-    
-    const isSelected = imageCollection.selectedProducts.includes(productId);
-    const updatedProducts = isSelected 
-      ? imageCollection.selectedProducts.filter(id => id !== productId)
-      : [...imageCollection.selectedProducts, productId];
-    
-    setImageCollection(prev => prev ? { ...prev, selectedProducts: updatedProducts } : null);
+    setImageCollection(prev => prev ? { ...prev, selectedProducts: productIds } : null);
   };
 
   const addCollectionTag = (tag: string) => {
@@ -1102,78 +1065,11 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
                       </div>
 
                       {/* 关联产品 */}
-                      <div>
-                        <Label className="text-sm font-medium flex items-center gap-2">
-                          <Package className="h-4 w-4" />
-                          关联产品
-                        </Label>
-                        <p className="text-xs text-muted-foreground mt-1 mb-2">
-                          选择与此视频相关的产品，方便用户查找和了解
-                        </p>
-                        {productsLoading ? (
-                          <div className="text-sm text-muted-foreground">加载产品列表中...</div>
-                        ) : !productsLoaded ? (
-                          <div className="text-center py-4">
-                            <Button 
-                              type="button" 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={loadProducts}
-                              className="flex items-center gap-2"
-                            >
-                              <Package className="h-4 w-4" />
-                              加载产品列表
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="max-h-40 overflow-y-auto border rounded p-3 space-y-2">
-                            {products.length === 0 ? (
-                              <div className="text-sm text-muted-foreground text-center py-4">
-                                暂无产品数据
-                              </div>
-                            ) : (
-                              products.map((product) => (
-                                <div key={product.id} className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`product-${product.id}-${index}`}
-                                    checked={uploadingVideo.selectedProducts.includes(product.id)}
-                                    onCheckedChange={() => toggleProduct(uploadingVideo.file, product.id)}
-                                  />
-                                  <Label 
-                                    htmlFor={`product-${product.id}-${index}`}
-                                    className="flex-1 text-sm cursor-pointer"
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      {product.product_image && (
-                                        <img 
-                                          src={product.product_image} 
-                                          alt={product.standard_chinese_name || product.sku}
-                                          className="w-8 h-8 object-cover rounded"
-                                        />
-                                      )}
-                                      <div>
-                                        <div className="font-medium">
-                                          {product.standard_chinese_name || product.standard_english_name || product.sku}
-                                        </div>
-                                        {product.specifications && (
-                                          <div className="text-xs text-muted-foreground">
-                                            {product.specifications}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </Label>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        )}
-                        {uploadingVideo.selectedProducts.length > 0 && (
-                          <div className="mt-2 text-xs text-muted-foreground">
-                            已选择 {uploadingVideo.selectedProducts.length} 个产品
-                          </div>
-                        )}
-                      </div>
+                      <ProductSelector
+                        selectedProductIds={uploadingVideo.selectedProducts}
+                        onSelectionChange={(productIds) => updateVideoProducts(uploadingVideo.file, productIds)}
+                        maxSelection={10}
+                      />
 
                       {/* 上传按钮 */}
                       {uploadingVideo.status === 'pending' && (
@@ -1453,78 +1349,11 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
               </div>
 
               {/* 关联产品 */}
-              <div>
-                <Label className="text-sm font-medium flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  关联产品
-                </Label>
-                <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  选择与此素材相关的产品，方便用户查找和了解
-                </p>
-                {productsLoading ? (
-                  <div className="text-sm text-muted-foreground">加载产品列表中...</div>
-                ) : !productsLoaded ? (
-                  <div className="text-center py-4">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={loadProducts}
-                      className="flex items-center gap-2"
-                    >
-                      <Package className="h-4 w-4" />
-                      加载产品列表
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="max-h-40 overflow-y-auto border rounded p-3 space-y-2">
-                    {products.length === 0 ? (
-                      <div className="text-sm text-muted-foreground text-center py-4">
-                        暂无产品数据
-                      </div>
-                    ) : (
-                      products.map((product) => (
-                        <div key={product.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`collection-product-${product.id}`}
-                            checked={imageCollection.selectedProducts.includes(product.id)}
-                            onCheckedChange={() => toggleCollectionProduct(product.id)}
-                          />
-                          <Label 
-                            htmlFor={`collection-product-${product.id}`}
-                            className="flex-1 text-sm cursor-pointer"
-                          >
-                            <div className="flex items-center gap-2">
-                              {product.product_image && (
-                                <img 
-                                  src={product.product_image} 
-                                  alt={product.standard_chinese_name || product.sku}
-                                  className="w-8 h-8 object-cover rounded"
-                                />
-                              )}
-                              <div>
-                                <div className="font-medium">
-                                  {product.standard_chinese_name || product.standard_english_name || product.sku}
-                                </div>
-                                {product.specifications && (
-                                  <div className="text-xs text-muted-foreground">
-                                    {product.specifications}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </Label>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-                {imageCollection.selectedProducts.length > 0 && (
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    已选择 {imageCollection.selectedProducts.length} 个产品
-                  </div>
-                )}
-              </div>
+              <ProductSelector
+                selectedProductIds={imageCollection.selectedProducts}
+                onSelectionChange={updateCollectionProducts}
+                maxSelection={10}
+              />
 
               {/* 创建素材按钮 */}
               <div className="flex justify-end pt-4">
