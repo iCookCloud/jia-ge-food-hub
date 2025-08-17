@@ -135,7 +135,7 @@ export default function VideoUploadPage() {
                         )}
                       </div>
                     </div>
-                    <Link to={`/materials/${video.id}`}>
+                    <Link to={`/materials/video/${video.id}`}>
                       <Button variant="outline" size="sm">
                         查看详情
                       </Button>

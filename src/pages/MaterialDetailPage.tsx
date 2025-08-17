@@ -9,7 +9,6 @@ import { useMaterial } from "@/hooks/useMaterials";
 import { MaterialViewer } from "@/components/material/MaterialViewer";
 import { ProductList } from "@/components/material/ProductCard";
 import { Database } from "@/integrations/supabase/types";
-import { globalErpService } from "@/services/globalErpService";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Play,
@@ -68,7 +67,7 @@ type VideoProductAssociation = Database['public']['Tables']['video_product_assoc
 type ImageProductAssociation = Database['public']['Tables']['image_product_associations']['Row'];
 
 const MaterialDetailPage = () => {
-  const { id } = useParams();
+  const { type, id } = useParams<{ type: string; id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLiked, setIsLiked] = useState(false);
@@ -80,15 +79,17 @@ const MaterialDetailPage = () => {
   // 获取素材详情数据
   useEffect(() => {
     const fetchMaterialDetail = async () => {
-      if (!id) return;
+      if (!id || !type) return;
       
       setIsLoading(true);
       setError(null);
 
       try {
-        // 并行查询视频和图片数据
-        const [videoResult, imageResult] = await Promise.all([
-          supabase
+        let materialData: MaterialDetailItem | null = null;
+
+        if (type === 'video') {
+          // 查询视频数据
+          const { data, error } = await supabase
             .from('product_videos')
             .select(`
               *,
@@ -102,9 +103,21 @@ const MaterialDetailPage = () => {
             `)
             .eq('id', id)
             .eq('is_active', true)
-            .single(),
-          
-          supabase
+            .single();
+
+          if (data && !error) {
+            materialData = {
+              ...data,
+              type: 'video' as const,
+              video_product_associations: data.video_product_associations || []
+            };
+          } else {
+            setError('视频未找到');
+            return;
+          }
+        } else if (type === 'image') {
+          // 查询图片数据
+          const { data, error } = await supabase
             .from('uploaded_images')
             .select(`
               *,
@@ -118,28 +131,34 @@ const MaterialDetailPage = () => {
             `)
             .eq('id', id)
             .eq('is_active', true)
-            .single()
-        ]);
+            .single();
 
-        let materialData: MaterialDetailItem | null = null;
-
-        if (videoResult.data && !videoResult.error) {
-          // 找到视频数据
-          materialData = {
-            ...videoResult.data,
-            type: 'video' as const,
-            video_product_associations: videoResult.data.video_product_associations || []
-          };
-        } else if (imageResult.data && !imageResult.error) {
-          // 找到图片数据
-          materialData = {
-            ...imageResult.data,
-            type: 'image' as const,
-            images: imageResult.data.public_url ? [imageResult.data.public_url] : [],
-            image_product_associations: imageResult.data.image_product_associations || []
-          };
+          if (data && !error) {
+            // 处理多图数据
+            let images: string[] = [];
+            
+            // 如果有 images_data，使用多图数据
+            if (data.images_data && data.images_data.images && Array.isArray(data.images_data.images)) {
+              images = data.images_data.images.map((img: any) => img.public_url).filter(Boolean);
+            }
+            
+            // 如果没有多图数据，使用单图数据作为后备
+            if (images.length === 0 && data.public_url) {
+              images = [data.public_url];
+            }
+            
+            materialData = {
+              ...data,
+              type: 'image' as const,
+              images: images,
+              image_product_associations: data.image_product_associations || []
+            };
+          } else {
+            setError('图片未找到');
+            return;
+          }
         } else {
-          setError('素材未找到');
+          setError('无效的素材类型');
           return;
         }
 
@@ -153,7 +172,7 @@ const MaterialDetailPage = () => {
     };
 
     fetchMaterialDetail();
-  }, [id]);
+  }, [type, id]);
 
   // 暂时硬编码为空数组，后续可以实现推荐算法
   const relatedMaterials: MaterialDetailItem[] = [];
@@ -174,7 +193,7 @@ const MaterialDetailPage = () => {
   };
 
   const handleProductClick = async (association: VideoProductAssociation | ImageProductAssociation) => {
-    if (!association.product_sku) {
+    if (!association.original_product_id) {
       toast({
         title: "无法访问",
         description: "商品信息不完整",
@@ -186,24 +205,13 @@ const MaterialDetailPage = () => {
     setLoadingProductId(association.id);
 
     try {
-      // 通过SKU查找Global ERP商品
-      const product = await globalErpService.fetchProductBySku(association.product_sku);
-      
-      if (product) {
-        // 商品存在，跳转到商品详情页
-        navigate(`/products/${product.id}`);
-      } else {
-        // 商品未找到，显示提示
-        toast({
-          title: "商品已下架",
-          description: `商品 ${association.product_name} (${association.product_sku}) 在当前目录中不可用`,
-        });
-      }
+      // 直接使用 original_product_id 跳转到本地商品详情页
+      navigate(`/products/${association.original_product_id}`);
     } catch (error) {
-      console.error('Failed to fetch product:', error);
+      console.error('Failed to navigate to product:', error);
       toast({
-        title: "加载失败",
-        description: "无法加载商品信息，请稍后重试",
+        title: "访问失败",
+        description: "无法访问商品详情页",
         variant: "destructive"
       });
     } finally {
@@ -509,7 +517,7 @@ const MaterialDetailPage = () => {
               <CardContent className="space-y-3 pt-0">
                 {relatedMaterials.length > 0 ? (
                   relatedMaterials.map((relatedMaterial: MaterialDetailItem) => (
-                    <Link key={relatedMaterial.id} to={`/materials/${relatedMaterial.id}`}>
+                    <Link key={relatedMaterial.id} to={`/materials/${relatedMaterial.type}/${relatedMaterial.id}`}>
                       <div className="flex gap-2 sm:gap-3 group hover:bg-muted p-2 rounded-lg transition-colors">
                         <div className="relative flex-shrink-0">
                           <img 

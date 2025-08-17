@@ -25,7 +25,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { CategorySelector, CategoryTag } from '@/components/category/CategorySelector';
 import { useProductCategories, useBatchOperateProductCategories, useCategories } from '@/hooks/useCategories';
-import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { useDebounce } from '@/hooks/useDebounce';
 import { supabase } from '@/integrations/supabase/client';
 import { categoryService } from '@/services/categoryService';
@@ -45,7 +45,7 @@ import {
   Globe
 } from 'lucide-react';
 
-// 扩展的产品数据类型，包含新字段
+// 扩展的产品数据类型，支持 products_with_categories 视图字段
 interface ProductData {
   id: string;
   sku: string;
@@ -63,6 +63,20 @@ interface ProductData {
   review_notes?: string | null;
   reviewed_at?: string | null;
   reviewed_by?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  // 视图中的分类相关字段
+  primary_category_id?: number | null;
+  primary_category_name?: string | null;
+  primary_category_slug?: string | null;
+  primary_category_level?: number | null;
+  primary_category_path?: string | null;
+  primary_category_path_ids?: number[] | null;
+  all_category_ids?: number[] | null;
+  all_category_names?: string[] | null;
+  all_category_paths?: string[] | null;
+  searchable_category_ids?: number[] | null;
+  search_text?: string | null;
 }
 
 // 编辑状态类型
@@ -95,7 +109,7 @@ export const LocalProductManagement = forwardRef<LocalProductManagementRef>((pro
   // 获取分类列表
   const { data: categories = [] } = useCategories();
   
-  // 分页查询本地products表
+  // 使用 products_with_categories 视图进行高效查询
   const {
     data: productsData,
     isLoading,
@@ -108,63 +122,36 @@ export const LocalProductManagement = forwardRef<LocalProductManagementRef>((pro
     queryKey: ['local-products', { search: debouncedSearch, categoryId: selectedCategoryId }],
     queryFn: async ({ pageParam = 0 }) => {
       const limit = 20;
-      // 先查询产品列表
+      
+      // 使用 products_with_categories 视图进行统一查询
       let query = supabase
-        .from('products')
+        .from('products_with_categories')
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(pageParam, pageParam + limit - 1);
 
+      // 搜索过滤（使用预构建的搜索字段，包含SKU）
       if (debouncedSearch) {
-        query = query.or(`standard_chinese_name.ilike.%${debouncedSearch}%,sku.ilike.%${debouncedSearch}%`);
+        query = query.ilike('search_text', `%${debouncedSearch}%`);
       }
 
+      // 分类筛选（支持层级搜索）
       if (selectedCategoryId) {
-        // 层次包含搜索：获取当前分类及其所有子分类的商品
-        const categoryIds = await categoryService.getCategoryWithChildren(selectedCategoryId);
-        
-        const { data: categoryProducts } = await supabase
-          .from('product_category_relations')
-          .select('product_id')
-          .in('category_id', categoryIds);
-        
-        if (categoryProducts && categoryProducts.length > 0) {
-          const productIds = categoryProducts.map(cp => cp.product_id);
-          query = query.in('id', productIds);
-        } else {
-          // 如果没有关联的商品，返回空结果
-          return {
-            data: [],
-            count: 0,
-            nextCursor: undefined
-          };
-        }
+        query = query.contains('searchable_category_ids', [selectedCategoryId]);
       }
 
       const { data: products, error, count } = await query;
 
       if (error) throw error;
 
-      // 如果有产品，再查询它们的分类
-      let productsWithCategories = products || [];
-      if (products && products.length > 0) {
-        const productIds = products.map(p => p.id);
-        
-        // 查询这些产品的分类关系
-        const { data: categoryRelations } = await supabase
-          .from('product_category_relations')
-          .select('product_id, category_id, product_categories(id, name)')
-          .in('product_id', productIds);
-
-        // 将分类数据附加到产品上
-        productsWithCategories = products.map(product => ({
-          ...product,
-          categories: categoryRelations
-            ?.filter(rel => rel.product_id === product.id)
-            .map(rel => rel.product_categories)
-            .filter(Boolean) || []
-        }));
-      }
+      // 转换分类数据格式以兼容现有组件
+      const productsWithCategories = (products || []).map(product => ({
+        ...product,
+        categories: product.all_category_names?.map((name: string, index: number) => ({
+          id: product.all_category_ids?.[index] || 0,
+          name: name
+        })) || []
+      }));
 
       return {
         data: productsWithCategories,
@@ -212,14 +199,14 @@ export const LocalProductManagement = forwardRef<LocalProductManagementRef>((pro
   };
   
   // 开始编辑产品
-  const handleEditProduct = async (product: ProductData) => {
-    // 获取产品当前的分类
-    const productCategories = await categoryService.getProductCategories(product.id);
+  const handleEditProduct = (product: ProductData & { categories?: Array<{ id: number; name: string }> }) => {
+    // 直接从产品数据中获取分类信息，避免额外的API调用
+    const productCategories = product.categories || [];
     
     setEditingProduct({
       productId: product.id,
       price: product.unit_price || '0',
-      categoryIds: productCategories.map(cat => cat.id)
+      categoryIds: productCategories.map(cat => cat.id).filter(id => id && id > 0) // 过滤无效的分类ID
     });
   };
   
@@ -246,10 +233,19 @@ export const LocalProductManagement = forwardRef<LocalProductManagementRef>((pro
       if (error) throw error;
       
       // 更新产品分类
-      if (editingProduct.categoryIds.length > 0) {
+      // 过滤有效的分类ID（非空且大于0）
+      const validCategoryIds = editingProduct.categoryIds.filter(id => id && id > 0);
+      
+      if (validCategoryIds.length > 0) {
         await categoryService.assignProductToCategories(
           editingProduct.productId, 
-          editingProduct.categoryIds
+          validCategoryIds
+        );
+      } else {
+        // 如果没有有效的分类ID，清除产品的所有分类
+        await categoryService.assignProductToCategories(
+          editingProduct.productId, 
+          []
         );
       }
       
@@ -518,7 +514,7 @@ export const LocalProductManagement = forwardRef<LocalProductManagementRef>((pro
                 value={editingProduct.categoryIds}
                 onValueChange={(value) => setEditingProduct({
                   ...editingProduct,
-                  categoryIds: Array.isArray(value) ? value : []
+                  categoryIds: Array.isArray(value) ? value.filter(id => id && id > 0) : []
                 })}
                 multiple={true}
                 placeholder="选择分类"
@@ -649,7 +645,7 @@ export const LocalProductManagement = forwardRef<LocalProductManagementRef>((pro
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="搜索商品名称、SKU..."
+                  placeholder="搜索商品名称、SKU、规格、供应商..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"

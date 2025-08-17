@@ -114,7 +114,7 @@ export function GlobalSearch({ children }: GlobalSearchProps) {
                 description: video.description || '暂无描述',
                 type: 'video',
                 image: video.thumbnail_url,
-                url: `/materials/${video.id}`,
+                url: `/materials/video/${video.id}`,
                 metadata: {
                   duration: video.duration ? `${Math.floor(video.duration / 60)}:${(video.duration % 60).toString().padStart(2, '0')}` : undefined
                 }

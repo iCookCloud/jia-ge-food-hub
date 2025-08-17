@@ -1,6 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
 import { PostgrestError } from '@supabase/supabase-js';
-import { globalErpService } from './globalErpService';
 import { recommendationAPI } from '@/api/recommendations';
 
 export interface ApiResponse<T> {
@@ -44,40 +43,72 @@ export const handleApiError = (error: PostgrestError | Error): string => {
 
 // 专用的服务函数，避免动态表名的类型问题
 
-// Global ERP 数据映射函数
-const mapGlobalErpProduct = (item: any) => ({
-  id: item.id,
-  sku: item.sku,
-  standard_chinese_name: item.standard_chinese_name,
-  standard_english_name: null,
-  category_chinese: item.category,
-  unit_price: item.price?.toString() || null,
-  specifications: item.specification,
-  product_image: item.main_image_url,
-  is_active: item.is_active,
-  weight: item.weight,
-  variants: item.variants,
-  created_at: item.created_at,
-  updated_at: item.updated_at
-});
-
 // 产品相关操作
 export const productService = {
   async getAll(filters: FilterParams = {}, pagination: PaginationParams = {}) {
     try {
-      // 转换page参数为offset参数
-      const globalErpPagination = {
-        limit: pagination.limit,
-        offset: pagination.page && pagination.limit 
-          ? (pagination.page - 1) * pagination.limit 
-          : pagination.offset
-      };
+      // 使用新的 products_with_categories 视图进行统一查询
+      let query = supabase
+        .from('products_with_categories')
+        .select('*', { count: 'exact' })
+        .eq('is_active', true);
+
+      // 分类筛选（支持层级搜索）
+      if (filters.category) {
+        let categoryId: number;
+        
+        // 判断传入的是分类ID还是分类名称
+        if (!isNaN(Number(filters.category))) {
+          categoryId = Number(filters.category);
+        } else {
+          // 传入的是分类名称，需要查找对应的ID
+          const { data: categoryData } = await supabase
+            .from('product_categories')
+            .select('id')
+            .eq('name', filters.category)
+            .single();
+
+          if (!categoryData) {
+            return { data: [], error: null, count: 0 };
+          }
+          categoryId = categoryData.id;
+        }
+
+        // 使用层级搜索：包含该分类及其所有子分类的产品
+        query = query.contains('searchable_category_ids', [categoryId]);
+      }
+
+      // 搜索过滤（使用预构建的搜索字段）
+      if (filters.search) {
+        query = query.ilike('search_text', `%${filters.search}%`);
+      }
+
+      // 应用排序
+      if (filters.sortBy) {
+        const order = filters.sortOrder === 'asc' ? 'asc' : 'desc';
+        query = query.order(filters.sortBy, { ascending: order === 'asc' });
+      } else {
+        query = query.order('updated_at', { ascending: false });
+      }
+
+      // 应用分页
+      if (pagination.page && pagination.limit) {
+        const offset = (pagination.page - 1) * pagination.limit;
+        query = query.range(offset, offset + pagination.limit - 1);
+      } else if (pagination.offset !== undefined && pagination.limit) {
+        query = query.range(pagination.offset, pagination.offset + pagination.limit - 1);
+      }
+
+      const { data, error, count } = await query;
       
-      const { data, count } = await globalErpService.fetchProducts(filters, globalErpPagination);
+      if (error) {
+        return { data: null, error, count: 0 };
+      }
+
       return { 
-        data: data.map(mapGlobalErpProduct), 
+        data: data || [], 
         error: null, 
-        count 
+        count: count || 0 
       };
     } catch (error) {
       return { 
@@ -90,11 +121,21 @@ export const productService = {
 
   async getById(id: string) {
     try {
-      const data = await globalErpService.fetchProductById(id);
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (error) {
+        return { data: null, error };
+      }
+      
       if (!data) {
         return { data: null, error: { message: 'Product not found' } };
       }
-      return { data: mapGlobalErpProduct(data), error: null };
+      
+      return { data, error: null };
     } catch (error) {
       return { 
         data: null, 

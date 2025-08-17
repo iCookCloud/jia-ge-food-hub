@@ -67,12 +67,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const product = association.product_snapshot;
   const productName = association.product_name || product?.standard_chinese_name || product?.standard_english_name || '未知商品';
-  const productPrice = product?.price || 0;
+  const productPrice = typeof product?.price === 'number' ? product.price : (typeof product?.price === 'string' ? parseFloat(product.price) || 0 : 0);
   const productImage = product?.main_image_url;
   const productSpec = product?.specification;
   const stockStatus = product?.stock_status || 'in_stock';
-  const rating = product?.rating || 0;
-  const reviewCount = product?.review_count || 0;
+  const rating = typeof product?.rating === 'number' ? product.rating : (typeof product?.rating === 'string' ? parseFloat(product.rating) || 0 : 0);
+  const reviewCount = typeof product?.review_count === 'number' ? product.review_count : (typeof product?.review_count === 'string' ? parseInt(product.review_count) || 0 : 0);
   const promotionalTags = product?.promotional_tags || [];
 
   // 获取库存状态显示
@@ -150,7 +150,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           />
         ))}
         <span className="text-xs text-muted-foreground ml-1">
-          {rating.toFixed(1)}
+          {Number(rating).toFixed(1)}
           {reviewCount > 0 && ` (${reviewCount})`}
         </span>
       </div>

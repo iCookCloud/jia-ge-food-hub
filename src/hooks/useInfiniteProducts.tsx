@@ -36,8 +36,8 @@ export const useInfiniteProducts = (params: InfiniteProductsParams = {}) => {
     getNextPageParam: (lastPage) => {
       return lastPage.hasNextPage ? lastPage.page + 1 : undefined;
     },
-    staleTime: 5 * 60 * 1000, // 5分钟
-    gcTime: 10 * 60 * 1000, // 10分钟后清理缓存
+    staleTime: 0, // 产品数据不缓存，每次都获取最新数据
+    gcTime: 1 * 60 * 1000, // 1分钟后清理内存
     initialPageParam: 1,
     // 当搜索参数变化时，重置页面参数
     refetchOnMount: false,

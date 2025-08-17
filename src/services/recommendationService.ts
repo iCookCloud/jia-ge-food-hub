@@ -1,6 +1,5 @@
 // 智能推荐算法服务
 import { supabase } from '@/integrations/supabase/client';
-import { globalErpService } from './globalErpService';
 import { designCaseService, DesignCase } from './designCaseService';
 import { supplierService, SupplierProfile } from './supplierService';
 
@@ -388,10 +387,12 @@ export const recommendationService = {
       }
 
       // 3. 基于案例风格获取候选商品
-      const { data: products } = await globalErpService.getProductsByDesignStyle(
-        designCase.style,
-        { limit: params.limit ? params.limit * 3 : 60 } // 获取更多候选商品用于筛选
-      );
+      const { data: products } = await supabase
+        .from('products_with_categories')
+        .select('*')
+        .eq('is_active', true)
+        .ilike('search_text', `%${designCase.style}%`)
+        .limit(params.limit ? params.limit * 3 : 60); // 获取更多候选商品用于筛选
 
       // 4. 生成推荐分数
       const recommendationParams = {
@@ -461,20 +462,24 @@ export const recommendationService = {
 
       // 2.1 基于偏好风格获取商品
       for (const style of userPreferences.preferred_styles) {
-        const { data: styleProducts } = await globalErpService.getProductsByDesignStyle(
-          style,
-          { limit: 20 }
-        );
-        candidateProducts.push(...styleProducts);
+        const { data: styleProducts } = await supabase
+          .from('products_with_categories')
+          .select('*')
+          .eq('is_active', true)
+          .ilike('search_text', `%${style}%`)
+          .limit(20);
+        candidateProducts.push(...(styleProducts || []));
       }
 
       // 2.2 基于偏好类别获取商品
       for (const category of userPreferences.preferred_categories) {
-        const { data: categoryProducts } = await globalErpService.fetchProducts(
-          { category },
-          { limit: 20 }
-        );
-        candidateProducts.push(...categoryProducts);
+        const { data: categoryProducts } = await supabase
+          .from('products_with_categories')
+          .select('*')
+          .eq('is_active', true)
+          .ilike('primary_category_name', `%${category}%`)
+          .limit(20);
+        candidateProducts.push(...(categoryProducts || []));
       }
 
       // 去重
@@ -532,14 +537,18 @@ export const recommendationService = {
   // 通用推荐（无用户偏好时使用）
   async getGeneralRecommendations(params: RecommendationParams = {}): Promise<ProductRecommendation[]> {
     try {
-      const { data: products } = await globalErpService.fetchProducts(
-        {
-          category: params.category,
-          sortBy: 'price',
-          sortOrder: 'asc'
-        },
-        { limit: params.limit || 20 }
-      );
+      let query = supabase
+        .from('products_with_categories')
+        .select('*')
+        .eq('is_active', true);
+      
+      if (params.category) {
+        query = query.ilike('primary_category_name', `%${params.category}%`);
+      }
+      
+      const { data: products } = await query
+        .order('unit_price', { ascending: true })
+        .limit(params.limit || 20);
 
       const scores = await this.engine.generateRecommendationScores(
         products,
@@ -610,16 +619,24 @@ export const recommendationService = {
   async getSimilarProducts(productId: string, limit = 10): Promise<ProductRecommendation[]> {
     try {
       // 1. 获取基础商品信息
-      const baseProduct = await globalErpService.fetchProductById(productId);
+      const { data: baseProduct } = await supabase
+        .from('products_with_categories')
+        .select('*')
+        .eq('id', productId)
+        .single();
+        
       if (!baseProduct) {
         throw new Error('商品不存在');
       }
 
       // 2. 基于同类别获取候选商品
-      const { data: similarProducts } = await globalErpService.fetchProducts(
-        { category: baseProduct.category },
-        { limit: limit * 3 }
-      );
+      const { data: similarProducts } = await supabase
+        .from('products_with_categories')
+        .select('*')
+        .eq('is_active', true)
+        .eq('primary_category_name', baseProduct.primary_category_name)
+        .neq('id', productId)
+        .limit(limit * 2); // 获取更多候选商品用于筛选
 
       // 过滤掉自身
       const candidates = similarProducts.filter(p => p.id !== productId);

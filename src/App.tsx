@@ -7,7 +7,6 @@ import { AuthProvider } from "@/hooks/useAuth";
 
 import { ProtectedRoute, PublicRoute, AdminRoute } from "@/components/auth/ProtectedRoute";
 
-import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import ProductsPage from "./pages/ProductsPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
@@ -76,7 +75,7 @@ const App = () => (
                 <MaterialsPage />
               </ProtectedRoute>
             } />
-            <Route path="/materials/:id" element={
+            <Route path="/materials/:type/:id" element={
               <ProtectedRoute>
                 <MaterialDetailPage />
               </ProtectedRoute>

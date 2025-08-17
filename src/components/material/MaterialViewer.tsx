@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -82,6 +82,27 @@ const ImageViewer: React.FC<{ material: MaterialItem }> = ({ material }) => {
       : [];
 
   const currentImage = images[currentImageIndex];
+
+  // 键盘支持
+  useEffect(() => {
+    if (images.length <= 1) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handlePrevImage();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleNextImage();
+      } else if (e.key === 'Escape' && isFullscreen) {
+        e.preventDefault();
+        setIsFullscreen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [images.length, isFullscreen]);
 
   // 缩放控制
   const handleZoomIn = () => {
@@ -235,25 +256,32 @@ const ImageViewer: React.FC<{ material: MaterialItem }> = ({ material }) => {
                 <ChevronRight className="w-4 h-4" />
               </Button>
 
-              {/* 缩略图导航 */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 pointer-events-auto">
-                {images.map((image, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentImageIndex(index)}
-                    className={`w-12 h-8 rounded overflow-hidden border-2 transition-all ${
-                      index === currentImageIndex 
-                        ? 'border-white' 
-                        : 'border-white/50 hover:border-white/80'
-                    }`}
-                  >
-                    <img
-                      src={image}
-                      alt={`图片 ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
+              {/* 缩略图导航 - 优化为滚动条样式 */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto">
+                <div className="bg-black/50 rounded-lg p-2 backdrop-blur-sm">
+                  <div className="flex gap-2 max-w-xs overflow-x-auto scrollbar-hide">
+                    {images.map((image, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          setCurrentImageIndex(index);
+                          handleReset();
+                        }}
+                        className={`flex-shrink-0 w-12 h-8 rounded overflow-hidden border-2 transition-all hover:scale-105 ${
+                          index === currentImageIndex 
+                            ? 'border-white ring-1 ring-white/50' 
+                            : 'border-white/30 hover:border-white/60'
+                        }`}
+                      >
+                        <img
+                          src={image}
+                          alt={`图片 ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </>
           )}

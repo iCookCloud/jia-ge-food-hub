@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { ProductCard } from "@/components/product/ProductCard";
 import { Button } from "@/components/ui/button";
@@ -42,12 +43,22 @@ const origins = ["全部", "本地", "挪威", "澳大利亚", "意大利", "厄
 
 const ProductsPage = () => {
   const { items: cartItems, getTotalItems, getTotalAmount, clearCart } = useCart();
+  const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategoryName, setSelectedCategoryName] = useState<string | undefined>(undefined);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(undefined);
   const [selectedOrigin, setSelectedOrigin] = useState("全部");
   const [sortBy, setSortBy] = useState("featured");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showCreateForm, setShowCreateForm] = useState(false);
+
+  // 处理URL参数
+  useEffect(() => {
+    const categoryParam = searchParams.get('category');
+    if (categoryParam) {
+      setSelectedCategoryName(decodeURIComponent(categoryParam));
+    }
+  }, [searchParams]);
 
   // 获取一级分类用于快速筛选
   const { data: level1Categories } = useCategoriesByLevel(1);
@@ -90,12 +101,12 @@ const ProductsPage = () => {
     
     return {
       search: debouncedSearchQuery,
-      category: selectedCategoryId ? selectedCategoryId.toString() : undefined,
+      category: selectedCategoryName || (selectedCategoryId ? selectedCategoryId.toString() : undefined),
       sortBy: sortField,
       sortOrder,
       limit: 12
     };
-  }, [debouncedSearchQuery, selectedCategoryId, sortBy]);
+  }, [debouncedSearchQuery, selectedCategoryName, selectedCategoryId, sortBy]);
 
   const {
     data,
