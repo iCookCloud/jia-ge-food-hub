@@ -75,7 +75,7 @@ const App = () => (
                 <MaterialsPage />
               </ProtectedRoute>
             } />
-            <Route path="/materials/:id" element={
+            <Route path="/materials/:type/:id" element={
               <ProtectedRoute>
                 <MaterialDetailPage />
               </ProtectedRoute>

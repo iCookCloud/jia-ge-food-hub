@@ -348,7 +348,7 @@ const MaterialsPage = () => {
     const isImage = material.type === 'image';
 
     return (
-      <Link to={`/materials/${material.id}`}>
+      <Link to={`/materials/${material.type}/${material.id}`}>
         <Card className="group hover:shadow-lg transition-all duration-300 hover-scale">
           <CardContent className="p-0">
             {/* 素材预览 */}
