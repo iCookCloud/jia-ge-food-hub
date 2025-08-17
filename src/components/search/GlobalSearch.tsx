@@ -290,7 +290,10 @@ export function GlobalSearch({ children }: GlobalSearchProps) {
                                   {result.metadata && (
                                     <div className="flex items-center space-x-2 mt-1 text-xs text-muted-foreground">
                                       {result.metadata.price && (
-                                        <span>¥{result.metadata.price}/{result.metadata.unit}</span>
+                                        <span>
+                                          ¥{result.metadata.price}
+                                          {result.metadata.unit && result.metadata.unit !== "个" && `/${result.metadata.unit}`}
+                                        </span>
                                       )}
                                       {result.metadata.verified && (
                                         <Badge variant="outline" className="text-xs">已认证</Badge>

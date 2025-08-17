@@ -3,6 +3,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, MessageCircle, Plus, Minus, Snowflake, AlertTriangle, Package2, Star } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
+import { useNavigate } from "react-router-dom";
 
 interface ProductCardProps {
   product: {
@@ -30,6 +31,7 @@ interface ProductCardProps {
 
 export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
   const { addItem, updateQuantity, getItemQuantity } = useCart();
+  const navigate = useNavigate();
   const currentQuantity = getItemQuantity(product.id);
 
   // 存储要求转换
@@ -42,7 +44,12 @@ export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
     }
   };
 
-  const handleAddToCart = () => {
+  const handleCardClick = () => {
+    navigate(`/products/${product.id}`);
+  };
+
+  const handleAddToCart = (e?: React.MouseEvent) => {
+    e?.stopPropagation(); // 防止触发卡片点击
     if (currentQuantity === 0) {
       addItem({
         id: product.id,
@@ -58,7 +65,8 @@ export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
     }
   };
 
-  const handleDecreaseQuantity = () => {
+  const handleDecreaseQuantity = (e?: React.MouseEvent) => {
+    e?.stopPropagation(); // 防止触发卡片点击
     if (currentQuantity > 0) {
       updateQuantity(product.id, currentQuantity - 1);
     }
@@ -66,7 +74,10 @@ export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
   // Grid模式（默认大卡片）
   if (mode === "grid") {
     return (
-      <Card className="group hover:shadow-card transition-all duration-200 hover:scale-[1.02] overflow-hidden">
+      <Card 
+        className="group hover:shadow-card transition-all duration-200 hover:scale-[1.02] overflow-hidden cursor-pointer" 
+        onClick={handleCardClick}
+      >
         <div className="aspect-square overflow-hidden bg-muted">
           {product.image ? (
             <img 
@@ -147,9 +158,11 @@ export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
                 <span className="text-lg font-bold text-primary">
                   ¥{product.price}
                 </span>
-                <span className="text-xs text-muted-foreground">
-                  /{product.unit}
-                </span>
+                {product.unit && product.unit !== "个" && (
+                  <span className="text-xs text-muted-foreground">
+                    /{product.unit}
+                  </span>
+                )}
               </div>
               
               {product.rating && (
@@ -192,7 +205,7 @@ export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
                 variant="outline" 
                 size="sm" 
                 className="flex-1"
-                onClick={handleAddToCart}
+                onClick={(e) => handleAddToCart(e)}
                 disabled={!product.inStock}
               >
                 <Plus className="h-3 w-3" />
@@ -203,7 +216,7 @@ export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
                 <Button 
                   variant="outline" 
                   size="icon-sm"
-                  onClick={handleDecreaseQuantity}
+                  onClick={(e) => handleDecreaseQuantity(e)}
                 >
                   <Minus className="h-3 w-3" />
                 </Button>
@@ -213,7 +226,7 @@ export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
                 <Button 
                   variant="outline" 
                   size="icon-sm"
-                  onClick={handleAddToCart}
+                  onClick={(e) => handleAddToCart(e)}
                 >
                   <Plus className="h-3 w-3" />
                 </Button>
@@ -227,7 +240,10 @@ export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
 
   // List模式（条状简版）
   return (
-    <Card className="group hover:shadow-card transition-all duration-200 overflow-hidden">
+    <Card 
+      className="group hover:shadow-card transition-all duration-200 overflow-hidden cursor-pointer" 
+      onClick={handleCardClick}
+    >
       <div className="p-3 sm:p-4">
         <div className="flex gap-3 sm:gap-4">
           {/* 商品图片 - 小尺寸 */}
@@ -262,9 +278,11 @@ export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
                   <span className="text-base sm:text-lg font-bold text-primary">
                     ¥{product.price}
                   </span>
-                  <span className="text-xs text-muted-foreground">
-                    /{product.unit}
-                  </span>
+                  {product.unit && product.unit !== "个" && (
+                    <span className="text-xs text-muted-foreground">
+                      /{product.unit}
+                    </span>
+                  )}
                 </div>
                 {product.rating && (
                   <div className="flex items-center justify-end space-x-1 mt-1">
@@ -356,7 +374,7 @@ export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
                   variant="outline" 
                   size="sm" 
                   className="text-xs px-2 sm:px-3 flex-1"
-                  onClick={handleAddToCart}
+                  onClick={(e) => handleAddToCart(e)}
                   disabled={!product.inStock}
                 >
                   <Plus className="h-3 w-3 mr-1" />
@@ -368,7 +386,7 @@ export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
                     variant="outline" 
                     size="icon-sm"
                     className="w-6 h-6 sm:w-8 sm:h-8"
-                    onClick={handleDecreaseQuantity}
+                    onClick={(e) => handleDecreaseQuantity(e)}
                   >
                     <Minus className="h-3 w-3" />
                   </Button>
@@ -379,7 +397,7 @@ export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
                     variant="outline" 
                     size="icon-sm"
                     className="w-6 h-6 sm:w-8 sm:h-8"
-                    onClick={handleAddToCart}
+                    onClick={(e) => handleAddToCart(e)}
                   >
                     <Plus className="h-3 w-3" />
                   </Button>

@@ -128,7 +128,7 @@ const ProductsPage = () => {
     name: product.standard_chinese_name || product.standard_english_name || product.sku,
     image: product.product_image || "/placeholder.svg",
     price: product.unit_price || "0.00",
-    unit: product.unit || "个",
+    unit: product.unit || "",
     specifications: product.specifications || "暂无规格说明",
     sku: product.sku,
     subcategory: product.subcategory,

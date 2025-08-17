@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Select,
   SelectContent,
@@ -21,8 +20,6 @@ import {
   Filter,
   Eye,
   Plus,
-  TrendingUp,
-  BarChart,
   Image,
   FileImage
 } from "lucide-react";
@@ -147,7 +144,6 @@ const MaterialsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState("全部");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSupplier, setSelectedSupplier] = useState("全部");
-  const [activeTab, setActiveTab] = useState("all");
   
   // 对搜索词进行防抖处理，500ms延迟
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -175,9 +171,8 @@ const MaterialsPage = () => {
   const filters = useMemo(() => ({
     search: debouncedSearchTerm,
     category: selectedCategory === "全部" ? undefined : selectedCategory,
-    supplier: selectedSupplier === "全部" ? undefined : selectedSupplier,
-    user_only: activeTab === "mine" ? user?.id : undefined
-  }), [debouncedSearchTerm, selectedCategory, selectedSupplier, activeTab, user?.id]);
+    supplier: selectedSupplier === "全部" ? undefined : selectedSupplier
+  }), [debouncedSearchTerm, selectedCategory, selectedSupplier]);
 
   const pagination = useMemo(() => ({
     page: currentPage,
@@ -188,7 +183,7 @@ const MaterialsPage = () => {
   
   // Use mock data as fallback for first page only
   const mockMaterials = mockVideos.map(video => ({ ...video, type: 'video' as const }));
-  const displayMaterials = materials.length > 0 ? materials : (activeTab === "all" && currentPage === 1 ? mockMaterials : []);
+  const displayMaterials = materials.length > 0 ? materials : (currentPage === 1 ? mockMaterials : []);
   
   // 管理数据累积和重置
   useEffect(() => {
@@ -226,8 +221,7 @@ const MaterialsPage = () => {
   const prevFiltersForReset = useRef({
     selectedCategory,
     debouncedSearchTerm,
-    selectedSupplier,
-    activeTab
+    selectedSupplier
   });
   
   // 当过滤条件真正改变时，重置分页状态
@@ -236,15 +230,13 @@ const MaterialsPage = () => {
     const hasRealChange = 
       prev.selectedCategory !== selectedCategory ||
       prev.debouncedSearchTerm !== debouncedSearchTerm ||
-      prev.selectedSupplier !== selectedSupplier ||
-      prev.activeTab !== activeTab;
+      prev.selectedSupplier !== selectedSupplier;
     
     // 更新记录的过滤条件
     prevFiltersForReset.current = {
       selectedCategory,
       debouncedSearchTerm,
-      selectedSupplier,
-      activeTab
+      selectedSupplier
     };
     
     // 只有在确实有变化时才重置状态
@@ -253,7 +245,7 @@ const MaterialsPage = () => {
       setAllMaterials([]);
       setHasMore(true);
     }
-  }, [selectedCategory, debouncedSearchTerm, selectedSupplier, activeTab]);
+  }, [selectedCategory, debouncedSearchTerm, selectedSupplier]);
 
   // 加载更多处理函数
   const handleLoadMore = useCallback(() => {
@@ -265,11 +257,6 @@ const MaterialsPage = () => {
 
   // 无限滚动功能
   useEffect(() => {
-    // 只在"全部素材"标签页启用无限滚动
-    if (activeTab !== "all") {
-      return;
-    }
-
     const handleScroll = () => {
       // 更严格的条件检查
       if (!hasMore || isLoadingMore || isLoading) {
@@ -306,7 +293,7 @@ const MaterialsPage = () => {
       window.removeEventListener('scroll', debouncedHandleScroll);
       clearTimeout(timeoutId);
     };
-  }, [hasMore, isLoadingMore, isLoading, handleLoadMore, activeTab]);
+  }, [hasMore, isLoadingMore, isLoading, handleLoadMore]);
 
   // 使用累积的数据而不是当前页数据
   // 添加保护：如果allMaterials为空但displayMaterials有数据，使用displayMaterials（防止数据意外清空）
@@ -501,167 +488,120 @@ const MaterialsPage = () => {
           )}
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="all">全部素材</TabsTrigger>
-            <TabsTrigger value="mine">我的素材</TabsTrigger>
-            <TabsTrigger value="stats">数据统计</TabsTrigger>
-          </TabsList>
-          
-          {/* All Videos Tab */}
-          <TabsContent value="all" className="mt-6">
-            {/* Filters */}
-            <Card className="mb-6">
-              <CardContent className="p-4">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                      {isSearching && (
-                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                          <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
-                        </div>
-                      )}
-                      <Input
-                        placeholder="搜索素材标题、描述或标签..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className={`pl-10 ${isSearching ? 'pr-10' : ''}`}
-                      />
+        {/* Filters */}
+        <Card className="mb-6">
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  {isSearching && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
                     </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                      <SelectTrigger className="w-48">
-                        <Filter className="w-4 h-4 mr-2" />
-                        <SelectValue placeholder="选择分类" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map(category => (
-                          <SelectItem key={category} value={category}>{category}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    
-                    <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-                      <SelectTrigger className="w-48">
-                        <User className="w-4 h-4 mr-2" />
-                        <SelectValue placeholder="选择供应商" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="全部">全部供应商</SelectItem>
-                        <SelectItem value="海鲜直供">海鲜直供</SelectItem>
-                        <SelectItem value="优质肉类">优质肉类</SelectItem>
-                        <SelectItem value="绿色农场">绿色农场</SelectItem>
-                        <SelectItem value="香料专家">香料专家</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  )}
+                  <Input
+                    placeholder="搜索素材标题、描述或标签..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className={`pl-10 ${isSearching ? 'pr-10' : ''}`}
+                  />
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Video Grid */}
-            {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[...Array(6)].map((_, i) => (
-                  <Card key={i} className="animate-pulse">
-                    <CardContent className="p-0">
-                      <div className="aspect-video bg-muted rounded-t-lg"></div>
-                      <div className="p-4 space-y-2">
-                        <div className="h-4 bg-muted rounded w-3/4"></div>
-                        <div className="h-3 bg-muted rounded w-1/2"></div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
               </div>
-            ) : error ? (
-              <div className="text-center py-12">
-                <p className="text-destructive mb-4">加载素材时出现错误</p>
-                <Button 
-                  variant="outline" 
-                  onClick={() => window.location.reload()}
-                >
-                  重新加载
-                </Button>
+              <div className="flex gap-2">
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="w-48">
+                    <Filter className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="选择分类" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(category => (
+                      <SelectItem key={category} value={category}>{category}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+                  <SelectTrigger className="w-48">
+                    <User className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="选择供应商" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="全部">全部供应商</SelectItem>
+                    <SelectItem value="海鲜直供">海鲜直供</SelectItem>
+                    <SelectItem value="优质肉类">优质肉类</SelectItem>
+                    <SelectItem value="绿色农场">绿色农场</SelectItem>
+                    <SelectItem value="香料专家">香料专家</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            ) : filteredMaterials.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground mb-4">没有找到符合条件的素材</p>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setSearchTerm("");
-                    setSelectedCategory("全部");
-                    setSelectedSupplier("全部");
-                  }}
-                >
-                  清除筛选条件
-                </Button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredMaterials.map((material: MaterialItem) => (
-                  <MaterialCard key={material.id} material={material} />
-                ))}
-              </div>
-            )}
-
-            {/* Loading More Skeleton */}
-            {isLoadingMore && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                {[...Array(3)].map((_, i) => (
-                  <Card key={`loading-${i}`} className="animate-pulse">
-                    <CardContent className="p-0">
-                      <div className="aspect-video bg-muted rounded-t-lg"></div>
-                      <div className="p-4 space-y-2">
-                        <div className="h-4 bg-muted rounded w-3/4"></div>
-                        <div className="h-3 bg-muted rounded w-1/2"></div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-          
-          {/* My Materials Tab */}
-          <TabsContent value="mine" className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredMaterials.filter((material: MaterialItem) => 
-                material.uploaded_by === user?.id || material.supplier === user?.email
-              ).map((material: MaterialItem) => (
-                <MaterialCard key={material.id} material={material} />
-              ))}
             </div>
-          </TabsContent>
-          
-          {/* Stats Tab */}
-          <TabsContent value="stats" className="mt-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              {[
-                { label: "我的素材", value: displayMaterials.filter((m: MaterialItem) => m.uploaded_by === user?.id || m.supplier === user?.email).length, icon: Video },
-                { label: "总观看", value: "5.8K", icon: Eye },
-                { label: "转化订单", value: 23, icon: TrendingUp },
-                { label: "素材引用", value: 45, icon: BarChart }
-              ].map((stat, index) => (
-                <Card key={index}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-2">
-                      <stat.icon className="h-6 w-6 text-primary" />
-                      <div>
-                        <p className="text-xl font-bold">{stat.value}</p>
-                        <p className="text-xs text-muted-foreground">{stat.label}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-        </Tabs>
+          </CardContent>
+        </Card>
+
+        {/* Materials Grid */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i} className="animate-pulse">
+                <CardContent className="p-0">
+                  <div className="aspect-video bg-muted rounded-t-lg"></div>
+                  <div className="p-4 space-y-2">
+                    <div className="h-4 bg-muted rounded w-3/4"></div>
+                    <div className="h-3 bg-muted rounded w-1/2"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-destructive mb-4">加载素材时出现错误</p>
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.reload()}
+            >
+              重新加载
+            </Button>
+          </div>
+        ) : filteredMaterials.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground mb-4">没有找到符合条件的素材</p>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setSearchTerm("");
+                setSelectedCategory("全部");
+                setSelectedSupplier("全部");
+              }}
+            >
+              清除筛选条件
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredMaterials.map((material: MaterialItem) => (
+              <MaterialCard key={material.id} material={material} />
+            ))}
+          </div>
+        )}
+
+        {/* Loading More Skeleton */}
+        {isLoadingMore && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+            {[...Array(3)].map((_, i) => (
+              <Card key={`loading-${i}`} className="animate-pulse">
+                <CardContent className="p-0">
+                  <div className="aspect-video bg-muted rounded-t-lg"></div>
+                  <div className="p-4 space-y-2">
+                    <div className="h-4 bg-muted rounded w-3/4"></div>
+                    <div className="h-3 bg-muted rounded w-1/2"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
         {/* Load More */}
         {filteredMaterials.length > 0 && hasMore && (

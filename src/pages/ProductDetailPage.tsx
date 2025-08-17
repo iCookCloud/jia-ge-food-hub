@@ -194,7 +194,9 @@ const ProductDetailPage = () => {
                 <span className="text-3xl font-bold text-primary">
                   ¥{currentPrice}
                 </span>
-                <span className="text-muted-foreground">/{product.unit || "件"}</span>
+                {product.unit && product.unit !== "个" && (
+                  <span className="text-muted-foreground">/{product.unit}</span>
+                )}
               </div>
               <div className="text-sm text-muted-foreground space-y-1">
                 {product.vendor && (
@@ -240,7 +242,7 @@ const ProductDetailPage = () => {
                         <Minus className="h-4 w-4" />
                       </Button>
                       <div className="flex-1 text-center font-medium">
-                        {currentQuantity} {product.unit || "件"}
+                        {currentQuantity}{product.unit && product.unit !== "个" ? ` ${product.unit}` : ""}
                       </div>
                       <Button 
                         variant="outline" 
@@ -292,10 +294,12 @@ const ProductDetailPage = () => {
                         <span>{product.subcategory}</span>
                       </div>
                     )}
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">计量单位:</span>
-                      <span>{product.unit || "件"}</span>
-                    </div>
+                    {product.unit && product.unit !== "个" && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">计量单位:</span>
+                        <span>{product.unit}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
