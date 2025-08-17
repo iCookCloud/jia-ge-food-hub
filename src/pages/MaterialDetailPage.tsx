@@ -135,10 +135,23 @@ const MaterialDetailPage = () => {
             .single();
 
           if (data && !error) {
+            // 处理多图数据
+            let images: string[] = [];
+            
+            // 如果有 images_data，使用多图数据
+            if (data.images_data && data.images_data.images && Array.isArray(data.images_data.images)) {
+              images = data.images_data.images.map((img: any) => img.public_url).filter(Boolean);
+            }
+            
+            // 如果没有多图数据，使用单图数据作为后备
+            if (images.length === 0 && data.public_url) {
+              images = [data.public_url];
+            }
+            
             materialData = {
               ...data,
               type: 'image' as const,
-              images: data.public_url ? [data.public_url] : [],
+              images: images,
               image_product_associations: data.image_product_associations || []
             };
           } else {
