@@ -142,41 +142,37 @@ export const orderListResponseService = {
       const originalAmount = await this.calculateTotalAmount(originalOrderList, []);
       const modifiedAmount = await this.calculateTotalAmount(originalOrderList, modifications);
 
-      // 检查是否已经存在待确认的报价
-      const { data: existingQuotation } = await supabase
-        .from('order_list_quotations')
-        .select('*')
-        .eq('order_list_id', orderListId)
-        .eq('quoted_by', currentUserId)
-        .eq('status', 'pending')
-        .single();
-
+      // 尝试更新现有报价（使用UPSERT模式避免查询时序问题）
       let response;
       let isUpdate = false;
 
-      if (existingQuotation) {
-        // 更新现有报价
-        const { data: updateResponse, error: updateError } = await supabase
-          .from('order_list_quotations')
-          .update({
-            original_total_amount: originalAmount,
-            quoted_total_amount: modifiedAmount,
-            quoted_items: modifications,
-            message,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingQuotation.id)
-          .select()
-          .single();
+      // 首先尝试更新现有的待确认报价
+      const { data: updateResponse, error: updateError } = await supabase
+        .from('order_list_quotations')
+        .update({
+          original_total_amount: originalAmount,
+          quoted_total_amount: modifiedAmount,
+          quoted_items: modifications,
+          message,
+          updated_at: new Date().toISOString()
+        })
+        .eq('order_list_id', orderListId)
+        .eq('quoted_by', currentUserId)
+        .eq('status', 'pending')
+        .select()
+        .maybeSingle();
 
-        if (updateError) {
-          console.error('Error updating order_list_quotations:', updateError);
-          throw updateError;
-        }
+      if (updateError) {
+        console.error('Error updating order_list_quotations:', updateError);
+        throw updateError;
+      }
+
+      if (updateResponse) {
+        // 更新成功
         response = updateResponse;
         isUpdate = true;
       } else {
-        // 创建新的报价
+        // 没有找到现有记录，创建新的报价
         const { data: createResponse, error: createError } = await supabase
           .from('order_list_quotations')
           .insert({
@@ -215,10 +211,10 @@ export const orderListResponseService = {
           .from('order_list_quotations')
           .update({ generated_order_id: orderId })
           .eq('id', response.id);
-      } else if (existingQuotation.generated_order_id) {
+      } else if (response.generated_order_id) {
         // 更新现有未确认订单
-        await this.updateExistingOrder(existingQuotation.generated_order_id, orderListId, modifications);
-        orderId = existingQuotation.generated_order_id;
+        await this.updateExistingOrder(response.generated_order_id, orderListId, modifications);
+        orderId = response.generated_order_id;
       }
 
       // 更新分享状态为已报价（只在新建报价时）
@@ -396,6 +392,11 @@ export const orderListResponseService = {
     modifications: ItemModification[]
   ): Promise<{ id: string; user_id: string; total_amount: number }> {
     try {
+      // 获取当前用户ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      const currentUserId = user.id;
+
       // 获取原始货单信息
       const { data: originalOrderList, error: orderError } = await supabase
         .from('product_lists')
