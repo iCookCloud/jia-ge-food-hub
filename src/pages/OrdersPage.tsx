@@ -32,10 +32,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 const OrdersPage = () => {
   const [activeTab, setActiveTab] = useState("order-lists");
-  const [orderFilter, setOrderFilter] = useState("all"); // "all", "pending", "confirmed"
+  const [orderFilter, setOrderFilter] = useState("all"); // "all", "pending", "confirmed", "as_buyer", "as_supplier"
   const { data: productLists, isLoading } = useProductLists();
   const { data: orders, isLoading: ordersLoading } = useOrders();
-  const { isSupplier } = useAuth();
+  const { isSupplier, user } = useAuth();
   const [sharedOrderLists, setSharedOrderLists] = useState([]);
   const [loadingShared, setLoadingShared] = useState(false);
   const navigate = useNavigate();
@@ -47,22 +47,32 @@ const OrdersPage = () => {
   const { orderLists, filteredOrders } = useMemo(() => {
     const allLists = productLists || [];
     const allOrders = orders || [];
+    const currentUserId = user?.id;
     
     // 货单：草稿、已分享、协商中状态
     const orderLists = allLists.filter(list => 
       ['draft', 'shared', 'negotiating'].includes(list.status)
     );
     
-    // 真正的订单：从 orders 表查询，按状态筛选
+    // 真正的订单：从 orders 表查询，按状态和角色筛选
     let filteredOrders = allOrders;
+    
     if (orderFilter === "pending") {
       filteredOrders = allOrders.filter(order => order.is_confirmed === false);
     } else if (orderFilter === "confirmed") {
       filteredOrders = allOrders.filter(order => order.is_confirmed === true);
+    } else if (orderFilter === "as_buyer") {
+      // 作为买家的订单：user_id是当前用户
+      filteredOrders = allOrders.filter(order => order.user_id === currentUserId);
+    } else if (orderFilter === "as_supplier") {
+      // 作为供应商的订单：quotation.quoted_by是当前用户
+      filteredOrders = allOrders.filter(order => 
+        order.quotation?.quoted_by === currentUserId
+      );
     }
     
     return { orderLists, filteredOrders };
-  }, [productLists, orders, orderFilter]);
+  }, [productLists, orders, orderFilter, user?.id]);
 
   // 加载分享给我的货单（供应商视图）
   const loadSharedOrderLists = async () => {
@@ -344,7 +354,7 @@ const OrdersPage = () => {
           {/* 订单列表 */}
           <TabsContent value="confirmed-orders" className="mt-6">
             {/* 订单状态筛选 */}
-            <div className="flex gap-2 mb-6">
+            <div className="flex flex-wrap gap-2 mb-6">
               <Button 
                 variant={orderFilter === "all" ? "default" : "outline"}
                 size="sm"
@@ -352,6 +362,24 @@ const OrdersPage = () => {
               >
                 全部订单
               </Button>
+              {isSupplier && (
+                <>
+                  <Button 
+                    variant={orderFilter === "as_buyer" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setOrderFilter("as_buyer")}
+                  >
+                    我购买的 ({orders?.filter(o => o.user_id === user?.id).length || 0})
+                  </Button>
+                  <Button 
+                    variant={orderFilter === "as_supplier" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setOrderFilter("as_supplier")}
+                  >
+                    收到的订单 ({orders?.filter(o => o.quotation?.quoted_by === user?.id).length || 0})
+                  </Button>
+                </>
+              )}
               <Button 
                 variant={orderFilter === "pending" ? "default" : "outline"}
                 size="sm"
@@ -386,10 +414,15 @@ const OrdersPage = () => {
                 <CheckCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">
                   {orderFilter === "pending" ? "没有待确认的订单" : 
-                   orderFilter === "confirmed" ? "没有已确认的订单" : "还没有订单"}
+                   orderFilter === "confirmed" ? "没有已确认的订单" :
+                   orderFilter === "as_buyer" ? "没有购买的订单" :
+                   orderFilter === "as_supplier" ? "没有收到的订单" : "还没有订单"}
                 </h3>
                 <p className="text-muted-foreground mb-4">
-                  {orderFilter === "pending" ? "当供应商提交报价后，会生成待确认订单" : 
+                  {orderFilter === "pending" ? "当供应商提交报价后，会生成待确认订单" :
+                   orderFilter === "confirmed" ? "当供应商提交报价并确认后，会生成订单" :
+                   orderFilter === "as_buyer" ? "您作为买家确认的订单会出现在这里" :
+                   orderFilter === "as_supplier" ? "您作为供应商收到的订单会出现在这里" :
                    "当供应商提交报价并确认后，会生成订单"}
                 </p>
                 <Button asChild variant="outline">
@@ -411,6 +444,16 @@ const OrdersPage = () => {
                           <Badge variant={order.is_confirmed ? "default" : "secondary"}>
                             {order.is_confirmed ? "已确认" : "待确认"}
                           </Badge>
+                          {/* 角色标识 */}
+                          {order.user_id === user?.id ? (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              我购买的
+                            </Badge>
+                          ) : order.quotation?.quoted_by === user?.id ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              收到的订单
+                            </Badge>
+                          ) : null}
                         </div>
                         <p className="text-sm text-muted-foreground">
                           创建时间: {formatDateTime(order.created_at)}
@@ -442,23 +485,47 @@ const OrdersPage = () => {
                               >
                                 查看详情
                               </Button>
-                              <Button 
-                                size="sm"
-                                onClick={() => handleConfirmOrder(order.id)}
-                                disabled={confirmingOrderId === order.id}
-                              >
-                                {confirmingOrderId === order.id ? "确认中..." : "确认订单"}
-                              </Button>
+                              {/* 只有买家可以确认订单 */}
+                              {order.user_id === user?.id && (
+                                <Button 
+                                  size="sm"
+                                  onClick={() => handleConfirmOrder(order.id)}
+                                  disabled={confirmingOrderId === order.id}
+                                >
+                                  {confirmingOrderId === order.id ? "确认中..." : "确认订单"}
+                                </Button>
+                              )}
+                              {/* 供应商看到等待买家确认的提示 */}
+                              {order.quotation?.quoted_by === user?.id && (
+                                <Badge variant="outline" className="text-orange-600">
+                                  等待买家确认
+                                </Badge>
+                              )}
                             </>
                           )}
                           {order.is_confirmed && (
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => navigate(`/orders/${order.id}`)}
-                            >
-                              查看详情
-                            </Button>
+                            <>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => navigate(`/orders/${order.id}`)}
+                              >
+                                查看详情
+                              </Button>
+                              {/* 供应商看到已确认订单时显示发货相关操作 */}
+                              {order.quotation?.quoted_by === user?.id && (
+                                <Button 
+                                  size="sm"
+                                  variant="default"
+                                  onClick={() => {
+                                    // TODO: 实现发货功能
+                                    toast({ title: "发货功能开发中" });
+                                  }}
+                                >
+                                  安排发货
+                                </Button>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>

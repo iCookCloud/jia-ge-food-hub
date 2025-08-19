@@ -82,6 +82,14 @@ export const orderService = {
           product_sku,
           product_name,
           product_snapshot
+        ),
+        quotation:order_list_quotations!quotation_id (
+          id,
+          quoted_by,
+          quoted_by_profile:profiles!quoted_by (
+            nickname,
+            company_name
+          )
         )
       `);
 
