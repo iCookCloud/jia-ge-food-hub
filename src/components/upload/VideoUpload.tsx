@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { productService } from '@/services/api';
 import { Product } from '@/hooks/useProducts';
 import { ProductSelector } from '@/components/product/ProductSelector';
+import { storageService } from '@/services/storageService';
 
 type UploadMode = 'video' | 'images';
 
@@ -635,7 +636,6 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
       }, 200);
 
       // 使用 storageService 上传图片到 Supabase Storage
-      const { storageService } = await import('@/services/storageService');
       const result = await storageService.uploadFile(file, {
         bucket: 'product-images',
         folder: 'upload-images',
@@ -1068,7 +1068,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
                       <ProductSelector
                         selectedProductIds={uploadingVideo.selectedProducts}
                         onSelectionChange={(productIds) => updateVideoProducts(uploadingVideo.file, productIds)}
-                        maxSelection={10}
+                        maxSelection={999}
                       />
 
                       {/* 上传按钮 */}
@@ -1352,7 +1352,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
               <ProductSelector
                 selectedProductIds={imageCollection.selectedProducts}
                 onSelectionChange={updateCollectionProducts}
-                maxSelection={10}
+                maxSelection={999}
               />
 
               {/* 创建素材按钮 */}

@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMaterial } from "@/hooks/useMaterials";
 import { MaterialViewer } from "@/components/material/MaterialViewer";
 import { ProductList } from "@/components/material/ProductCard";
+import { useCart } from "@/hooks/useCart";
 import { Database } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -70,6 +71,7 @@ const MaterialDetailPage = () => {
   const { type, id } = useParams<{ type: string; id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { addItem } = useCart();
   const [isLiked, setIsLiked] = useState(false);
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
   const [material, setMaterial] = useState<MaterialDetailItem | null>(null);
@@ -224,8 +226,31 @@ const MaterialDetailPage = () => {
     setLoadingProductId(association.id);
 
     try {
-      // 这里集成购物车逻辑
-      // 暂时只显示成功提示
+      // 优先使用快照中的展示字段，确保名称/图片/价格/规格正确
+      const snap: any = (association as any).product_snapshot || {};
+      const nameFromSnapshot = snap.standard_chinese_name || snap.standard_english_name || association.product_name;
+      const priceFromSnapshot = typeof snap.price === 'number' ? String(snap.price) : (snap.price ?? '0');
+      const imageFromSnapshot = snap.main_image_url || '';
+      const specFromSnapshot = snap.specification || association.product_sku || '';
+      const unitFromSnapshot = snap.unit || '件';
+      const vendorFromSnapshot = snap.vendor || '未知供应商';
+
+      const cartItem = {
+        id: association.original_product_id || association.id,
+        name: nameFromSnapshot || '未知商品',
+        price: priceFromSnapshot || '0',
+        unit: unitFromSnapshot,
+        image: imageFromSnapshot,
+        specifications: specFromSnapshot,
+        supplier: {
+          name: vendorFromSnapshot,
+          verified: true
+        }
+      };
+
+      // 添加到购物车
+      addItem(cartItem, 1);
+      
       toast({
         title: "添加成功",
         description: `${association.product_name} 已添加到购物车`,
@@ -239,6 +264,74 @@ const MaterialDetailPage = () => {
       });
     } finally {
       setLoadingProductId(null);
+    }
+  };
+
+  // 批量添加到购物车功能
+  const handleAddAllToCart = async (associations: (VideoProductAssociation | ImageProductAssociation)[]) => {
+    try {
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const association of associations) {
+        try {
+          // 优先使用快照中的展示字段
+          const snap: any = (association as any).product_snapshot || {};
+          const nameFromSnapshot = snap.standard_chinese_name || snap.standard_english_name || association.product_name;
+          const priceFromSnapshot = typeof snap.price === 'number' ? String(snap.price) : (snap.price ?? '0');
+          const imageFromSnapshot = snap.main_image_url || '';
+          const specFromSnapshot = snap.specification || association.product_sku || '';
+          const unitFromSnapshot = snap.unit || '件';
+          const vendorFromSnapshot = snap.vendor || '未知供应商';
+
+          const cartItem = {
+            id: association.original_product_id || association.id,
+            name: nameFromSnapshot || '未知商品',
+            price: priceFromSnapshot || '0',
+            unit: unitFromSnapshot,
+            image: imageFromSnapshot,
+            specifications: specFromSnapshot,
+            supplier: {
+              name: vendorFromSnapshot,
+              verified: true
+            }
+          };
+
+          // 添加到购物车
+          addItem(cartItem, 1);
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to add ${association.product_name} to cart:`, error);
+          failCount++;
+        }
+      }
+
+      // 显示批量添加结果
+      if (successCount > 0 && failCount === 0) {
+        toast({
+          title: "批量添加成功",
+          description: `成功添加 ${successCount} 个商品到购物车`,
+        });
+      } else if (successCount > 0 && failCount > 0) {
+        toast({
+          title: "部分添加成功",
+          description: `成功添加 ${successCount} 个商品，失败 ${failCount} 个`,
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "批量添加失败",
+          description: `所有商品添加失败，请稍后重试`,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Failed to batch add to cart:', error);
+      toast({
+        title: "批量添加失败",
+        description: "批量添加过程中发生错误，请稍后重试",
+        variant: "destructive"
+      });
     }
   };
 
@@ -485,7 +578,7 @@ const MaterialDetailPage = () => {
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center text-lg">
-                    <ShoppingCart className="w-5 h-5 mr-2" />
+                    <Package className="w-5 h-5 mr-2" />
                     关联商品
                   </CardTitle>
                   <Badge variant="secondary" className="text-xs">
@@ -501,6 +594,7 @@ const MaterialDetailPage = () => {
                   associations={getProductAssociations()}
                   onProductClick={handleProductClick}
                   onAddToCart={handleAddToCart}
+                  onAddAllToCart={handleAddAllToCart}
                   loadingProductId={loadingProductId}
                 />
               </CardContent>

@@ -77,7 +77,7 @@ export const orderService = {
       .from('orders')
       .select(`
         *,
-        order_items (
+        order_items!fk_order_items_order_id (
           *,
           product_sku,
           product_name,
@@ -103,7 +103,7 @@ export const orderService = {
       .from('orders')
       .select(`
         *,
-        order_items (
+        order_items!fk_order_items_order_id (
           *,
           product_sku,
           product_name,

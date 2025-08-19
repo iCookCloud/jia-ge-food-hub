@@ -5,7 +5,7 @@ import { CartItem } from '@/hooks/useCart';
 
 export const useProductLists = () => {
   return useQuery({
-    queryKey: ['productLists'],
+    queryKey: ['orderLists'],
     queryFn: async () => {
       const result = await productListService.getUserProductLists();
       if (result.error) {
@@ -36,15 +36,36 @@ export const useCreateProductListFromCart = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ cartItems, name }: { cartItems: CartItem[]; name: string }) => {
-      const result = await productListService.createFromCart(cartItems, name);
+    mutationFn: async ({ 
+      cartItems, 
+      name, 
+      description, 
+      deliveryLocation, 
+      specialRequirements, 
+      expectedDeliveryDate 
+    }: { 
+      cartItems: CartItem[]; 
+      name: string; 
+      description?: string; 
+      deliveryLocation?: string; 
+      specialRequirements?: string; 
+      expectedDeliveryDate?: string; 
+    }) => {
+      const result = await productListService.createFromCart(
+        cartItems, 
+        name, 
+        description, 
+        deliveryLocation, 
+        specialRequirements, 
+        expectedDeliveryDate
+      );
       if (result.error) {
         throw new Error(result.error.message);
       }
       return result.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['productLists'] });
+      queryClient.invalidateQueries({ queryKey: ['orderLists'] });
       toast({ title: "货单创建成功" });
     },
     onError: (error: any) => {
@@ -70,7 +91,7 @@ export const useUpdateProductListStatus = () => {
       return result.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['productLists'] });
+      queryClient.invalidateQueries({ queryKey: ['orderLists'] });
       toast({ title: "状态更新成功" });
     },
     onError: (error: any) => {

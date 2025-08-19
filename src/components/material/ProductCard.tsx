@@ -119,7 +119,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   // 处理添加购物车
   const handleAddToCart = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    e.stopPropagation(); // 阻止事件冒泡，避免触发卡片的查看详情
     if (loading || stockStatus === 'out_of_stock') {
       toast({
         title: "无法添加",
@@ -133,7 +133,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   // 处理收藏切换
   const handleToggleFavorite = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    e.stopPropagation(); // 阻止事件冒泡，避免触发卡片的查看详情
     onToggleFavorite?.(association);
   };
 
@@ -165,10 +165,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       onClick={handleProductClick}
     >
       <CardContent className="p-0">
-        <div className="flex gap-3 p-4">
+        <div className="flex flex-col p-4">
           {/* 商品图片 */}
-          <div className="relative flex-shrink-0">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-muted rounded-lg overflow-hidden">
+          <div className="relative flex-shrink-0 mb-3">
+            <div className="w-full h-32 bg-muted rounded-lg overflow-hidden">
               {productImage && !imageError ? (
                 <img
                   src={productImage}
@@ -198,16 +198,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
 
           {/* 商品信息 */}
-          <div className="flex-1 min-w-0 space-y-2">
+          <div className="flex-1 min-w-0 space-y-2 text-center">
             {/* 商品名称和促销标签 */}
             <div className="space-y-1">
-              <h4 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
+              <h4 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors text-center">
                 {productName}
               </h4>
               
               {/* 促销标签 */}
               {promotionalTags.length > 0 && (
-                <div className="flex gap-1 flex-wrap">
+                <div className="flex gap-1 flex-wrap justify-center">
                   {promotionalTags.slice(0, 2).map((tag, index) => (
                     <Badge key={index} variant="secondary" className="text-xs px-1.5 py-0.5">
                       {tag}
@@ -219,7 +219,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
             {/* 价格和规格 */}
             <div className="space-y-1">
-              <div className="flex items-baseline gap-2">
+              <div className="flex items-baseline justify-center gap-2">
                 <span className="text-lg font-bold text-primary">
                   ¥{productPrice.toFixed(2)}
                 </span>
@@ -227,27 +227,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </div>
               
               {productSpec && (
-                <p className="text-xs text-muted-foreground line-clamp-1">
+                <p className="text-xs text-muted-foreground line-clamp-1 text-center">
                   {productSpec}
                 </p>
               )}
             </div>
 
-            {/* 评分和库存状态 */}
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                {renderRating()}
-              </div>
-              
-              <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${stockInfo.bgColor}`}>
-                <stockInfo.icon className={`w-3 h-3 ${stockInfo.color}`} />
-                <span className={stockInfo.color}>{stockInfo.text}</span>
-              </div>
+            {/* 评分 */}
+            <div className="flex items-center justify-center">
+              {renderRating()}
             </div>
 
             {/* SKU信息 */}
             {association.product_sku && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground text-center">
                 SKU: {association.product_sku}
               </p>
             )}
@@ -255,27 +248,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         {/* 操作按钮区域 */}
-        <div className="px-4 pb-4 flex gap-2">
+        <div className="px-4 pb-4 mt-3">
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 h-8 text-xs"
+            className="w-full h-8 text-xs border-gray-300 hover:bg-gray-50"
             onClick={handleAddToCart}
             disabled={loading || stockStatus === 'out_of_stock'}
           >
-            <ShoppingCart className="w-3 h-3 mr-1" />
-            {stockStatus === 'out_of_stock' ? '缺货' : '加购物车'}
-          </Button>
-          
-          <Button
-            variant="default"
-            size="sm"
-            className="flex-1 h-8 text-xs"
-            onClick={handleProductClick}
-            disabled={loading}
-          >
-            <ExternalLink className="w-3 h-3 mr-1" />
-            查看详情
+            <Package className="w-3 h-3 mr-1" />
+            {stockStatus === 'out_of_stock' ? '缺货' : '加入货单'}
           </Button>
           
           {loading && (
@@ -294,6 +276,7 @@ interface ProductListProps {
   associations: ProductAssociation[];
   onProductClick?: (association: ProductAssociation) => void;
   onAddToCart?: (association: ProductAssociation) => void;
+  onAddAllToCart?: (associations: ProductAssociation[]) => void;
   loadingProductId?: string | null;
   className?: string;
 }
@@ -302,6 +285,7 @@ export const ProductList: React.FC<ProductListProps> = ({
   associations,
   onProductClick,
   onAddToCart,
+  onAddAllToCart,
   loadingProductId,
   className = ""
 }) => {
@@ -319,6 +303,21 @@ export const ProductList: React.FC<ProductListProps> = ({
     });
   };
 
+  // 一键加入所有货品到货单
+  const handleAddAllToOrderList = () => {
+    if (associations.length === 0) return;
+    
+    // 使用新的批量添加回调
+    if (onAddAllToCart) {
+      onAddAllToCart(associations);
+    } else {
+      // 如果没有批量回调，则逐个添加
+      associations.forEach(association => {
+        onAddToCart?.(association);
+      });
+    }
+  };
+
   if (associations.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -329,18 +328,36 @@ export const ProductList: React.FC<ProductListProps> = ({
   }
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      {associations.map((association) => (
-        <ProductCard
-          key={association.id}
-          association={association}
-          onProductClick={onProductClick}
-          onAddToCart={onAddToCart}
-          onToggleFavorite={handleToggleFavorite}
-          loading={loadingProductId === association.id}
-          isFavorite={favorites.has(association.id)}
-        />
-      ))}
+    <div className={className}>
+      {/* 一键加入所有货品按钮 */}
+      {associations.length > 1 && (
+        <div className="mb-4 flex justify-center">
+          <Button
+            variant="default"
+            size="sm"
+            className="flex items-center gap-2 px-6"
+            onClick={handleAddAllToOrderList}
+          >
+            <Package className="w-4 h-4" />
+            一键加入所有货品到货单 ({associations.length}个)
+          </Button>
+        </div>
+      )}
+      
+      {/* 商品网格 */}
+      <div className={`grid grid-cols-1 md:grid-cols-2 gap-4`}>
+        {associations.map((association) => (
+          <ProductCard
+            key={association.id}
+            association={association}
+            onProductClick={onProductClick}
+            onAddToCart={onAddToCart}
+            onToggleFavorite={handleToggleFavorite}
+            loading={loadingProductId === association.id}
+            isFavorite={favorites.has(association.id)}
+          />
+        ))}
+      </div>
     </div>
   );
 };

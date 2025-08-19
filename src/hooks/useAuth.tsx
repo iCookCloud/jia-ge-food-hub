@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { forceSignOut, cleanupExpiredAuth } from '@/utils/auth';
 
 export type UserRole = 'buyer' | 'supplier' | 'admin';
 
@@ -17,6 +18,7 @@ interface AuthContextType {
   session: Session | null;
   profile: UserProfile | null;
   userRole: UserRole | null;
+  userRoles: UserRole[];
   loading: boolean;
   signOut: () => Promise<void>;
   hasRole: (role: UserRole) => boolean;
@@ -45,10 +47,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
+    // 清理过期的认证数据
+    cleanupExpiredAuth();
+    
+    // 监听强制退出事件
+    const handleForceSignOut = () => {
+      console.log('Force signOut event received');
+      setProfile(null);
+      setUserRole(null);
+      setUserRoles([]);
+      setUser(null);
+      setSession(null);
+    };
+    
+    window.addEventListener('forceSignOut', handleForceSignOut);
+    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -66,6 +84,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           // Clear profile and role when signing out
           setProfile(null);
           setUserRole(null);
+          setUserRoles([]);
         }
         
         setLoading(false);
@@ -85,7 +104,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('forceSignOut', handleForceSignOut);
+    };
   }, []);
 
   const loadUserProfile = async (userId: string) => {
@@ -109,24 +131,44 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const loadUserRole = async (userId: string) => {
     try {
+      // 获取用户的所有活跃角色
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .eq('is_active', true)
-        .order('assigned_at', { ascending: false })
-        .limit(1)
-        .single();
+        .eq('is_active', true);
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-        console.error('Error loading user role:', error);
+      if (error) {
+        console.error('Error loading user roles:', error);
+        setUserRole('buyer'); // Default to buyer role
+        setUserRoles(['buyer']);
         return;
       }
 
-      setUserRole(data?.role || 'buyer');
+      if (!data || data.length === 0) {
+        setUserRole('buyer'); // Default to buyer role
+        setUserRoles(['buyer']);
+        return;
+      }
+
+      // 获取所有角色
+      const roles = data.map(item => item.role);
+      setUserRoles(roles);
+      
+      // 从所有角色中选择权限最高的角色 (admin > supplier > buyer)
+      let highestRole: UserRole = 'buyer';
+      
+      if (roles.includes('admin')) {
+        highestRole = 'admin';
+      } else if (roles.includes('supplier')) {
+        highestRole = 'supplier';
+      }
+
+      setUserRole(highestRole);
     } catch (error) {
       console.error('Error loading user role:', error);
       setUserRole('buyer'); // Default to buyer role
+      setUserRoles(['buyer']);
     }
   };
 
@@ -168,7 +210,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const hasRole = (role: UserRole): boolean => {
-    return userRole === role;
+    return userRoles.includes(role);
   };
 
   const isAdmin = hasRole('admin');
@@ -177,25 +219,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        toast({
-          title: "退出失败",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "已退出登录",
-          description: "您已成功退出账户",
-        });
-      }
-    } catch (error) {
+      // 显示退出中消息
       toast({
-        title: "退出失败",
-        description: "网络错误，请稍后重试",
-        variant: "destructive",
+        title: "正在退出...",
+        description: "请稍候",
       });
+      
+      // 使用安全的退出登录函数
+      await forceSignOut();
+      
+    } catch (error) {
+      console.error('SignOut error:', error);
+      
+      // 即使出错，也要显示退出完成消息
+      toast({
+        title: "退出完成",
+        description: "已清理登录状态",
+      });
+      
+      // 强制跳转到登录页
+      window.location.href = '/auth';
     }
   };
 
@@ -204,6 +247,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     session,
     profile,
     userRole,
+    userRoles,
     loading,
     signOut,
     hasRole,

@@ -17,7 +17,14 @@ interface CartItem {
 
 export const productListService = {
   // 从购物车创建货单
-  createFromCart: async (cartItems: CartItem[], name: string) => {
+  createFromCart: async (
+    cartItems: CartItem[], 
+    name: string, 
+    description?: string, 
+    deliveryLocation?: string, 
+    specialRequirements?: string, 
+    expectedDeliveryDate?: string
+  ) => {
     try {
       const totalAmount = cartItems.reduce((sum, item) => 
         sum + (parseFloat(item.price) * item.quantity), 0
@@ -28,6 +35,7 @@ export const productListService = {
         .from('product_lists')
         .insert({
           name,
+          description: description || null,
           total_amount: totalAmount,
           status: 'draft',
           share_code: Math.random().toString(36).substr(2, 8).toUpperCase(),
@@ -57,7 +65,7 @@ export const productListService = {
           main_image_url: item.image,
           source: 'global_erp',
           snapshot_time: new Date().toISOString()
-        },
+        } as any, // 使用 any 类型避免 JSON 类型检查问题
         product_sku: item.sku,
         product_name: item.name,
         snapshot_source: 'global_erp'
@@ -69,6 +77,23 @@ export const productListService = {
 
       if (itemsError) {
         return { data: null, error: itemsError };
+      }
+
+      // 如果有额外信息，更新货单
+      if (deliveryLocation || specialRequirements || expectedDeliveryDate) {
+        const updateData: any = {};
+        if (deliveryLocation) updateData.delivery_location = deliveryLocation;
+        if (specialRequirements) updateData.special_requirements = specialRequirements;
+        if (expectedDeliveryDate) updateData.expected_delivery_date = expectedDeliveryDate;
+
+        const { error: updateError } = await supabase
+          .from('product_lists')
+          .update(updateData)
+          .eq('id', productList.id);
+
+        if (updateError) {
+          console.warn('Failed to update additional fields:', updateError);
+        }
       }
 
       return { data: productList, error: null };
@@ -99,10 +124,10 @@ export const productListService = {
       const formattedData = data?.map(list => ({
         ...list,
         items: list.product_list_items?.map(item => ({
-          name: item.product_name || item.product_snapshot?.standard_chinese_name,
+          name: item.product_name || (item.product_snapshot as any)?.standard_chinese_name,
           sku: item.product_sku,
-          image: item.product_snapshot?.main_image_url,
-          specifications: item.product_snapshot?.specification,
+          image: (item.product_snapshot as any)?.main_image_url,
+          specifications: (item.product_snapshot as any)?.specification,
           quantity: item.quantity,
           price: item.unit_price
         })) || []
@@ -140,7 +165,7 @@ export const productListService = {
   },
 
   // 更新货单状态
-  updateStatus: async (id: string, status: 'draft' | 'shared' | 'expired') => {
+  updateStatus: async (id: string, status: 'draft' | 'shared' | 'negotiating' | 'confirmed' | 'delivered') => {
     try {
       const { data, error } = await supabase
         .from('product_lists')
@@ -157,5 +182,36 @@ export const productListService = {
     } catch (error) {
       return { data: null, error: error as any };
     }
-  }
+  },
+
+  // 更新货单信息
+  updateOrderList: async (id: string, updateData: {
+    name?: string;
+    description?: string;
+    delivery_location?: string;
+    special_requirements?: string;
+    expected_delivery_date?: string;
+  }) => {
+    try {
+      const { data, error } = await supabase
+        .from('product_lists')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      return { data: null, error: error as any };
+    }
+  },
+
+  // 分享货单给选中的供应商
+  // Note: shareToSuppliers 和 getQuotationStatus 方法已移除
+  // 现在使用 orderListShareService.shareOrderListToSuppliers 替代
+  // 报价状态查询使用 order_list_quotations 表
 };

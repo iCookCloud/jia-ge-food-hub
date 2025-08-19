@@ -16,7 +16,10 @@ import {
   Shield,
   Users,
   Building2,
-  FileText
+  FileText,
+  FileImage,
+  CheckCircle,
+  Zap
 } from 'lucide-react';
 
 interface ManagementCardProps {
@@ -73,16 +76,10 @@ const ManagementPage: React.FC = () => {
   // 基础管理功能（所有用户可访问）
   const basicManagementItems = [
     {
-      title: '个人资料',
-      description: '管理个人信息、头像和基本设置',
+      title: '信息管理',
+      description: '管理个人资料、企业信息和认证资料',
       icon: User,
-      href: '/profile/personal'
-    },
-    {
-      title: '企业信息',
-      description: '管理企业档案、认证信息和商业资料',
-      icon: Building2,
-      href: '/profile/personal?tab=company'
+      href: '/profile/management'
     },
     {
       title: '系统设置',
@@ -120,8 +117,21 @@ const ManagementPage: React.FC = () => {
       description: '管理用户账户、角色权限和访问控制',
       icon: Users,
       href: '/admin/users',
-      badge: '管理员',
-      disabled: true // 暂未实现
+      badge: '管理员'
+    },
+    {
+      title: '供应商认证',
+      description: '审核用户的供应商申请，管理供应商认证状态',
+      icon: CheckCircle,
+      href: '/admin/supplier-verification',
+      badge: '管理员'
+    },
+    {
+      title: '展示案例管理',
+      description: '管理和删除系统中的视频和图片展示案例',
+      icon: FileImage,
+      href: '/admin/materials',
+      badge: '管理员'
     },
     {
       title: '数据统计',
@@ -138,6 +148,27 @@ const ManagementPage: React.FC = () => {
       href: '/admin/system',
       badge: '管理员',
       disabled: true // 暂未实现
+    },
+    {
+      title: '实时更新测试',
+      description: '测试通知系统和实时更新功能',
+      icon: Zap,
+      href: '/admin/realtime-test',
+      badge: '测试工具'
+    },
+    {
+      title: '端到端测试',
+      description: '全面验证系统功能完整性和业务流程',
+      icon: CheckCircle,
+      href: '/admin/e2e-test',
+      badge: '测试工具'
+    },
+    {
+      title: '综合功能测试',
+      description: 'Week 4 - 完整的测试套件集合',
+      icon: FileText,
+      href: '/admin/comprehensive-test',
+      badge: 'Week 4'
     }
   ];
 

@@ -19,7 +19,9 @@
       "Bash(npx tsc:*)",
       "Bash(node:*)",
       "Bash(rm:*)",
-      "WebFetch(domain:trade.icook.cloud)"
+      "WebFetch(domain:trade.icook.cloud)",
+      "Bash(supabase db reset:*)",
+      "mcp__ide__getDiagnostics"
     ],
     "defaultMode": "acceptEdits"
   },

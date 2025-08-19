@@ -1,73 +1,219 @@
-# Welcome to your Lovable project
+# 嘉哥优选食品供应链平台
 
-## Project info
+## 🌟 最新更新 - 素材上传关联商品功能优化
 
-**URL**: https://lovable.dev/projects/42a6e05e-d685-4db3-8bf5-da61715b519c
+### ✨ 功能改进详情
 
-## How can I edit this code?
+#### 🔍 关联商品搜索优化
+- **显示数量提升**: 从每页10个商品增加到每页50个商品
+- **选择数量限制**: 移除关联商品选择数量限制，支持选择任意数量的商品
+- **SKU搜索支持**: 新增SKU精确搜索功能，支持按SKU快速查找商品
+- **智能搜索**: 自动识别SKU格式（字母数字组合），优先进行SKU搜索
+- **多字段搜索**: 支持按商品名称、SKU、规格、供应商等信息搜索
 
-There are several ways of editing your application.
+#### 🎯 用户体验提升
+- **SKU突出显示**: 在商品列表中SKU字段使用主色调显示，更加醒目
+- **供应商信息**: 显示商品对应的供应商信息
+- **搜索提示**: 提供搜索建议和提示信息
+- **分页优化**: 改进分页控件，显示更多商品信息
+- **关联商品布局**: 素材详情页关联商品一排显示2个，节省空间
+- **库存状态优化**: 移除库存状态显示，简化界面
+- **交互功能优化**: 点击商品卡片查看详情，加入货单按钮不超出边界
+- **货单功能**: 支持一键加入所有关联商品到货单
 
-**Use Lovable**
+#### 🛠️ 技术实现
+- **ProductSelector组件**: 重构商品选择器，支持大规模商品展示
+- **API服务优化**: 增强productService的搜索能力
+- **类型安全**: 修复TypeScript类型错误，提升代码质量
+- **响应式设计**: 优化移动端和桌面端的显示效果
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/42a6e05e-d685-4db3-8bf5-da61715b519c) and start prompting.
+### 🚀 使用方法
 
-Changes made via Lovable will be committed automatically to this repo.
+1. **进入素材上传页面**: 访问 `/materials/upload`
+2. **选择关联商品**: 点击"添加产品"按钮
+3. **搜索商品**: 
+   - 输入商品名称进行模糊搜索
+   - 输入SKU进行精确搜索
+   - 输入规格信息进行搜索
+4. **选择商品**: 勾选需要关联的商品（无数量限制）
+5. **确认关联**: 点击确定完成商品关联
 
-**Use your preferred IDE**
+### 📱 界面特性
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **每页显示**: 50个商品（相比之前的10个提升5倍）
+- **SKU搜索**: 支持SKU格式自动识别和优先搜索
+- **多维度信息**: 显示商品名称、SKU、规格、供应商等完整信息
+- **智能提示**: 根据搜索状态显示相应的提示信息
+- **关联商品布局**: 素材详情页一排显示2个商品，节省空间
+- **界面简化**: 移除库存状态显示，保持核心信息
+- **交互优化**: 点击商品卡片查看详情，加入购物车按钮全宽显示
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+---
 
-Follow these steps:
+# Jia Ge Food Hub - 供应链管理平台
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🚀 项目概述
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Jia Ge Food Hub 是一个专业的供应链管理平台，专注于食材采购、供应商管理和订单处理。平台提供从商品浏览到货单生成、供应商报价、协商确认的完整业务流程。
 
-# Step 3: Install the necessary dependencies.
-npm i
+## ✨ 核心功能
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### 🛒 购物车与货单系统
+- **多品类购物车**: 支持不同品类商品混合添加
+- **智能货单生成**: 从购物车一键生成结构化货单
+- **货单编辑管理**: 支持修改货单名称、描述、交付地点、特殊要求等
+- **状态管理**: draft → shared → negotiating → confirmed → delivered 完整状态流转
+
+### 📋 货单管理流程
+1. **购物车选择**: 用户在商品页面选择商品加入购物车
+2. **货单生成**: 填写货单名称、描述、交付地点、特殊要求等信息
+3. **货单编辑**: 草稿状态下可随时编辑货单信息
+4. **分享给供应商**: 选择供应商并分享货单进行询价
+5. **协商确认**: 通过聊天系统与供应商协商价格和条件
+6. **订单生成**: 双方确认后自动生成正式订单
+
+### 💬 供应商协商系统
+- **实时聊天**: 基于 Supabase Realtime 的实时消息系统
+- **价格协商**: 支持价格提案、接受/拒绝等操作
+- **状态同步**: 实时更新协商状态和进度
+- **自动确认**: 双方确认后自动生成订单
+
+### 🏢 供应商管理
+- **供应商认证**: 严格的供应商准入机制
+- **报价管理**: 多供应商竞价和报价对比
+- **沟通记录**: 完整的协商和沟通历史
+
+## 🗄️ 数据库架构
+
+### 核心数据表
+- **`product_lists`**: 货单主表，存储货单基本信息和状态
+- **`product_list_items`**: 货单商品明细，包含产品快照
+- **`quotations`**: 供应商报价表
+- **`quotation_items`**: 报价明细表
+- **`chat_negotiations`**: 聊天协商记录表
+
+### 关键字段
+- **货单状态**: draft(草稿) → shared(已分享) → negotiating(协商中) → confirmed(已确认) → delivered(已交付)
+- **产品快照**: 保存商品创建时的完整信息，确保数据一致性
+- **协商记录**: 完整的聊天记录和价格变更历史
+
+## 🛠️ 技术架构
+
+### 前端技术栈
+- **React 18**: 现代化的用户界面框架
+- **TypeScript**: 类型安全的开发体验
+- **Tailwind CSS**: 原子化CSS框架
+- **shadcn/ui**: 高质量UI组件库
+- **React Query**: 服务端状态管理
+
+### 后端服务
+- **Supabase**: 开源的后端即服务平台
+- **PostgreSQL**: 强大的关系型数据库
+- **Row Level Security**: 数据行级安全控制
+- **Real-time**: 实时数据同步和推送
+
+### 状态管理
+- **购物车状态**: 基于 localStorage 的持久化状态
+- **货单状态**: 完整的生命周期管理
+- **协商状态**: 实时状态同步和更新
+
+## 📱 用户界面
+
+### 响应式设计
+- **桌面端**: 完整功能展示，多列布局
+- **移动端**: 优化的触摸体验，单列布局
+- **平板端**: 自适应布局，最佳显示效果
+
+### 用户体验
+- **直观操作**: 清晰的按钮和操作流程
+- **实时反馈**: 即时状态更新和操作确认
+- **错误处理**: 友好的错误提示和恢复建议
+
+## 🔧 开发指南
+
+### 环境要求
+- Node.js 18+
+- npm 或 yarn
+- Supabase 项目配置
+
+### 安装和运行
+```bash
+# 安装依赖
+npm install
+
+# 开发模式
 npm run dev
+
+# 生产构建
+npm run build
+
+# 类型检查
+npm run type-check
 ```
 
-**Edit a file directly in GitHub**
+### 项目结构
+```
+src/
+├── components/          # 可复用组件
+│   ├── cart/           # 购物车相关组件
+│   ├── product-list/   # 货单相关组件
+│   └── ui/             # 基础UI组件
+├── hooks/               # 自定义React Hooks
+├── pages/               # 页面组件
+├── services/            # 业务逻辑服务
+└── integrations/        # 第三方服务集成
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 📊 业务流程
 
-**Use GitHub Codespaces**
+### 买家流程
+1. **浏览商品**: 在商品中心查看和筛选商品
+2. **加入购物车**: 选择商品并添加到购物车
+3. **生成货单**: 填写货单信息并创建
+4. **编辑货单**: 根据需要修改货单内容
+5. **分享询价**: 选择供应商并分享货单
+6. **协商确认**: 与供应商协商价格和条件
+7. **确认订单**: 双方确认后生成正式订单
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### 供应商流程
+1. **接收货单**: 收到买家分享的货单
+2. **查看详情**: 了解采购需求和商品规格
+3. **提交报价**: 根据情况提供报价
+4. **协商沟通**: 通过聊天系统与买家沟通
+5. **确认成交**: 双方达成一致后确认
 
-## What technologies are used for this project?
+## 🚨 重要说明
 
-This project is built with:
+### 数据库规则
+- **禁止创建新表**: 所有功能必须使用现有表结构
+- **禁止修改表结构**: 保持数据库架构的稳定性
+- **使用快照数据**: 优先使用 product_snapshot 而非直接查询 products 表
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### 部署规则
+- **禁止重启PM2**: 使用现有的进程管理
+- **构建方式**: 使用 `npm run build` 而非 `npm run dev`
+- **端口配置**: 应用运行在端口 3006
 
-## How can I deploy this project?
+## 🔮 未来规划
 
-Simply open [Lovable](https://lovable.dev/projects/42a6e05e-d685-4db3-8bf5-da61715b519c) and click on Share -> Publish.
+### 功能增强
+- **智能推荐**: 基于用户行为的商品推荐
+- **批量操作**: 支持批量货单管理和操作
+- **数据分析**: 采购数据分析和报表功能
+- **移动应用**: 原生移动端应用开发
 
-## Can I connect a custom domain to my Lovable project?
+### 技术优化
+- **性能优化**: 代码分割和懒加载
+- **缓存策略**: 智能缓存和数据预取
+- **监控告警**: 系统性能监控和异常告警
+- **自动化测试**: 完整的测试覆盖和CI/CD流程
 
-Yes, you can!
+## 📞 技术支持
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+如有技术问题或功能需求，请联系开发团队。
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+---
+
+**版本**: v3.4.0  
+**最后更新**: 2024年12月  
+**状态**: 生产就绪 ✅

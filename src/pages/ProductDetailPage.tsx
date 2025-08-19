@@ -5,9 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-//
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import SimpleSupplierPicker from "@/components/common/SimpleSupplierPicker";
+import { notificationService } from "@/services/notificationService";
+import { toast } from "sonner";
 import { useProduct } from "@/hooks/useProducts";
 import { useCart } from "@/hooks/useCart";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   Building2, 
   MessageCircle, 
@@ -29,6 +42,14 @@ import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 const ProductDetailPage = () => {
   const { id } = useParams();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const { user } = useAuth();
+  
+  // 咨询对话框状态
+  const [consultationDialog, setConsultationDialog] = useState({
+    open: false,
+    selectedSupplier: "",
+    message: ""
+  });
   
   const { data: product, isLoading, error } = useProduct(id || "");
   const { addItem, updateQuantity, getItemQuantity } = useCart();
@@ -62,7 +83,66 @@ const ProductDetailPage = () => {
   };
 
   const handleInquiry = () => {
-    console.log("咨询询价功能 - 待实现");
+    setConsultationDialog({
+      open: true,
+      selectedSupplier: "",
+      message: `您好，我对商品"${productName}"感兴趣，希望了解更多详情和报价信息。`
+    });
+  };
+
+  // 处理咨询提交
+  const handleConsultationSubmit = async () => {
+    if (!consultationDialog.selectedSupplier || !consultationDialog.message.trim()) {
+      toast.error("请选择供应商并填写咨询内容");
+      return;
+    }
+
+    if (!user || !product) {
+      toast.error("请先登录");
+      return;
+    }
+
+    try {
+      // 这里应该调用实际的咨询API
+      // await consultationApi.sendInquiry({
+      //   productId: id,
+      //   supplierId: consultationDialog.selectedSupplier,
+      //   message: consultationDialog.message
+      // });
+
+      // 发送商品咨询通知给供应商
+      try {
+        await notificationService.notifyProductInquiry(
+          consultationDialog.selectedSupplier,
+          '供应商', // 可以通过API获取实际供应商姓名
+          productName,
+          product.id,
+          user.email?.split('@')[0] || '用户'
+        );
+      } catch (notificationError) {
+        console.error('Error sending product inquiry notification:', notificationError);
+        // 通知发送失败不影响咨询流程
+      }
+      
+      toast.success("咨询已发送，供应商会尽快回复您");
+      setConsultationDialog({
+        open: false,
+        selectedSupplier: "",
+        message: ""
+      });
+    } catch (error) {
+      console.error("Error sending consultation:", error);
+      toast.error("发送咨询失败，请重试");
+    }
+  };
+
+  // 关闭咨询对话框
+  const handleConsultationCancel = () => {
+    setConsultationDialog({
+      open: false,
+      selectedSupplier: "",
+      message: ""
+    });
   };
 
   if (isLoading) {
@@ -408,7 +488,81 @@ const ProductDetailPage = () => {
           </Tabs>
         </Card>
 
-//
+        {/* 供应商咨询对话框 */}
+        <Dialog open={consultationDialog.open} onOpenChange={(open) => {
+          if (!open) handleConsultationCancel();
+        }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>供应商咨询</DialogTitle>
+              <DialogDescription>
+                向供应商咨询商品详情和报价信息
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* 商品信息 */}
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                {product?.product_image ? (
+                  <img 
+                    src={product.product_image} 
+                    alt={productName}
+                    className="w-12 h-12 object-cover rounded"
+                  />
+                ) : (
+                  <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                    <Package className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                )}
+                <div>
+                  <div className="font-medium text-sm">{productName}</div>
+                  <div className="text-xs text-muted-foreground">SKU: {product?.sku}</div>
+                </div>
+              </div>
+
+              {/* 供应商选择 */}
+              <div className="space-y-2">
+                <Label htmlFor="supplier">选择供应商</Label>
+                <SimpleSupplierPicker
+                  value={consultationDialog.selectedSupplier}
+                  onChange={(value) => setConsultationDialog(prev => ({
+                    ...prev,
+                    selectedSupplier: value
+                  }))}
+                  placeholder="请选择要咨询的供应商"
+                />
+              </div>
+
+              {/* 咨询内容 */}
+              <div className="space-y-2">
+                <Label htmlFor="message">咨询内容</Label>
+                <Textarea
+                  id="message"
+                  value={consultationDialog.message}
+                  onChange={(e) => setConsultationDialog(prev => ({
+                    ...prev,
+                    message: e.target.value
+                  }))}
+                  placeholder="请输入您想了解的问题..."
+                  rows={4}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={handleConsultationCancel}>
+                取消
+              </Button>
+              <Button 
+                onClick={handleConsultationSubmit}
+                disabled={!consultationDialog.selectedSupplier || !consultationDialog.message.trim()}
+              >
+                <MessageCircle className="h-4 w-4 mr-2" />
+                发送咨询
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

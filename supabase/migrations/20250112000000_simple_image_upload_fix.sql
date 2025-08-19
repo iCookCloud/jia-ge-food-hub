@@ -118,3 +118,6 @@ SELECT 'Enhanced image upload with metadata and associations completed' as statu
 
 
 
+
+
+

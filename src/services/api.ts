@@ -1,6 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { PostgrestError } from '@supabase/supabase-js';
 import { recommendationAPI } from '@/api/recommendations';
+import { supplierService, UnifiedSupplier, SupplierApplication } from './supplierService';
+import { orderListResponseService, OrderListResponse, ItemModification } from './orderListResponseService';
 
 export interface ApiResponse<T> {
   data: T | null;
@@ -80,7 +82,13 @@ export const productService = {
 
       // 搜索过滤（使用预构建的搜索字段）
       if (filters.search) {
-        query = query.ilike('search_text', `%${filters.search}%`);
+        if (filters.sku_search) {
+          // SKU优先搜索：先搜索SKU字段，再搜索其他字段
+          query = query.or(`sku.ilike.%${filters.search}%,search_text.ilike.%${filters.search}%`);
+        } else {
+          // 普通搜索
+          query = query.ilike('search_text', `%${filters.search}%`);
+        }
       }
 
       // 应用排序
@@ -186,6 +194,120 @@ export const applyTextSearch = (query: any, searchTerm: string, columns: string[
     return query.or(searchConditions);
   }
   return query;
+};
+
+// 供应商相关API
+export const supplierApi = {
+  // 获取所有用户作为供应商
+  async getAllSuppliers(search?: string): Promise<UnifiedSupplier[]> {
+    try {
+      return await supplierService.getAllSuppliers(search);
+    } catch (error) {
+      console.error('Error in supplierApi.getAllSuppliers:', error);
+      return [];
+    }
+  },
+
+  // 申请成为供应商
+  async applyForSupplier(companyInfo: {
+    company_name: string;
+    company_description?: string;
+    business_license?: string;
+    company_address?: string;
+    company_phone?: string;
+    company_email?: string;
+  }): Promise<void> {
+    return await supplierService.applyForSupplier(companyInfo);
+  },
+
+  // 管理员审核供应商申请
+  async reviewApplication(userId: string, approved: boolean, reason?: string): Promise<void> {
+    return await supplierService.reviewSupplierApplication(userId, approved, reason);
+  },
+
+  // 获取待审核申请
+  async getPendingApplications(): Promise<SupplierApplication[]> {
+    return await supplierService.getPendingApplications();
+  },
+
+  // 搜索供应商（用于询价和咨询）
+  async searchSuppliers(query: string): Promise<UnifiedSupplier[]> {
+    return await supplierService.searchAllSuppliers(query);
+  }
+};
+
+// 货单响应相关API
+export const orderListResponseApi = {
+  // 处理货单（转发或确认）
+  async processOrderList(
+    orderListId: string,
+    modifications: ItemModification[],
+    responseType: 'forward' | 'confirm',
+    targetSupplierId?: string,
+    message?: string
+  ): Promise<string> {
+    return await orderListResponseService.processOrderList(
+      orderListId, modifications, responseType, targetSupplierId, message
+    );
+  },
+
+  // 获取用户的货单响应
+  async getUserResponses(userId?: string): Promise<OrderListResponse[]> {
+    return await orderListResponseService.getUserResponses(userId);
+  },
+
+  // 更新响应状态
+  async updateResponseStatus(responseId: string, status: string): Promise<void> {
+    return await orderListResponseService.updateResponseStatus(responseId, status);
+  },
+
+  // 转发货单给其他供应商
+  async forwardOrderList(
+    orderListId: string,
+    modifications: ItemModification[],
+    targetSupplierId: string,
+    message?: string
+  ): Promise<string> {
+    return await orderListResponseService.forwardToSupplier(
+      orderListId, modifications, targetSupplierId, message
+    );
+  },
+
+  // 确认货单给发送方
+  async confirmOrderList(
+    orderListId: string,
+    modifications: ItemModification[],
+    message?: string
+  ): Promise<string> {
+    return await orderListResponseService.confirmToSender(
+      orderListId, modifications, message
+    );
+  },
+
+  // 获取用户收到的报价
+  async getReceivedQuotations(userId?: string): Promise<any[]> {
+    return await orderListResponseService.getReceivedQuotations(userId);
+  },
+
+  // 确认订单
+  async confirmOrder(orderId: string, buyerUserId?: string): Promise<boolean> {
+    return await orderListResponseService.confirmOrder(orderId, buyerUserId);
+  },
+
+  // 取消未确认订单
+  async cancelUnconfirmedOrder(orderId: string, buyerUserId?: string): Promise<boolean> {
+    return await orderListResponseService.cancelUnconfirmedOrder(orderId, buyerUserId);
+  },
+
+  // 获取用户的订单
+  async getUserOrders(userId?: string): Promise<any[]> {
+    return await orderListResponseService.getUserOrders(userId);
+  },
+
+  // 接受报价并确认订单
+  async acceptQuotationAndCreateOrder(quotationId: string, buyerUserId?: string): Promise<string> {
+    return await orderListResponseService.acceptQuotationAndCreateOrder(quotationId, buyerUserId);
+  }
 };
 
 // 推荐系统API扩展

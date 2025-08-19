@@ -15,6 +15,8 @@ import { getRoleDisplayName, getRoleColor } from "@/hooks/useRole";
 import { Badge } from "@/components/ui/badge";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { SignOutButton } from "@/components/auth/SignOutButton";
+import { useCart } from "@/hooks/useCart";
 import { 
   Package, 
   Building2, 
@@ -74,6 +76,7 @@ export function DesktopNavigation() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, userRole, profile, signOut, isAdmin } = useAuth();
+  const { getTotalItems } = useCart();
   
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 ios-safe-top">
@@ -99,12 +102,21 @@ export function DesktopNavigation() {
                   variant={isActive ? "default" : "ghost"}
                   size="sm"
                   className={cn(
-                    "h-9 px-3 font-medium transition-all",
+                    "h-9 px-3 font-medium transition-all relative",
                     isActive && "shadow-sm"
                   )}
                 >
                   <item.icon className="h-4 w-4" />
                   {item.title}
+                  {/* 为订单菜单项显示购物车数量 */}
+                  {item.href === "/orders" && getTotalItems() > 0 && (
+                    <Badge 
+                      variant="destructive" 
+                      className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                    >
+                      {getTotalItems()}
+                    </Badge>
+                  )}
                 </Button>
               </Link>
             );
@@ -177,9 +189,16 @@ export function DesktopNavigation() {
                   <Settings className="h-4 w-4 mr-2" />
                   系统设置
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={signOut}>
-                  <LogOut className="h-4 w-4 mr-2" />
-                  退出登录
+                <DropdownMenuItem asChild>
+                  <SignOutButton 
+                    variant="ghost" 
+                    size="sm" 
+                    className="w-full justify-start h-auto p-0"
+                    showIcon={false}
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    退出登录
+                  </SignOutButton>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -206,6 +225,7 @@ export function MobileNavigation() {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, userRole, profile, signOut } = useAuth();
+  const { getTotalItems } = useCart();
 
   return (
     <>
@@ -289,16 +309,16 @@ export function MobileNavigation() {
               {user ? (
                 <>
                   <div className="border-t border-border my-2"></div>
-                  <button 
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      signOut();
-                    }}
-                    className="flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted w-full"
+                  <SignOutButton 
+                    variant="ghost" 
+                    size="sm" 
+                    className="w-full justify-start h-auto p-0 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                    onClick={() => setIsMenuOpen(false)}
+                    showIcon={false}
                   >
                     <LogOut className="h-4 w-4" />
                     <div>退出登录</div>
-                  </button>
+                  </SignOutButton>
                 </>
               ) : (
                 <>
@@ -331,16 +351,27 @@ export function MobileNavigation() {
                 key={item.href} 
                 to={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center min-w-0 flex-1 px-1 py-1 text-xs font-medium transition-colors",
+                  "flex flex-col items-center justify-center min-w-0 flex-1 px-1 py-1 text-xs font-medium transition-colors relative",
                   isActive 
                     ? "text-primary" 
                     : "text-muted-foreground"
                 )}
               >
-                <item.icon className={cn(
-                  "h-5 w-5 mb-1",
-                  isActive && "text-primary"
-                )} />
+                <div className="relative">
+                  <item.icon className={cn(
+                    "h-5 w-5 mb-1",
+                    isActive && "text-primary"
+                  )} />
+                  {/* 为订单菜单项显示购物车数量 */}
+                  {item.href === "/orders" && getTotalItems() > 0 && (
+                    <Badge 
+                      variant="destructive" 
+                      className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center text-xs"
+                    >
+                      {getTotalItems()}
+                    </Badge>
+                  )}
+                </div>
                 <span className="truncate">{item.title}</span>
               </Link>
             );
