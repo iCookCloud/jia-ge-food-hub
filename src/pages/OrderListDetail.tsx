@@ -104,7 +104,7 @@ export const OrderListDetail: React.FC = () => {
         // 检查当前用户是否是供应商且货单分享给了他
         if (isSupplier && user?.id) {
           const sharedToCurrentUser = shareData?.some((share: any) => 
-            share.supplier_id === user.id
+            share.shared_to === user.id
           );
           setIsSharedToMe(sharedToCurrentUser);
         }
@@ -315,6 +315,26 @@ export const OrderListDetail: React.FC = () => {
   useEffect(() => {
     loadOrderList();
   }, [id]);
+
+  // 当用户信息加载完成后，重新检查分享状态
+  useEffect(() => {
+    if (orderList && user && isSupplier !== undefined) {
+      const checkSharedToMe = async () => {
+        try {
+          const shareData = await orderListShareService.getOrderListShares(orderList.id);
+          if (isSupplier && user?.id) {
+            const sharedToCurrentUser = shareData?.some((share: any) => 
+              share.shared_to === user.id
+            );
+            setIsSharedToMe(sharedToCurrentUser);
+          }
+        } catch (error) {
+          console.error('Error checking share status:', error);
+        }
+      };
+      checkSharedToMe();
+    }
+  }, [orderList, user, isSupplier]);
 
   if (loading) {
     return (

@@ -100,6 +100,18 @@ export const orderListShareService = {
       if (error) {
         throw error;
       }
+
+      // 更新货单状态为已分享（只有在状态为draft时才更新）
+      const { error: updateError } = await supabase
+        .from('product_lists')
+        .update({ status: 'shared' })
+        .eq('id', orderListId)
+        .eq('status', 'draft'); // 只更新草稿状态的货单
+
+      if (updateError) {
+        console.error('Error updating order list status:', updateError);
+        // 不抛出错误，因为可能是重复分享，状态已经是shared
+      }
     } catch (error) {
       console.error('Error sharing order list:', error);
       throw new Error('分享货单失败');

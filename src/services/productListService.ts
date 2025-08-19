@@ -105,6 +105,11 @@ export const productListService = {
   // 获取用户的货单列表
   getUserProductLists: async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return { data: [], error: new Error('用户未登录') };
+      }
+
       const { data, error } = await supabase
         .from('product_lists')
         .select(`
@@ -114,6 +119,7 @@ export const productListService = {
             product_sku, product_name, product_snapshot
           )
         `)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {

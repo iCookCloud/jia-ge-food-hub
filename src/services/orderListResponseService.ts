@@ -221,6 +221,32 @@ export const orderListResponseService = {
         orderId = existingQuotation.generated_order_id;
       }
 
+      // 更新分享状态为已报价（只在新建报价时）
+      if (!isUpdate) {
+        try {
+          const { error: shareUpdateError } = await supabase
+            .from('order_list_shares')
+            .update({ 
+              status: 'quoted',
+              responded_at: new Date().toISOString(),
+              quotation_id: response.id
+            })
+            .eq('order_list_id', orderListId)
+            .eq('shared_to', currentUserId);
+
+          if (shareUpdateError) {
+            console.error('Error updating share status:', shareUpdateError);
+            // 不抛出错误，分享状态更新失败不应该影响报价流程
+          }
+
+          // 注意：不更新货单状态为协商中
+          // 货单状态应该保持'shared'直到买家确认某个报价
+          // 这样可以支持多个供应商同时报价的场景
+        } catch (error) {
+          console.error('Error updating share status:', error);
+        }
+      }
+
       // 发送通知给原发送方
       await this.notifySupplier(originalOrderList.user_id, response.id, isUpdate ? 'quotation_updated' : 'received_confirmation');
 
@@ -394,26 +420,10 @@ export const orderListResponseService = {
         return sum + (price * quantity);
       }, 0);
 
-      // 创建未确认订单（供应商创建给买家的报价订单）
-      const { data: order, error: createError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: originalOrderList.user_id, // 订单属于买家
-          total_amount: totalAmount,
-          status: 'pending',
-          is_confirmed: false, // 未确认状态
-          quotation_id: responseId // 关联报价记录
-        })
-        .select()
-        .single();
-
-      if (createError) throw createError;
-
-      // 创建订单项目（注意：需要使用正确的字段名）
+      // 准备订单项目数据
       const orderItems = originalItems.map(item => {
         const modification = modifications.find(m => m.item_id === item.id);
         return {
-          order_id: order.id,
           product_sku: item.product_sku,
           product_name: item.product_name,
           quantity: modification?.modified_quantity || item.quantity,
@@ -422,13 +432,23 @@ export const orderListResponseService = {
         };
       });
 
-      const { error: insertError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
+      // 使用数据库函数创建订单（避免RLS权限问题）
+      const { data: orderId, error: createError } = await supabase
+        .rpc('create_supplier_quotation_order', {
+          p_quotation_id: responseId,
+          p_buyer_user_id: originalOrderList.user_id,
+          p_supplier_user_id: currentUserId,
+          p_total_amount: totalAmount,
+          p_order_items: orderItems
+        });
 
-      if (insertError) throw insertError;
+      if (createError) throw createError;
 
-      return order;
+      return {
+        id: orderId,
+        user_id: originalOrderList.user_id,
+        total_amount: totalAmount
+      };
     } catch (error) {
       console.error('Error creating confirmation order:', error);
       throw error;
@@ -548,6 +568,53 @@ export const orderListResponseService = {
           updated_at: new Date().toISOString()
         })
         .eq('id', quotationId);
+
+      // 更新货单状态为已确认
+      try {
+        const { error: orderListUpdateError } = await supabase
+          .from('product_lists')
+          .update({ status: 'confirmed' })
+          .eq('id', quotation.order_list_id);
+
+        if (orderListUpdateError) {
+          console.error('Error updating order list status to confirmed:', orderListUpdateError);
+          // 不抛出错误，状态更新失败不应该影响订单确认流程
+        }
+
+        // 取消同一货单的其他待确认订单
+        const { error: cancelOthersError } = await supabase
+          .from('orders')
+          .update({ 
+            status: 'cancelled',
+            updated_at: new Date().toISOString()
+          })
+          .eq('quotation_id', quotation.order_list_id)
+          .eq('is_confirmed', false)
+          .neq('id', quotation.generated_order_id);
+
+        if (cancelOthersError) {
+          console.error('Error cancelling other pending orders:', cancelOthersError);
+          // 不抛出错误，取消其他订单失败不应该影响当前订单确认
+        }
+
+        // 更新其他报价状态为被拒绝
+        const { error: rejectOthersError } = await supabase
+          .from('order_list_quotations')
+          .update({
+            status: 'rejected',
+            updated_at: new Date().toISOString()
+          })
+          .eq('order_list_id', quotation.order_list_id)
+          .eq('status', 'pending')
+          .neq('id', quotationId);
+
+        if (rejectOthersError) {
+          console.error('Error rejecting other quotations:', rejectOthersError);
+          // 不抛出错误，拒绝其他报价失败不应该影响当前确认
+        }
+      } catch (error) {
+        console.error('Error updating order list status:', error);
+      }
 
       // 发送通知给报价者
       await this.notifySupplier(quotation.quoted_by, quotationId, 'quotation_accepted');
