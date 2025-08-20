@@ -203,36 +203,4 @@ export const analyticsService = {
     }
   },
 
-  /**
-   * 获取用户活动统计
-   */
-  async getUserActivityStats() {
-    try {
-      // 这里可以根据需要扩展更多用户活动统计
-      const { data, error } = await supabase
-        .from('user_footprints')
-        .select('user_id, visited_at, product_id')
-        .gte('visited_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // 最近24小时
-        .order('visited_at', { ascending: false });
-
-      if (error) throw error;
-
-      const activeUsers = new Set(data?.map(fp => fp.user_id)).size;
-      const pageViews = data?.length || 0;
-
-      return {
-        data: {
-          activeUsers,
-          pageViews,
-          details: data || []
-        },
-        error: null
-      };
-    } catch (error) {
-      return {
-        data: { activeUsers: 0, pageViews: 0, details: [] },
-        error: handleApiError(error as Error)
-      };
-    }
-  }
 };

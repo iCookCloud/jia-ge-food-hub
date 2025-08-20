@@ -14,175 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      case_product_associations: {
-        Row: {
-          case_id: number | null
-          category: string | null
-          created_at: string | null
-          id: number
-          priority: number | null
-          product_id: string
-          quantity_suggestion: number | null
-          usage_description: string | null
-        }
-        Insert: {
-          case_id?: number | null
-          category?: string | null
-          created_at?: string | null
-          id?: number
-          priority?: number | null
-          product_id: string
-          quantity_suggestion?: number | null
-          usage_description?: string | null
-        }
-        Update: {
-          case_id?: number | null
-          category?: string | null
-          created_at?: string | null
-          id?: number
-          priority?: number | null
-          product_id?: string
-          quantity_suggestion?: number | null
-          usage_description?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "case_product_associations_case_id_fkey"
-            columns: ["case_id"]
-            isOneToOne: false
-            referencedRelation: "design_cases"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      case_products: {
-        Row: {
-          case_id: string
-          created_at: string | null
-          id: string
-          product_id: string
-          sort_order: number | null
-        }
-        Insert: {
-          case_id: string
-          created_at?: string | null
-          id?: string
-          product_id: string
-          sort_order?: number | null
-        }
-        Update: {
-          case_id?: string
-          created_at?: string | null
-          id?: string
-          product_id?: string
-          sort_order?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "case_products_case_id_fkey"
-            columns: ["case_id"]
-            isOneToOne: false
-            referencedRelation: "cases"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "case_products_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "case_products_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products_with_categories"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      case_view_history: {
-        Row: {
-          case_id: number | null
-          created_at: string | null
-          id: number
-          interactions: Json | null
-          user_id: string | null
-          view_duration: number | null
-        }
-        Insert: {
-          case_id?: number | null
-          created_at?: string | null
-          id?: number
-          interactions?: Json | null
-          user_id?: string | null
-          view_duration?: number | null
-        }
-        Update: {
-          case_id?: number | null
-          created_at?: string | null
-          id?: number
-          interactions?: Json | null
-          user_id?: string | null
-          view_duration?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "case_view_history_case_id_fkey"
-            columns: ["case_id"]
-            isOneToOne: false
-            referencedRelation: "design_cases"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      cases: {
-        Row: {
-          category_id: string | null
-          created_at: string | null
-          description: string | null
-          id: string
-          images: Json | null
-          related_products: Json | null
-          status: string | null
-          tags: Json | null
-          title: string
-          updated_at: string | null
-        }
-        Insert: {
-          category_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          images?: Json | null
-          related_products?: Json | null
-          status?: string | null
-          tags?: Json | null
-          title: string
-          updated_at?: string | null
-        }
-        Update: {
-          category_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          images?: Json | null
-          related_products?: Json | null
-          status?: string | null
-          tags?: Json | null
-          title?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cases_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       categories: {
         Row: {
           created_at: string | null
@@ -291,154 +122,62 @@ export type Database = {
           },
         ]
       }
-      coupons: {
+      chat_negotiations: {
         Row: {
-          code: string
+          buyer_id: string
           created_at: string | null
-          discount: number
-          expires_at: string | null
           id: string
-          usage_limit: number | null
-          used_count: number
+          message_content: string
+          message_type: string
+          order_list_id: string
+          price_status: string | null
+          proposed_price: number | null
+          quotation_id: string
+          sender_id: string
+          supplier_id: string
         }
         Insert: {
-          code: string
+          buyer_id: string
           created_at?: string | null
-          discount: number
-          expires_at?: string | null
           id?: string
-          usage_limit?: number | null
-          used_count?: number
+          message_content: string
+          message_type: string
+          order_list_id: string
+          price_status?: string | null
+          proposed_price?: number | null
+          quotation_id: string
+          sender_id: string
+          supplier_id: string
         }
         Update: {
-          code?: string
+          buyer_id?: string
           created_at?: string | null
-          discount?: number
-          expires_at?: string | null
           id?: string
-          usage_limit?: number | null
-          used_count?: number
-        }
-        Relationships: []
-      }
-      customer_invitations: {
-        Row: {
-          accepted_at: string | null
-          created_at: string
-          customer_email: string
-          customer_name: string | null
-          expires_at: string
-          id: string
-          invitation_code: string
-          product_list_id: string
-          status: string
-          supplier_id: string
-          viewed_at: string | null
-        }
-        Insert: {
-          accepted_at?: string | null
-          created_at?: string
-          customer_email: string
-          customer_name?: string | null
-          expires_at?: string
-          id?: string
-          invitation_code: string
-          product_list_id: string
-          status?: string
-          supplier_id: string
-          viewed_at?: string | null
-        }
-        Update: {
-          accepted_at?: string | null
-          created_at?: string
-          customer_email?: string
-          customer_name?: string | null
-          expires_at?: string
-          id?: string
-          invitation_code?: string
-          product_list_id?: string
-          status?: string
+          message_content?: string
+          message_type?: string
+          order_list_id?: string
+          price_status?: string | null
+          proposed_price?: number | null
+          quotation_id?: string
+          sender_id?: string
           supplier_id?: string
-          viewed_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "fk_customer_invitations_product_list"
-            columns: ["product_list_id"]
+            foreignKeyName: "chat_negotiations_order_list_id_fkey"
+            columns: ["order_list_id"]
             isOneToOne: false
             referencedRelation: "product_lists"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "chat_negotiations_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_quotations"
+            referencedColumns: ["id"]
+          },
         ]
-      }
-      design_cases: {
-        Row: {
-          area: string | null
-          category: string | null
-          created_at: string | null
-          description: string | null
-          designer: string | null
-          designer_id: string | null
-          estimated_budget_max: number | null
-          estimated_budget_min: number | null
-          id: number
-          image: string | null
-          images: string[] | null
-          likes: number | null
-          location: string | null
-          material_list: string[] | null
-          price: string | null
-          style: string
-          supplier_recommendations: string[] | null
-          tags: string[] | null
-          title: string
-          updated_at: string | null
-        }
-        Insert: {
-          area?: string | null
-          category?: string | null
-          created_at?: string | null
-          description?: string | null
-          designer?: string | null
-          designer_id?: string | null
-          estimated_budget_max?: number | null
-          estimated_budget_min?: number | null
-          id?: number
-          image?: string | null
-          images?: string[] | null
-          likes?: number | null
-          location?: string | null
-          material_list?: string[] | null
-          price?: string | null
-          style: string
-          supplier_recommendations?: string[] | null
-          tags?: string[] | null
-          title: string
-          updated_at?: string | null
-        }
-        Update: {
-          area?: string | null
-          category?: string | null
-          created_at?: string | null
-          description?: string | null
-          designer?: string | null
-          designer_id?: string | null
-          estimated_budget_max?: number | null
-          estimated_budget_min?: number | null
-          id?: number
-          image?: string | null
-          images?: string[] | null
-          likes?: number | null
-          location?: string | null
-          material_list?: string[] | null
-          price?: string | null
-          style?: string
-          supplier_recommendations?: string[] | null
-          tags?: string[] | null
-          title?: string
-          updated_at?: string | null
-        }
-        Relationships: []
       }
       image_product_associations: {
         Row: {
@@ -483,66 +222,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      materials: {
-        Row: {
-          category: string
-          created_at: string | null
-          description: string | null
-          design_compatibility: string[] | null
-          erp_product_id: string | null
-          features: string[] | null
-          id: number
-          images: string[] | null
-          name: string
-          price: number | null
-          rating: number | null
-          specifications: Json | null
-          stock: number | null
-          supplier: string | null
-          supplier_id: string | null
-          unit: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          category: string
-          created_at?: string | null
-          description?: string | null
-          design_compatibility?: string[] | null
-          erp_product_id?: string | null
-          features?: string[] | null
-          id?: number
-          images?: string[] | null
-          name: string
-          price?: number | null
-          rating?: number | null
-          specifications?: Json | null
-          stock?: number | null
-          supplier?: string | null
-          supplier_id?: string | null
-          unit?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          category?: string
-          created_at?: string | null
-          description?: string | null
-          design_compatibility?: string[] | null
-          erp_product_id?: string | null
-          features?: string[] | null
-          id?: number
-          images?: string[] | null
-          name?: string
-          price?: number | null
-          rating?: number | null
-          specifications?: Json | null
-          stock?: number | null
-          supplier?: string | null
-          supplier_id?: string | null
-          unit?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
       }
       order_items: {
         Row: {
@@ -598,14 +277,345 @@ export type Database = {
           },
         ]
       }
+      order_list_quotations: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          generated_order_id: string | null
+          id: string
+          message: string | null
+          order_list_id: string
+          original_total_amount: number | null
+          quoted_by: string
+          quoted_items: Json | null
+          quoted_total_amount: number | null
+          shared_by: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          generated_order_id?: string | null
+          id?: string
+          message?: string | null
+          order_list_id: string
+          original_total_amount?: number | null
+          quoted_by: string
+          quoted_items?: Json | null
+          quoted_total_amount?: number | null
+          shared_by: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          generated_order_id?: string | null
+          id?: string
+          message?: string | null
+          order_list_id?: string
+          original_total_amount?: number | null
+          quoted_by?: string
+          quoted_items?: Json | null
+          quoted_total_amount?: number | null
+          shared_by?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_list_quotations_generated_order_id_fkey"
+            columns: ["generated_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_quotations_order_list_id_fkey"
+            columns: ["order_list_id"]
+            isOneToOne: false
+            referencedRelation: "product_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_quotations_quoted_by_fkey"
+            columns: ["quoted_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_quotations_quoted_by_fkey"
+            columns: ["quoted_by"]
+            isOneToOne: false
+            referencedRelation: "available_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_quotations_quoted_by_fkey"
+            columns: ["quoted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_quotations_shared_by_fkey"
+            columns: ["shared_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_quotations_shared_by_fkey"
+            columns: ["shared_by"]
+            isOneToOne: false
+            referencedRelation: "available_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_quotations_shared_by_fkey"
+            columns: ["shared_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_list_responses: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          forwarded_order_list_id: string | null
+          id: string
+          message: string | null
+          modified_items: Json
+          modified_total_amount: number | null
+          original_order_list_id: string
+          original_total_amount: number | null
+          received_by: string
+          response_type: string
+          shared_by: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          forwarded_order_list_id?: string | null
+          id?: string
+          message?: string | null
+          modified_items?: Json
+          modified_total_amount?: number | null
+          original_order_list_id: string
+          original_total_amount?: number | null
+          received_by: string
+          response_type: string
+          shared_by: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          forwarded_order_list_id?: string | null
+          id?: string
+          message?: string | null
+          modified_items?: Json
+          modified_total_amount?: number | null
+          original_order_list_id?: string
+          original_total_amount?: number | null
+          received_by?: string
+          response_type?: string
+          shared_by?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_list_responses_forwarded_order_list_id_fkey"
+            columns: ["forwarded_order_list_id"]
+            isOneToOne: false
+            referencedRelation: "product_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_responses_original_order_list_id_fkey"
+            columns: ["original_order_list_id"]
+            isOneToOne: false
+            referencedRelation: "product_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_responses_received_by_fkey"
+            columns: ["received_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_responses_received_by_fkey"
+            columns: ["received_by"]
+            isOneToOne: false
+            referencedRelation: "available_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_responses_received_by_fkey"
+            columns: ["received_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_responses_shared_by_fkey"
+            columns: ["shared_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_responses_shared_by_fkey"
+            columns: ["shared_by"]
+            isOneToOne: false
+            referencedRelation: "available_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_responses_shared_by_fkey"
+            columns: ["shared_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_list_shares: {
+        Row: {
+          created_at: string | null
+          id: string
+          order_list_id: string
+          quotation_id: string | null
+          quoted_at: string | null
+          responded_at: string | null
+          response_id: string | null
+          share_message: string | null
+          shared_at: string | null
+          shared_by: string
+          shared_to: string
+          shared_to_type: string | null
+          status: string | null
+          viewed_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          order_list_id: string
+          quotation_id?: string | null
+          quoted_at?: string | null
+          responded_at?: string | null
+          response_id?: string | null
+          share_message?: string | null
+          shared_at?: string | null
+          shared_by: string
+          shared_to: string
+          shared_to_type?: string | null
+          status?: string | null
+          viewed_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          order_list_id?: string
+          quotation_id?: string | null
+          quoted_at?: string | null
+          responded_at?: string | null
+          response_id?: string | null
+          share_message?: string | null
+          shared_at?: string | null
+          shared_by?: string
+          shared_to?: string
+          shared_to_type?: string | null
+          status?: string | null
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_list_shares_order_list_id_fkey"
+            columns: ["order_list_id"]
+            isOneToOne: false
+            referencedRelation: "product_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_shares_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "order_list_quotations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_shares_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "order_list_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_shares_shared_by_fkey"
+            columns: ["shared_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_shares_shared_by_fkey"
+            columns: ["shared_by"]
+            isOneToOne: false
+            referencedRelation: "available_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_shares_shared_by_fkey"
+            columns: ["shared_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_shares_shared_to_fkey"
+            columns: ["shared_to"]
+            isOneToOne: false
+            referencedRelation: "admin_users_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_shares_shared_to_fkey"
+            columns: ["shared_to"]
+            isOneToOne: false
+            referencedRelation: "available_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_list_shares_shared_to_fkey"
+            columns: ["shared_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
+          confirmed_at: string | null
           created_at: string | null
           design_case_id: number | null
           estimated_completion_date: string | null
           id: string
           installation_required: boolean | null
+          is_confirmed: boolean | null
           project_type: string | null
+          quotation_id: string | null
           sheet_id: string | null
           shipping_address: string | null
           status: string
@@ -614,12 +624,15 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          confirmed_at?: string | null
           created_at?: string | null
           design_case_id?: number | null
           estimated_completion_date?: string | null
           id?: string
           installation_required?: boolean | null
+          is_confirmed?: boolean | null
           project_type?: string | null
+          quotation_id?: string | null
           sheet_id?: string | null
           shipping_address?: string | null
           status?: string
@@ -628,12 +641,15 @@ export type Database = {
           user_id: string
         }
         Update: {
+          confirmed_at?: string | null
           created_at?: string | null
           design_case_id?: number | null
           estimated_completion_date?: string | null
           id?: string
           installation_required?: boolean | null
+          is_confirmed?: boolean | null
           project_type?: string | null
+          quotation_id?: string | null
           sheet_id?: string | null
           shipping_address?: string | null
           status?: string
@@ -643,10 +659,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "orders_design_case_id_fkey"
-            columns: ["design_case_id"]
+            foreignKeyName: "orders_quotation_id_fkey"
+            columns: ["quotation_id"]
             isOneToOne: false
-            referencedRelation: "design_cases"
+            referencedRelation: "order_list_quotations"
             referencedColumns: ["id"]
           },
           {
@@ -1164,30 +1180,91 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
           avatar_url: string | null
+          bio: string | null
+          business_license: string | null
+          company_address: string | null
+          company_description: string | null
+          company_email: string | null
+          company_name: string | null
+          company_phone: string | null
           created_at: string | null
           id: string
+          is_supplier: boolean | null
           nickname: string | null
           phone: string | null
+          supplier_applied_at: string | null
+          supplier_approved_at: string | null
+          supplier_approved_by: string | null
+          supplier_status: string | null
           updated_at: string | null
         }
         Insert: {
+          address?: string | null
           avatar_url?: string | null
+          bio?: string | null
+          business_license?: string | null
+          company_address?: string | null
+          company_description?: string | null
+          company_email?: string | null
+          company_name?: string | null
+          company_phone?: string | null
           created_at?: string | null
           id: string
+          is_supplier?: boolean | null
           nickname?: string | null
           phone?: string | null
+          supplier_applied_at?: string | null
+          supplier_approved_at?: string | null
+          supplier_approved_by?: string | null
+          supplier_status?: string | null
           updated_at?: string | null
         }
         Update: {
+          address?: string | null
           avatar_url?: string | null
+          bio?: string | null
+          business_license?: string | null
+          company_address?: string | null
+          company_description?: string | null
+          company_email?: string | null
+          company_name?: string | null
+          company_phone?: string | null
           created_at?: string | null
           id?: string
+          is_supplier?: boolean | null
           nickname?: string | null
           phone?: string | null
+          supplier_applied_at?: string | null
+          supplier_approved_at?: string | null
+          supplier_approved_by?: string | null
+          supplier_status?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_supplier_approved_by_fkey"
+            columns: ["supplier_approved_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_supplier_approved_by_fkey"
+            columns: ["supplier_approved_by"]
+            isOneToOne: false
+            referencedRelation: "available_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_supplier_approved_by_fkey"
+            columns: ["supplier_approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quotation_conversations: {
         Row: {
@@ -1482,6 +1559,7 @@ export type Database = {
       supplier_profiles: {
         Row: {
           business_license: string | null
+          company_name: string | null
           contact_info: Json | null
           created_at: string | null
           delivery_info: Json | null
@@ -1493,9 +1571,12 @@ export type Database = {
           rating_info: Json | null
           service_areas: string[] | null
           updated_at: string | null
+          verification_date: string | null
+          verification_status: string | null
         }
         Insert: {
           business_license?: string | null
+          company_name?: string | null
           contact_info?: Json | null
           created_at?: string | null
           delivery_info?: Json | null
@@ -1507,9 +1588,12 @@ export type Database = {
           rating_info?: Json | null
           service_areas?: string[] | null
           updated_at?: string | null
+          verification_date?: string | null
+          verification_status?: string | null
         }
         Update: {
           business_license?: string | null
+          company_name?: string | null
           contact_info?: Json | null
           created_at?: string | null
           delivery_info?: Json | null
@@ -1521,8 +1605,66 @@ export type Database = {
           rating_info?: Json | null
           service_areas?: string[] | null
           updated_at?: string | null
+          verification_date?: string | null
+          verification_status?: string | null
         }
         Relationships: []
+      }
+      supplier_quotations: {
+        Row: {
+          buyer_confirmed: boolean | null
+          buyer_id: string
+          created_at: string | null
+          current_amount: number
+          id: string
+          negotiation_count: number | null
+          order_list_id: string
+          original_amount: number
+          status: string
+          supplier_confirmed: boolean | null
+          supplier_id: string
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          buyer_confirmed?: boolean | null
+          buyer_id: string
+          created_at?: string | null
+          current_amount: number
+          id?: string
+          negotiation_count?: number | null
+          order_list_id: string
+          original_amount: number
+          status?: string
+          supplier_confirmed?: boolean | null
+          supplier_id: string
+          total_amount: number
+          updated_at?: string | null
+        }
+        Update: {
+          buyer_confirmed?: boolean | null
+          buyer_id?: string
+          created_at?: string | null
+          current_amount?: number
+          id?: string
+          negotiation_count?: number | null
+          order_list_id?: string
+          original_amount?: number
+          status?: string
+          supplier_confirmed?: boolean | null
+          supplier_id?: string
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_quotations_order_list_id_fkey"
+            columns: ["order_list_id"]
+            isOneToOne: false
+            referencedRelation: "product_lists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       supplier_ratings: {
         Row: {
@@ -1577,6 +1719,7 @@ export type Database = {
           file_size: number
           folder_path: string | null
           id: string
+          images_data: Json | null
           is_active: boolean | null
           mime_type: string
           public_url: string
@@ -1595,6 +1738,7 @@ export type Database = {
           file_size: number
           folder_path?: string | null
           id?: string
+          images_data?: Json | null
           is_active?: boolean | null
           mime_type: string
           public_url: string
@@ -1613,6 +1757,7 @@ export type Database = {
           file_size?: number
           folder_path?: string | null
           id?: string
+          images_data?: Json | null
           is_active?: boolean | null
           mime_type?: string
           public_url?: string
@@ -1622,38 +1767,6 @@ export type Database = {
           uploaded_by?: string
         }
         Relationships: []
-      }
-      user_coupons: {
-        Row: {
-          coupon_id: string | null
-          id: string
-          used: boolean
-          used_at: string | null
-          user_id: string
-        }
-        Insert: {
-          coupon_id?: string | null
-          id?: string
-          used?: boolean
-          used_at?: string | null
-          user_id: string
-        }
-        Update: {
-          coupon_id?: string | null
-          id?: string
-          used?: boolean
-          used_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_coupons_coupon_id_fkey"
-            columns: ["coupon_id"]
-            isOneToOne: false
-            referencedRelation: "coupons"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       user_footprints: {
         Row: {
@@ -1686,6 +1799,7 @@ export type Database = {
           message_type: string
           quotation_id: string | null
           receiver_id: string
+          referenced_order_list_id: string | null
           sender_id: string
           updated_at: string
         }
@@ -1698,6 +1812,7 @@ export type Database = {
           message_type?: string
           quotation_id?: string | null
           receiver_id: string
+          referenced_order_list_id?: string | null
           sender_id: string
           updated_at?: string
         }
@@ -1710,6 +1825,7 @@ export type Database = {
           message_type?: string
           quotation_id?: string | null
           receiver_id?: string
+          referenced_order_list_id?: string | null
           sender_id?: string
           updated_at?: string
         }
@@ -1719,6 +1835,13 @@ export type Database = {
             columns: ["quotation_id"]
             isOneToOne: false
             referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_messages_referenced_order_list_id_fkey"
+            columns: ["referenced_order_list_id"]
+            isOneToOne: false
+            referencedRelation: "product_lists"
             referencedColumns: ["id"]
           },
         ]
@@ -1878,7 +2001,35 @@ export type Database = {
             foreignKeyName: "user_roles_assigned_by_fkey"
             columns: ["assigned_by"]
             isOneToOne: false
+            referencedRelation: "admin_users_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "available_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "available_suppliers"
             referencedColumns: ["id"]
           },
           {
@@ -1937,44 +2088,60 @@ export type Database = {
           },
         ]
       }
-      wishlist: {
+    }
+    Views: {
+      admin_users_view: {
         Row: {
+          auth_created_at: string | null
+          avatar_url: string | null
           created_at: string | null
-          id: string
-          product_id: string | null
-          product_name: string | null
-          product_sku: string | null
-          product_snapshot: Json | null
-          snapshot_source: string | null
-          snapshot_time: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          product_id?: string | null
-          product_name?: string | null
-          product_sku?: string | null
-          product_snapshot?: Json | null
-          snapshot_source?: string | null
-          snapshot_time?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          product_id?: string | null
-          product_name?: string | null
-          product_sku?: string | null
-          product_snapshot?: Json | null
-          snapshot_source?: string | null
-          snapshot_time?: string | null
-          user_id?: string
+          email: string | null
+          id: string | null
+          nickname: string | null
+          phone: string | null
+          updated_at: string | null
         }
         Relationships: []
       }
-    }
-    Views: {
+      available_suppliers: {
+        Row: {
+          avatar_url: string | null
+          company_address: string | null
+          company_description: string | null
+          company_email: string | null
+          company_name: string | null
+          company_phone: string | null
+          created_at: string | null
+          id: string | null
+          nickname: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          company_address?: string | null
+          company_description?: string | null
+          company_email?: string | null
+          company_name?: string | null
+          company_phone?: string | null
+          created_at?: string | null
+          id?: string | null
+          nickname?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          company_address?: string | null
+          company_description?: string | null
+          company_email?: string | null
+          company_name?: string | null
+          company_phone?: string | null
+          created_at?: string | null
+          id?: string | null
+          nickname?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       category_paths: {
         Row: {
           full_path: string | null
@@ -2085,13 +2252,63 @@ export type Database = {
       }
     }
     Functions: {
+      cancel_unconfirmed_order: {
+        Args: { order_id: string }
+        Returns: boolean
+      }
       clean_old_view_history: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      confirm_order: {
+        Args: { order_id: string }
+        Returns: boolean
+      }
+      create_supplier_quotation_order: {
+        Args:
+          | {
+              p_buyer_user_id: string
+              p_order_items: Json
+              p_quotation_id: string
+              p_supplier_user_id: string
+              p_total_amount: number
+            }
+          | {
+              p_buyer_user_id: string
+              p_order_items: Json
+              p_quotation_id: string
+              p_total_amount: number
+            }
+        Returns: string
+      }
+      create_system_message: {
+        Args: {
+          p_buyer_id: string
+          p_message_content: string
+          p_order_list_id: string
+          p_quotation_id: string
+          p_supplier_id: string
+        }
+        Returns: string
+      }
+      ensure_user_is_supplier: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
       get_user_role: {
         Args: { user_uuid: string }
         Returns: Database["public"]["Enums"]["user_role"]
+      }
+      get_verified_suppliers: {
+        Args: { search_query?: string }
+        Returns: {
+          avatar_url: string
+          company_name: string
+          created_at: string
+          id: string
+          nickname: string
+          verification_status: string
+        }[]
       }
       has_role: {
         Args: {
