@@ -132,7 +132,10 @@ const ProductsPage = () => {
     isFragile: product.is_fragile || false,
     category: product.category_chinese || product.category_english || "其他",
     supplier: {
-      name: product.vendor || "未知供应商",
+      name: (product as any).user_profile?.company_name || 
+            (product as any).user_profile?.nickname || 
+            product.vendor || 
+            "未知供应商",
       verified: true // 硬编码：所有供应商都显示为已认证
     },
     rating: parseFloat((4.0 + Math.random() * 1.0).toFixed(2)), // 4.0-5.0，保留2位小数

@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 重要要求
 **不主动启动项目** ：修改代码后不要主动启动项目，因为已启动完毕，检查代码仅使用lint或者build即可。
 **supabase** 对应的supabase项目id为 skowhfrykowtbchoypbl
+**询价功能说明**：点击"咨询询价"按钮时，应跳转到对应的聊天窗口。询价功能实际上就是聊天功能，与传统的报价流程无关。
 
 ## 常用命令 (Common Commands)
 

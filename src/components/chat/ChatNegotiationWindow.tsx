@@ -23,6 +23,7 @@ import {
   ChatMessage,
   PriceProposal 
 } from '@/services/chatNegotiationService';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface ChatNegotiationWindowProps {
@@ -83,7 +84,7 @@ export const ChatNegotiationWindow: React.FC<ChatNegotiationWindowProps> = ({
     if (!newMessage.trim()) return;
 
     setLoading(true);
-    const { error } = await chatNegotiationService.sendTextMessage(
+    const { data, error } = await chatNegotiationService.sendTextMessage(
       quotationId,
       newMessage.trim()
     );
@@ -92,6 +93,15 @@ export const ChatNegotiationWindow: React.FC<ChatNegotiationWindowProps> = ({
       toast.error('发送消息失败');
     } else {
       setNewMessage('');
+      // 立即添加消息到本地状态，不等待 Realtime
+      if (data) {
+        setMessages(prev => {
+          const exists = prev.some(msg => msg.id === data.id);
+          if (exists) return prev;
+          return [...prev, data];
+        });
+        setTimeout(scrollToBottom, 100);
+      }
     }
     setLoading(false);
   };
@@ -111,7 +121,7 @@ export const ChatNegotiationWindow: React.FC<ChatNegotiationWindowProps> = ({
       message: `我建议价格调整为 ¥${price.toLocaleString()}`
     };
 
-    const { error } = await chatNegotiationService.sendPriceProposal(proposal);
+    const { data, error } = await chatNegotiationService.sendPriceProposal(proposal);
     
     if (error) {
       toast.error('发送价格提案失败');
@@ -119,6 +129,15 @@ export const ChatNegotiationWindow: React.FC<ChatNegotiationWindowProps> = ({
       setProposedPrice('');
       setShowPriceProposal(false);
       toast.success('价格提案已发送');
+      // 立即添加消息到本地状态
+      if (data) {
+        setMessages(prev => {
+          const exists = prev.some(msg => msg.id === data.id);
+          if (exists) return prev;
+          return [...prev, data];
+        });
+        setTimeout(scrollToBottom, 100);
+      }
     }
     setLoading(false);
   };
@@ -296,8 +315,27 @@ export const ChatNegotiationWindow: React.FC<ChatNegotiationWindowProps> = ({
     // 设置实时订阅
     const channel = chatNegotiationService.subscribeToChatMessages(
       quotationId,
-      (newMessage) => {
-        setMessages(prev => [...prev, newMessage]);
+      async (newMessage) => {
+        // 获取发送者的个人信息
+        const { data: senderProfile } = await supabase
+          .from('profiles')
+          .select('nickname, avatar_url')
+          .eq('id', newMessage.sender_id)
+          .single();
+
+        // 添加发送者信息到消息
+        const enrichedMessage = {
+          ...newMessage,
+          sender_profile: senderProfile || { nickname: '未知用户', avatar_url: null }
+        };
+
+        setMessages(prev => {
+          // 检查是否已存在（处理竞态条件和重复）
+          const exists = prev.some(msg => msg.id === enrichedMessage.id);
+          if (exists) return prev;
+          
+          return [...prev, enrichedMessage];
+        });
         setTimeout(scrollToBottom, 100);
       }
     );

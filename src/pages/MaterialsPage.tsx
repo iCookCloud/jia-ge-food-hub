@@ -436,7 +436,11 @@ const MaterialsPage = () => {
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
                 <span className="flex items-center">
                   <User className="w-3 h-3 mr-1" />
-                  {material.supplier_credentials?.company_name || material.supplier || '未知供应商'}
+                  {(material as any).uploader_profile?.company_name || 
+                   (material as any).uploader_profile?.nickname || 
+                   material.supplier_credentials?.company_name || 
+                   material.supplier || 
+                   '未知供应商'}
                 </span>
                 <span className="flex items-center">
                   <Eye className="w-3 h-3 mr-1" />

@@ -27,6 +27,7 @@ import ProductCategoryBatchPage from "./pages/admin/ProductCategoryBatchPage";
 import ProductManagementPage from "./pages/admin/ProductManagementPage";
 import { UserManagementPage } from "./pages/admin/UserManagementPage";
 import MaterialsManagementPage from "./pages/admin/MaterialsManagementPage";
+import MaterialEditPage from "./pages/admin/MaterialEditPage";
 import SupplierVerificationPage from "./pages/admin/SupplierVerificationPage";
 import RealtimeTestPage from "./pages/admin/RealtimeTestPage";
 import E2ETestPage from "./pages/admin/E2ETestPage";
@@ -211,6 +212,11 @@ const App = () => (
             <Route path="/admin/materials" element={
               <AdminRoute>
                 <MaterialsManagementPage />
+              </AdminRoute>
+            } />
+            <Route path="/admin/materials/edit/:id" element={
+              <AdminRoute>
+                <MaterialEditPage />
               </AdminRoute>
             } />
             <Route path="/admin/supplier-verification" element={

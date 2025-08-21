@@ -31,7 +31,37 @@ export const materialService = {
     }
 
     const { data, error } = await query;
-    return { data, error };
+    
+    if (error) {
+      return { data, error };
+    }
+
+    // 获取所有上传者ID
+    const uploaderIds = [...new Set(data?.map(material => material.uploaded_by).filter(Boolean))];
+    
+    // 批量获取用户profile信息
+    let uploaderProfiles = {};
+    if (uploaderIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, nickname, company_name, is_supplier')
+        .in('id', uploaderIds);
+      
+      if (profiles) {
+        uploaderProfiles = profiles.reduce((acc, profile) => {
+          acc[profile.id] = profile;
+          return acc;
+        }, {});
+      }
+    }
+
+    // 将用户信息附加到材料数据
+    const enrichedData = data?.map(material => ({
+      ...material,
+      uploader_profile: material.uploaded_by ? uploaderProfiles[material.uploaded_by] : null
+    }));
+
+    return { data: enrichedData, error };
   },
 
 

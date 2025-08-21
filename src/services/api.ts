@@ -112,8 +112,33 @@ export const productService = {
         return { data: null, error, count: 0 };
       }
 
+      // 获取所有用户ID
+      const userIds = [...new Set(data?.map(product => product.user_id).filter(Boolean))];
+      
+      // 批量获取用户profile信息
+      let userProfiles = {};
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, nickname, company_name, is_supplier')
+          .in('id', userIds);
+        
+        if (profiles) {
+          userProfiles = profiles.reduce((acc, profile) => {
+            acc[profile.id] = profile;
+            return acc;
+          }, {});
+        }
+      }
+
+      // 将用户信息附加到产品数据
+      const enrichedData = data?.map(product => ({
+        ...product,
+        user_profile: product.user_id ? userProfiles[product.user_id] : null
+      }));
+
       return { 
-        data: data || [], 
+        data: enrichedData || [], 
         error: null, 
         count: count || 0 
       };

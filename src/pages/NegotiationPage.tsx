@@ -166,7 +166,7 @@ export const NegotiationPage: React.FC = () => {
               <ChatNegotiationWindow
                 quotationId={selectedSession.quotation_id}
                 currentUserId={user.id}
-                buyerId={selectedSession.order_list_id} // 需要从实际数据获取
+                buyerId={selectedSession.buyer_id}
                 supplierId={selectedSession.supplier_id}
                 currentPrice={currentPrice}
                 originalPrice={selectedSession.original_amount}

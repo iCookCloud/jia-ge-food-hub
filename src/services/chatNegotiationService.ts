@@ -30,6 +30,23 @@ export interface ApiResponse<T> {
   error: any;
 }
 
+export interface NegotiationSession {
+  quotation_id: string;
+  order_list_id: string;
+  buyer_id: string;
+  order_name: string;
+  supplier_id: string;
+  supplier_name: string;
+  order_status: string;
+  current_amount: number;
+  original_amount: number;
+  buyer_confirmed: boolean;
+  supplier_confirmed: boolean;
+  negotiation_count: number;
+  message_count: number;
+  last_message_at: string;
+}
+
 export const chatNegotiationService = {
   // 获取协商会话的聊天记录
   getChatMessages: async (
@@ -64,7 +81,7 @@ export const chatNegotiationService = {
       // 获取报价信息
       const { data: quotation, error: quotationError } = await supabase
         .from('quotations')
-        .select('product_list_id as order_list_id, customer_id as supplier_id')
+        .select('product_list_id, customer_id')
         .eq('id', quotationId)
         .single();
 
@@ -75,8 +92,8 @@ export const chatNegotiationService = {
       // 获取订单买家信息
       const { data: orderList, error: orderError } = await supabase
         .from('product_lists')
-        .select('user_id as buyer_id')
-        .eq('id', quotation.order_list_id)
+        .select('user_id')
+        .eq('id', quotation.product_list_id)
         .single();
 
       if (orderError) {
@@ -88,10 +105,10 @@ export const chatNegotiationService = {
       const { data, error } = await supabase
         .from('chat_negotiations')
         .insert({
-          order_list_id: quotation.order_list_id,
+          order_list_id: quotation.product_list_id,
           quotation_id: quotationId,
-          buyer_id: orderList.buyer_id,
-          supplier_id: quotation.supplier_id,
+          buyer_id: orderList.user_id,
+          supplier_id: quotation.customer_id,
           message_type: 'text',
           message_content: message,
           sender_id: user.user?.id
@@ -115,7 +132,7 @@ export const chatNegotiationService = {
     // 获取报价信息
     const { data: quotation, error: quotationError } = await supabase
       .from('quotations')
-      .select('product_list_id as order_list_id, customer_id as supplier_id')
+      .select('product_list_id, customer_id')
       .eq('id', proposal.quotation_id)
       .single();
 
@@ -126,8 +143,8 @@ export const chatNegotiationService = {
     // 获取订单买家信息
     const { data: orderList, error: orderError } = await supabase
       .from('product_lists')
-      .select('user_id as buyer_id')
-      .eq('id', quotation.order_list_id)
+      .select('user_id')
+      .eq('id', quotation.product_list_id)
       .single();
 
     if (orderError) {
@@ -139,10 +156,10 @@ export const chatNegotiationService = {
     const { data, error } = await supabase
       .from('chat_negotiations')
       .insert({
-        order_list_id: quotation.order_list_id,
+        order_list_id: quotation.product_list_id,
         quotation_id: proposal.quotation_id,
-        buyer_id: orderList.buyer_id,
-        supplier_id: quotation.supplier_id,
+        buyer_id: orderList.user_id,
+        supplier_id: quotation.customer_id,
         message_type: 'price_proposal',
         message_content: proposal.message,
         sender_id: user.user?.id,
@@ -179,7 +196,7 @@ export const chatNegotiationService = {
     // 获取报价信息
     const { data: quotation, error: quotationError } = await supabase
       .from('quotations')
-      .select('product_list_id as order_list_id, customer_id as supplier_id')
+      .select('product_list_id, customer_id')
       .eq('id', quotationId)
       .single();
 
@@ -190,8 +207,8 @@ export const chatNegotiationService = {
     // 获取订单买家信息
     const { data: orderList, error: orderError } = await supabase
       .from('product_lists')
-      .select('user_id as buyer_id')
-      .eq('id', quotation.order_list_id)
+      .select('user_id')
+      .eq('id', quotation.product_list_id)
       .single();
 
     if (orderError) {
@@ -199,8 +216,8 @@ export const chatNegotiationService = {
     }
 
     // 判断是买家还是供应商
-    const isBuyer = user.user?.id === orderList.buyer_id;
-    const isSupplier = user.user?.id === quotation.supplier_id;
+    const isBuyer = user.user?.id === orderList.user_id;
+    const isSupplier = user.user?.id === quotation.customer_id;
 
     if (!isBuyer && !isSupplier) {
       return { data: null, error: { message: '无权限操作' } };
@@ -264,7 +281,7 @@ export const chatNegotiationService = {
     // 获取报价信息
     const { data: quotation, error: quotationError } = await supabase
       .from('quotations')
-      .select('order_list_id, supplier_id')
+      .select('product_list_id, customer_id')
       .eq('id', quotationId)
       .single();
 
@@ -275,8 +292,8 @@ export const chatNegotiationService = {
     // 获取订单买家信息
     const { data: orderList, error: orderError } = await supabase
       .from('product_lists')
-      .select('user_id as buyer_id')
-      .eq('id', quotation.order_list_id)
+      .select('user_id')
+      .eq('id', quotation.product_list_id)
       .single();
 
     if (orderError) {
@@ -284,8 +301,8 @@ export const chatNegotiationService = {
     }
 
     // 判断是买家还是供应商
-    const isBuyer = user.user?.id === orderList.buyer_id;
-    const isSupplier = user.user?.id === quotation.supplier_id;
+    const isBuyer = user.user?.id === orderList.user_id;
+    const isSupplier = user.user?.id === quotation.customer_id;
 
     if (!isBuyer && !isSupplier) {
       return { data: null, error: { message: '无权限操作' } };
@@ -321,7 +338,7 @@ export const chatNegotiationService = {
     // 获取报价信息
     const { data: quotation, error: quotationError } = await supabase
       .from('quotations')
-      .select('product_list_id as order_list_id, customer_id as supplier_id')
+      .select('product_list_id, customer_id')
       .eq('id', quotationId)
       .single();
 
@@ -332,8 +349,8 @@ export const chatNegotiationService = {
     // 获取订单买家信息
     const { data: orderList, error: orderError } = await supabase
       .from('product_lists')
-      .select('user_id as buyer_id')
-      .eq('id', quotation.order_list_id)
+      .select('user_id')
+      .eq('id', quotation.product_list_id)
       .single();
 
     if (orderError) {
@@ -343,13 +360,13 @@ export const chatNegotiationService = {
     const { data, error } = await supabase
       .from('chat_negotiations')
       .insert({
-        order_list_id: quotation.order_list_id,
+        order_list_id: quotation.product_list_id,
         quotation_id: quotationId,
-        buyer_id: orderList.buyer_id,
-        supplier_id: quotation.supplier_id,
+        buyer_id: orderList.user_id,
+        supplier_id: quotation.customer_id,
         message_type: 'system',
         message_content: message,
-        sender_id: orderList.buyer_id // 系统消息发送者设为买家
+        sender_id: orderList.user_id // 系统消息发送者设为买家
       })
       .select(`
         *,
@@ -435,6 +452,101 @@ export const chatNegotiationService = {
       }
 
       return { data: data || [], error: null };
+    } catch (error) {
+      return { data: [], error: error as any };
+    }
+  },
+
+  // 获取协商会话列表
+  getNegotiationSessions: async (): Promise<ApiResponse<NegotiationSession[]>> => {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) {
+        return { data: [], error: null };
+      }
+
+      // 1. 获取用户作为供应商的报价
+      const { data: supplierQuotations, error: supplierError } = await supabase
+        .from('quotations')
+        .select('id, product_list_id, customer_id, total_amount, created_at, updated_at')
+        .eq('customer_id', user.user.id)
+        .order('updated_at', { ascending: false });
+
+      // 2. 获取用户作为买家的产品列表ID
+      const { data: userProductLists } = await supabase
+        .from('product_lists')
+        .select('id')
+        .eq('user_id', user.user.id);
+
+      let buyerQuotations: any[] = [];
+      if (userProductLists && userProductLists.length > 0) {
+        const productListIds = userProductLists.map(pl => pl.id);
+        const { data } = await supabase
+          .from('quotations')
+          .select('id, product_list_id, customer_id, total_amount, created_at, updated_at')
+          .in('product_list_id', productListIds)
+          .order('updated_at', { ascending: false });
+        buyerQuotations = data || [];
+      }
+
+      // 合并所有报价数据
+      const allQuotations = [
+        ...(supplierQuotations || []),
+        ...buyerQuotations
+      ];
+
+      // 去重（以防用户既是买家又是供应商的同一个报价）
+      const uniqueQuotations = allQuotations.filter((item, index, arr) => 
+        arr.findIndex(q => q.id === item.id) === index
+      ).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+      // 如果没有报价数据，返回空数组
+      if (uniqueQuotations.length === 0) {
+        return { data: [], error: null };
+      }
+
+      // 获取相关的产品列表信息
+      const productListIds = uniqueQuotations.map(q => q.product_list_id);
+      const { data: productLists } = await supabase
+        .from('product_lists')
+        .select('id, name, status, user_id')
+        .in('id', productListIds);
+
+      // 获取供应商信息
+      const supplierIds = uniqueQuotations.map(q => q.customer_id);
+      const { data: suppliers } = await supabase
+        .from('profiles')
+        .select('id, nickname')
+        .in('id', supplierIds);
+
+      // 创建查找映射
+      const productListMap = new Map((productLists || []).map(pl => [pl.id, pl]));
+      const supplierMap = new Map((suppliers || []).map(s => [s.id, s]));
+
+      // 转换数据格式为 NegotiationSession
+      const sessions: NegotiationSession[] = uniqueQuotations.map((item: any) => {
+        const productList = productListMap.get(item.product_list_id);
+        const supplier = supplierMap.get(item.customer_id);
+
+        return {
+          quotation_id: item.id,
+          order_list_id: item.product_list_id,
+          buyer_id: productList?.user_id || '',
+          order_name: productList?.name || '未知订单',
+          supplier_id: item.customer_id,
+          supplier_name: supplier?.nickname || '未知供应商',
+          order_status: productList?.status || 'unknown',
+          current_amount: item.total_amount || 0,
+          original_amount: item.total_amount || 0,
+          buyer_confirmed: false,
+          supplier_confirmed: false,
+          negotiation_count: 1,
+          message_count: 0,
+          last_message_at: item.updated_at || item.created_at
+        };
+      });
+
+      return { data: sessions, error: null };
     } catch (error) {
       return { data: [], error: error as any };
     }

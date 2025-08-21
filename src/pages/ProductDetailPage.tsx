@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,6 +41,7 @@ import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
 const ProductDetailPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const { user } = useAuth();
   
@@ -68,7 +69,10 @@ const ProductDetailPage = () => {
         image: product.product_image,
         specifications: product.specifications,
         supplier: {
-          name: product.vendor || "未知供应商",
+          name: (product as any).user_profile?.company_name || 
+                (product as any).user_profile?.nickname || 
+                product.vendor || 
+                "iCook",
           verified: true
         }
       }, 1);
@@ -82,12 +86,28 @@ const ProductDetailPage = () => {
     updateQuantity(product.id, currentQuantity - 1);
   };
 
-  const handleInquiry = () => {
-    setConsultationDialog({
-      open: true,
-      selectedSupplier: "",
-      message: `您好，我对商品"${productName}"感兴趣，希望了解更多详情和报价信息。`
-    });
+  const handleInquiry = async () => {
+    if (!user || !product) {
+      toast({
+        title: "请先登录",
+        description: "咨询询价需要先登录账户",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // 直接跳转到协商聊天页面
+      navigate('/negotiations');
+      
+    } catch (error) {
+      console.error('启动聊天失败:', error);
+      toast({
+        title: "启动聊天失败",
+        description: "请稍后重试",
+        variant: "destructive"
+      });
+    }
   };
 
   // 处理咨询提交

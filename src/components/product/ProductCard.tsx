@@ -71,6 +71,11 @@ export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
       updateQuantity(product.id, currentQuantity - 1);
     }
   };
+
+  const handleInquiry = (e?: React.MouseEvent) => {
+    e?.stopPropagation(); // 防止触发卡片点击
+    navigate('/negotiations');
+  };
   // Grid模式（默认大卡片）
   if (mode === "grid") {
     return (
@@ -195,6 +200,7 @@ export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
               size="sm" 
               className="flex-1"
               disabled={!product.inStock}
+              onClick={handleInquiry}
             >
               <MessageCircle className="h-3 w-3" />
               {product.inStock ? "咨询询价" : "缺货"}
@@ -364,6 +370,7 @@ export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
                 size="sm" 
                 className="text-xs px-2 sm:px-3 flex-1"
                 disabled={!product.inStock}
+                onClick={handleInquiry}
               >
                 <MessageCircle className="h-3 w-3 mr-1" />
                 询价

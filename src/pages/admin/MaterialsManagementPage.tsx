@@ -33,7 +33,8 @@ import {
   Play,
   ArrowLeft,
   Filter,
-  Loader2
+  Loader2,
+  Edit
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -431,6 +432,17 @@ const MaterialsManagementPage: React.FC = () => {
                         <Link to={`/materials/${material.type}/${material.id}`}>
                           <Eye className="w-4 h-4 mr-1" />
                           查看
+                        </Link>
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                      >
+                        <Link to={`/admin/materials/edit/${material.id}`}>
+                          <Edit className="w-4 h-4 mr-1" />
+                          编辑
                         </Link>
                       </Button>
                       

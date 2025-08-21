@@ -15,7 +15,9 @@ import {
   XCircle,
   TrendingUp,
   TrendingDown,
-  Minus
+  Minus,
+  Plus,
+  Loader2
 } from 'lucide-react';
 
 // 产品关联数据类型
@@ -25,6 +27,8 @@ interface ProductAssociation {
   original_product_id: string;
   product_sku: string;
   product_name: string;
+  recommended_quantity?: number;
+  quantity_note?: string;
   product_snapshot: {
     id?: string;
     sku?: string;
@@ -45,10 +49,13 @@ interface ProductAssociation {
 interface ProductCardProps {
   association: ProductAssociation;
   onProductClick?: (association: ProductAssociation) => void;
-  onAddToCart?: (association: ProductAssociation) => void;
+  onAddToCart?: (association: ProductAssociation, quantity: number) => void;
   onToggleFavorite?: (association: ProductAssociation) => void;
+  onUpdateQuantity?: (association: ProductAssociation, newQuantity: number) => void;
   loading?: boolean;
   isFavorite?: boolean;
+  showQuantityControls?: boolean;
+  isAdminMode?: boolean;
   className?: string;
 }
 
@@ -57,8 +64,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onProductClick,
   onAddToCart,
   onToggleFavorite,
+  onUpdateQuantity,
   loading = false,
   isFavorite = false,
+  showQuantityControls = false,
+  isAdminMode = false,
   className = ""
 }) => {
   const { toast } = useToast();
@@ -128,13 +138,31 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       });
       return;
     }
-    onAddToCart?.(association);
+    // 使用当前显示的数量
+    const quantity = association.recommended_quantity || 1;
+    onAddToCart?.(association, quantity);
   };
 
   // 处理收藏切换
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation(); // 阻止事件冒泡，避免触发卡片的查看详情
     onToggleFavorite?.(association);
+  };
+
+  // 处理数量增加
+  const handleIncreaseQuantity = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const currentQuantity = association.recommended_quantity || 1;
+    onUpdateQuantity?.(association, currentQuantity + 1);
+  };
+
+  // 处理数量减少
+  const handleDecreaseQuantity = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const currentQuantity = association.recommended_quantity || 1;
+    if (currentQuantity > 1) {
+      onUpdateQuantity?.(association, currentQuantity - 1);
+    }
   };
 
   // 渲染星级评分
@@ -233,6 +261,44 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               )}
             </div>
 
+            {/* 数量控制 */}
+            {showQuantityControls && (
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {isAdminMode ? '推荐数量:' : '购买数量:'}
+                </span>
+                <div className="flex items-center border rounded-lg">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleDecreaseQuantity}
+                    disabled={loading || (association.recommended_quantity || 1) <= 1}
+                    className="h-6 w-6 p-0 hover:bg-gray-100"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </Button>
+                  
+                  <div className="flex items-center justify-center min-w-[30px] h-6 px-2 text-xs font-medium bg-gray-50">
+                    {loading ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      association.recommended_quantity || 1
+                    )}
+                  </div>
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleIncreaseQuantity}
+                    disabled={loading}
+                    className="h-6 w-6 p-0 hover:bg-gray-100"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* 评分 */}
             <div className="flex items-center justify-center">
               {renderRating()}
@@ -275,9 +341,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 interface ProductListProps {
   associations: ProductAssociation[];
   onProductClick?: (association: ProductAssociation) => void;
-  onAddToCart?: (association: ProductAssociation) => void;
+  onAddToCart?: (association: ProductAssociation, quantity: number) => void;
   onAddAllToCart?: (associations: ProductAssociation[]) => void;
+  onUpdateQuantity?: (association: ProductAssociation, newQuantity: number) => void;
   loadingProductId?: string | null;
+  showQuantityControls?: boolean;
+  isAdminMode?: boolean;
   className?: string;
 }
 
@@ -286,10 +355,21 @@ export const ProductList: React.FC<ProductListProps> = ({
   onProductClick,
   onAddToCart,
   onAddAllToCart,
+  onUpdateQuantity,
   loadingProductId,
+  showQuantityControls = false,
+  isAdminMode = false,
   className = ""
 }) => {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  // 管理每个商品的当前数量状态（非管理模式下使用）
+  const [productQuantities, setProductQuantities] = useState<Record<string, number>>(() => {
+    const initialQuantities: Record<string, number> = {};
+    associations.forEach(association => {
+      initialQuantities[association.id] = association.recommended_quantity || 1;
+    });
+    return initialQuantities;
+  });
 
   const handleToggleFavorite = (association: ProductAssociation) => {
     setFavorites(prev => {
@@ -303,19 +383,32 @@ export const ProductList: React.FC<ProductListProps> = ({
     });
   };
 
+  // 处理商品数量变化
+  const handleQuantityChange = (association: ProductAssociation, newQuantity: number) => {
+    if (!isAdminMode) {
+      // 非管理模式：更新本地数量状态
+      setProductQuantities(prev => ({
+        ...prev,
+        [association.id]: newQuantity
+      }));
+    }
+    // 管理模式：调用原有的更新函数
+    if (isAdminMode && onUpdateQuantity) {
+      onUpdateQuantity(association, newQuantity);
+    }
+  };
+
   // 一键加入所有货品到货单
   const handleAddAllToOrderList = () => {
     if (associations.length === 0) return;
     
-    // 使用新的批量添加回调
-    if (onAddAllToCart) {
-      onAddAllToCart(associations);
-    } else {
-      // 如果没有批量回调，则逐个添加
-      associations.forEach(association => {
-        onAddToCart?.(association);
-      });
-    }
+    // 逐个添加，使用当前的数量设置
+    associations.forEach(association => {
+      const currentQuantity = isAdminMode 
+        ? (association.recommended_quantity || 1)
+        : (productQuantities[association.id] || 1);
+      onAddToCart?.(association, currentQuantity);
+    });
   };
 
   if (associations.length === 0) {
@@ -326,6 +419,19 @@ export const ProductList: React.FC<ProductListProps> = ({
       </div>
     );
   }
+
+  // 计算总的当前数量
+  const getTotalCurrentQuantity = () => {
+    return associations.reduce((total, association) => {
+      if (isAdminMode) {
+        return total + (association.recommended_quantity || 1);
+      } else {
+        return total + (productQuantities[association.id] || 1);
+      }
+    }, 0);
+  };
+
+  const totalQuantity = getTotalCurrentQuantity();
 
   return (
     <div className={className}>
@@ -339,7 +445,7 @@ export const ProductList: React.FC<ProductListProps> = ({
             onClick={handleAddAllToOrderList}
           >
             <Package className="w-4 h-4" />
-            一键加入所有货品到货单 ({associations.length}个)
+            一键加入所有货品到货单 ({associations.length}种商品，共{totalQuantity}件)
           </Button>
         </div>
       )}
@@ -349,12 +455,19 @@ export const ProductList: React.FC<ProductListProps> = ({
         {associations.map((association) => (
           <ProductCard
             key={association.id}
-            association={association}
+            association={{
+              ...association,
+              // 在非管理模式下，使用本地数量状态覆盖推荐数量用于显示
+              ...(isAdminMode ? {} : { recommended_quantity: productQuantities[association.id] || 1 })
+            }}
             onProductClick={onProductClick}
             onAddToCart={onAddToCart}
             onToggleFavorite={handleToggleFavorite}
+            onUpdateQuantity={handleQuantityChange}
             loading={loadingProductId === association.id}
             isFavorite={favorites.has(association.id)}
+            showQuantityControls={showQuantityControls}
+            isAdminMode={isAdminMode}
           />
         ))}
       </div>

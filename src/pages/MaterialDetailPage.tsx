@@ -100,6 +100,8 @@ const MaterialDetailPage = () => {
                 original_product_id,
                 product_sku,
                 product_name,
+                recommended_quantity,
+                quantity_note,
                 product_snapshot
               )
             `)
@@ -128,6 +130,8 @@ const MaterialDetailPage = () => {
                 original_product_id,
                 product_sku,
                 product_name,
+                recommended_quantity,
+                quantity_note,
                 product_snapshot
               )
             `)
@@ -222,7 +226,7 @@ const MaterialDetailPage = () => {
   };
 
   // 添加到购物车功能
-  const handleAddToCart = async (association: VideoProductAssociation | ImageProductAssociation) => {
+  const handleAddToCart = async (association: VideoProductAssociation | ImageProductAssociation, quantity: number) => {
     setLoadingProductId(association.id);
 
     try {
@@ -233,7 +237,7 @@ const MaterialDetailPage = () => {
       const imageFromSnapshot = snap.main_image_url || '';
       const specFromSnapshot = snap.specification || association.product_sku || '';
       const unitFromSnapshot = snap.unit || '件';
-      const vendorFromSnapshot = snap.vendor || '未知供应商';
+      const vendorFromSnapshot = snap.vendor || 'iCook';
 
       const cartItem = {
         id: association.original_product_id || association.id,
@@ -248,12 +252,12 @@ const MaterialDetailPage = () => {
         }
       };
 
-      // 添加到购物车
-      addItem(cartItem, 1);
+      // 使用传入的数量添加到购物车
+      addItem(cartItem, quantity);
       
       toast({
         title: "添加成功",
-        description: `${association.product_name} 已添加到购物车`,
+        description: `${association.product_name} × ${quantity} 已添加到购物车`,
       });
     } catch (error) {
       console.error('Failed to add to cart:', error);
@@ -282,7 +286,7 @@ const MaterialDetailPage = () => {
           const imageFromSnapshot = snap.main_image_url || '';
           const specFromSnapshot = snap.specification || association.product_sku || '';
           const unitFromSnapshot = snap.unit || '件';
-          const vendorFromSnapshot = snap.vendor || '未知供应商';
+          const vendorFromSnapshot = snap.vendor || 'iCook';
 
           const cartItem = {
             id: association.original_product_id || association.id,
@@ -297,8 +301,9 @@ const MaterialDetailPage = () => {
             }
           };
 
-          // 添加到购物车
-          addItem(cartItem, 1);
+          // 使用推荐数量添加到购物车
+          const recommendedQuantity = (association as any).recommended_quantity || 1;
+          addItem(cartItem, recommendedQuantity);
           successCount++;
         } catch (error) {
           console.error(`Failed to add ${association.product_name} to cart:`, error);
@@ -334,6 +339,7 @@ const MaterialDetailPage = () => {
       });
     }
   };
+
 
   const handleShare = async () => {
     if (!material) return;
@@ -596,6 +602,8 @@ const MaterialDetailPage = () => {
                   onAddToCart={handleAddToCart}
                   onAddAllToCart={handleAddAllToCart}
                   loadingProductId={loadingProductId}
+                  showQuantityControls={true}
+                  isAdminMode={false}
                 />
               </CardContent>
             </Card>
