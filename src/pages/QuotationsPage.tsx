@@ -501,6 +501,7 @@ const QuotationsPage = () => {
                     setShowOrderListDetail(true);
                     loadOrderListDetail(message.referenced_order_list_id);
                   }}
+                  disabled={!message.referenced_order_list_id}
                 >
                   预览
                 </Button>
@@ -1045,13 +1046,26 @@ const QuotationsPage = () => {
                   <AlertTriangle className="h-12 w-12 text-muted-foreground" />
                   <p>货单详情加载失败</p>
                   <p className="text-sm">可能的原因：货单不存在、已被删除或权限不足</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setShowOrderListDetail(false)}
-                  >
-                    关闭
-                  </Button>
+                  <div className="flex gap-2 mt-3">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        if (selectedOrderListId) {
+                          loadOrderListDetail(selectedOrderListId);
+                        }
+                      }}
+                    >
+                      重试
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowOrderListDetail(false)}
+                    >
+                      关闭
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}

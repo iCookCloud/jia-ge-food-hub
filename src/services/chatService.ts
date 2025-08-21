@@ -347,8 +347,11 @@ export const chatService = {
   // 订阅实时消息
   subscribeToChatMessages: (
     receiverId: string,
-    callback: (message: ChatMessage) => void
+    callback: (message: ChatMessage) => void,
+    profileCache?: Map<string, { nickname?: string; avatar_url?: string }>
   ) => {
+    const cache = profileCache || new Map();
+    
     return supabase
       .channel(`chat_${receiverId}`)
       .on(
@@ -374,12 +377,19 @@ export const chatService = {
               .single();
             
             if (messageData) {
-              // 获取发送者资料
-              const { data: senderProfile } = await supabase
-                .from('profiles')
-                .select('nickname, avatar_url')
-                .eq('id', messageData.sender_id)
-                .single();
+              // 检查缓存中是否有发送者资料
+              let senderProfile = cache.get(messageData.sender_id);
+              if (!senderProfile) {
+                const { data: profile } = await supabase
+                  .from('profiles')
+                  .select('nickname, avatar_url')
+                  .eq('id', messageData.sender_id)
+                  .single();
+                senderProfile = profile;
+                if (profile) {
+                  cache.set(messageData.sender_id, profile);
+                }
+              }
 
               // 添加发送者资料到消息
               const messageWithProfile = {

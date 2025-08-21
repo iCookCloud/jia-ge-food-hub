@@ -88,11 +88,7 @@ const ProductDetailPage = () => {
 
   const handleInquiry = async () => {
     if (!user || !product) {
-      toast({
-        title: "请先登录",
-        description: "咨询询价需要先登录账户",
-        variant: "destructive"
-      });
+      toast.error("请先登录后再咨询询价");
       return;
     }
 
@@ -103,19 +99,11 @@ const ProductDetailPage = () => {
       if (uploaderId) {
         navigate(`/quotations?to=${uploaderId}&product=${productId}`);
       } else {
-        toast({
-          title: "无法咨询",
-          description: "该商品暂无上传者信息",
-          variant: "destructive"
-        });
+        toast.error("该商品暂无上传者信息，无法咨询");
       }
     } catch (error) {
       console.error('启动聊天失败:', error);
-      toast({
-        title: "启动聊天失败",
-        description: "请稍后重试",
-        variant: "destructive"
-      });
+      toast.error("启动聊天失败，请稍后重试");
     }
   };
 
