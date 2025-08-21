@@ -83,61 +83,6 @@ interface ImageItem {
   updated_at?: string;
 }
 
-// Mock video data for fallback
-const mockVideos = [
-  {
-    id: "V001",
-    title: "新鲜三文鱼片制作工艺展示",
-    description: "详细展示挪威进口三文鱼的加工制作过程，确保品质和新鲜度",
-    thumbnail: "/src/assets/salmon-fillet.jpg",
-    duration: "03:45",
-    category: "产品介绍",
-    supplier: "海鲜直供",
-    uploadDate: "2024-01-15",
-    views: 1250,
-    relatedProducts: ["新鲜三文鱼片 挪威进口"],
-    tags: ["海鲜", "三文鱼", "制作工艺"]
-  },
-  {
-    id: "V002", 
-    title: "火锅牛肉卷最佳涮制教程",
-    description: "专业大厨教你如何涮制完美的牛肉卷，掌握火候和时间",
-    thumbnail: "/src/assets/beef-rolls.jpg", 
-    duration: "05:20",
-    category: "操作教程",
-    supplier: "优质肉类",
-    uploadDate: "2024-01-12",
-    views: 890,
-    relatedProducts: ["优质牛肉卷 火锅专用"],
-    tags: ["牛肉", "火锅", "教程"]
-  },
-  {
-    id: "V003",
-    title: "绿色有机蔬菜种植基地实地探访",
-    description: "走进有机蔬菜种植基地，了解从种子到餐桌的全过程",
-    thumbnail: "/src/assets/vegetable-platter.jpg",
-    duration: "08:15", 
-    category: "客户案例",
-    supplier: "绿色农场",
-    uploadDate: "2024-01-10",
-    views: 2100,
-    relatedProducts: ["有机蔬菜拼盘"],
-    tags: ["有机", "蔬菜", "种植"]
-  },
-  {
-    id: "V004",
-    title: "香料配比秘诀分享",
-    description: "资深调料师分享多年经验，教你调配出完美的香料比例",
-    thumbnail: "/src/assets/spice-set.jpg",
-    duration: "06:30",
-    category: "操作教程", 
-    supplier: "香料专家",
-    uploadDate: "2024-01-08",
-    views: 1560,
-    relatedProducts: ["精选香料套装"],
-    tags: ["香料", "调料", "配比"]
-  }
-];
 
 const MaterialsPage = () => {
   const { user } = useAuth();
@@ -180,10 +125,6 @@ const MaterialsPage = () => {
   }), [currentPage]);
   
   const { data: materials = [], isLoading, error } = useMaterials(filters, pagination);
-  
-  // Use mock data as fallback for first page only
-  const mockMaterials = mockVideos.map(video => ({ ...video, type: 'video' as const }));
-  const displayMaterials = materials.length > 0 ? materials : (currentPage === 1 ? mockMaterials : []);
   
   // 管理数据累积和重置
   useEffect(() => {
@@ -295,9 +236,8 @@ const MaterialsPage = () => {
     };
   }, [hasMore, isLoadingMore, isLoading, handleLoadMore]);
 
-  // 使用累积的数据而不是当前页数据
-  // 添加保护：如果allMaterials为空但displayMaterials有数据，使用displayMaterials（防止数据意外清空）
-  const finalDisplayMaterials = allMaterials.length > 0 ? allMaterials : displayMaterials;
+  // 使用累积的数据
+  const finalDisplayMaterials = allMaterials.length > 0 ? allMaterials : materials;
   
   const filteredMaterials = finalDisplayMaterials.filter((material: MaterialItem) => {
     const matchesCategory = selectedCategory === "全部" || material.category === selectedCategory;

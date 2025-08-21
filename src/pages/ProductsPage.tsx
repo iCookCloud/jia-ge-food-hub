@@ -142,66 +142,9 @@ const ProductsPage = () => {
     inStock: product.is_active || false
   }));
 
-  // 如果没有商品数据，显示示例商品用于测试购物车功能
-  const demoProducts = [
-    {
-      id: "demo-1",
-      name: "新鲜三文鱼",
-      image: "/placeholder.svg",
-      price: "128.00",
-      unit: "500g",
-      specifications: "挪威进口，新鲜冷冻",
-      sku: "SALMON-001",
-      subcategory: "海鲜",
-      dimensions: "20x15x5cm",
-      storageRequirements: "冷冻存储",
-      requiresColdChain: true,
-      isFragile: false,
-      category: "海鲜水产",
-      supplier: { name: "挪威海产供应商", verified: true },
-      rating: 4.8,
-      inStock: true
-    },
-    {
-      id: "demo-2",
-      name: "有机胡萝卜",
-      image: "/placeholder.svg",
-      price: "15.80",
-      unit: "1kg",
-      specifications: "有机认证，无农药残留",
-      sku: "CARROT-002",
-      subcategory: "根茎类",
-      dimensions: "30x20x10cm",
-      storageRequirements: "常温存储",
-      requiresColdChain: false,
-      isFragile: false,
-      category: "蔬菜",
-      supplier: { name: "绿色农场", verified: true },
-      rating: 4.6,
-      inStock: true
-    },
-    {
-      id: "demo-3",
-      name: "澳洲牛肉",
-      image: "/placeholder.svg",
-      price: "298.00",
-      unit: "1kg",
-      specifications: "M5级和牛，雪花纹理",
-      sku: "BEEF-003",
-      subcategory: "红肉",
-      dimensions: "25x18x8cm",
-      storageRequirements: "冷冻存储",
-      requiresColdChain: true,
-      isFragile: false,
-      category: "肉类",
-      supplier: { name: "澳洲牧场", verified: true },
-      rating: 4.9,
-      inStock: true
-    }
-  ];
 
-  // 使用真实数据或示例数据
-  const displayProducts = convertedProducts.length > 0 ? convertedProducts : demoProducts;
+  // 使用转换后的真实数据
+  const displayProducts = convertedProducts;
 
   // 分页处理函数
   const handlePageChange = (page: number) => {
