@@ -97,9 +97,18 @@ const ProductDetailPage = () => {
     }
 
     try {
-      // 直接跳转到协商聊天页面
-      navigate('/negotiations');
-      
+      // 跳转到与商品上传者的聊天页面，携带商品上下文
+      const uploaderId = product.user_id; // 商品上传者ID
+      const productId = product.id;
+      if (uploaderId) {
+        navigate(`/quotations?to=${uploaderId}&product=${productId}`);
+      } else {
+        toast({
+          title: "无法咨询",
+          description: "该商品暂无上传者信息",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('启动聊天失败:', error);
       toast({

@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { LogOut, Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { directSignOut } from '@/utils/auth';
+import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
 interface SignOutButtonProps {
@@ -13,15 +12,15 @@ interface SignOutButtonProps {
   showIcon?: boolean;
 }
 
-export const SignOutButton: React.FC<SignOutButtonProps> = ({
+export const SignOutButton = React.forwardRef<HTMLButtonElement, SignOutButtonProps>(({
   variant = 'outline',
   size = 'default',
   className,
   children = '退出登录',
   showIcon = true
-}) => {
+}, ref) => {
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const { toast } = useToast();
+  const { signOut } = useAuth();
 
   const handleSignOut = async () => {
     if (isSigningOut) return;
@@ -29,25 +28,16 @@ export const SignOutButton: React.FC<SignOutButtonProps> = ({
     setIsSigningOut(true);
     
     try {
-      toast({
-        title: "正在退出...",
-        description: "正在清理登录状态，请稍候",
-      });
-      
-      await directSignOut();
+      // 使用 useAuth 的统一退出方法，确保状态同步
+      await signOut();
       
     } catch (error) {
       console.error('SignOut error:', error);
       
-      toast({
-        title: "退出失败",
-        description: "遇到网络问题，正在强制清理本地状态",
-        variant: "destructive",
-      });
-      
+      // 如果 useAuth 的退出失败，作为备选方案强制跳转
       setTimeout(() => {
         window.location.href = '/auth';
-      }, 2000);
+      }, 1000);
       
     } finally {
       setIsSigningOut(false);
@@ -56,6 +46,7 @@ export const SignOutButton: React.FC<SignOutButtonProps> = ({
 
   return (
     <Button
+      ref={ref}
       variant={variant}
       size={size}
       onClick={handleSignOut}
@@ -79,4 +70,6 @@ export const SignOutButton: React.FC<SignOutButtonProps> = ({
       )}
     </Button>
   );
-};
+});
+
+SignOutButton.displayName = 'SignOutButton';

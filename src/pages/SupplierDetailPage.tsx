@@ -47,6 +47,7 @@ interface ProductItem {
     verified: boolean;
   };
   inStock: boolean;
+  user_id?: string; // 添加商品上传者ID
 }
 
 const SupplierDetailPage = () => {
@@ -111,7 +112,8 @@ const SupplierDetailPage = () => {
           name: supplier?.name || "未知供应商",
           verified: true
         },
-        inStock: product.is_active || false
+        inStock: product.is_active || false,
+        user_id: product.user_id // 添加商品上传者ID
       }));
 
       setProducts(transformedProducts);

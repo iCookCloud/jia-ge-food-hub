@@ -139,7 +139,8 @@ const ProductsPage = () => {
       verified: true // 硬编码：所有供应商都显示为已认证
     },
     rating: parseFloat((4.0 + Math.random() * 1.0).toFixed(2)), // 4.0-5.0，保留2位小数
-    inStock: product.is_active || false
+    inStock: product.is_active || false,
+    user_id: product.user_id // 添加商品上传者ID
   }));
 
 

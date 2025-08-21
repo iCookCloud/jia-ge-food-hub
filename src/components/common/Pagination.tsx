@@ -108,30 +108,30 @@ export const Pagination: React.FC<PaginationProps> = ({
           </Button>
 
           {/* 页码按钮 */}
-          {visiblePages.map((page, index) => (
-            <React.Fragment key={index}>
-              {page === '...' ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled
-                  className="h-8 w-8 p-0"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              ) : (
-                <Button
-                  variant={currentPage === page ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => onPageChange(page as number)}
-                  disabled={isLoading}
-                  className="h-8 w-8 p-0"
-                >
-                  {page}
-                </Button>
-              )}
-            </React.Fragment>
-          ))}
+          {visiblePages.map((page, index) => 
+            page === '...' ? (
+              <Button
+                key={index}
+                variant="outline"
+                size="sm"
+                disabled
+                className="h-8 w-8 p-0"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                key={index}
+                variant={currentPage === page ? "default" : "outline"}
+                size="sm"
+                onClick={() => onPageChange(page as number)}
+                disabled={isLoading}
+                className="h-8 w-8 p-0"
+              >
+                {page}
+              </Button>
+            )
+          )}
 
           {/* 下一页 */}
           <Button

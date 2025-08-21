@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Building2, MessageCircle, Plus, Minus, Snowflake, AlertTriangle, Package2, Star } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface ProductCardProps {
   product: {
@@ -25,12 +27,14 @@ interface ProductCardProps {
     };
     rating?: number;
     inStock: boolean;
+    user_id?: string; // 商品上传者ID
   };
   mode?: "grid" | "list";
 }
 
 export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
   const { addItem, updateQuantity, getItemQuantity } = useCart();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const currentQuantity = getItemQuantity(product.id);
 
@@ -74,7 +78,27 @@ export function ProductCard({ product, mode = "grid" }: ProductCardProps) {
 
   const handleInquiry = (e?: React.MouseEvent) => {
     e?.stopPropagation(); // 防止触发卡片点击
-    navigate('/negotiations');
+    
+    // 检查用户是否已登录
+    if (!user) {
+      toast.error("请先登录");
+      navigate('/login');
+      return;
+    }
+    
+    // 检查是否是自己的商品
+    if (product.user_id === user.id) {
+      toast.error("这是您自己发布的商品，无需询价");
+      return;
+    }
+    
+    // 跳转到与商品上传者的聊天页面，携带商品上下文
+    if (product.user_id) {
+      navigate(`/quotations?to=${product.user_id}&product=${product.id}`);
+    } else {
+      // 如果没有上传者信息，显示错误提示
+      toast.error("找不到商品所属用户，无法询价");
+    }
   };
   // Grid模式（默认大卡片）
   if (mode === "grid") {

@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,129 +16,310 @@ import {
   Smile,
   ArrowLeft,
   FileText,
-  Loader2
+  Loader2,
+  Package
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { OrderListSelector } from "@/components/order-list/OrderListSelector";
-import { orderListShareService } from "@/services/orderListShareService";
-import { supplierApi } from "@/services/api";
+import { chatService, ChatMessage, ChatSession, ProductListSummary } from "@/services/chatService";
+import { useAuth } from "@/hooks/useAuth";
+import { useProduct } from "@/hooks/useProducts";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from "@/components/ui/dialog";
 
-// 对话用户数据（基于真实供应商数据）
-interface ChatUser {
+// 用户资料信息
+interface UserProfile {
   id: string;
-  name: string;
-  avatar?: string;
-  company: string;
-  lastMessage?: string;
-  lastMessageTime?: string;
-  unreadCount?: number;
-  online?: boolean;
-  category: "supplier" | "customer";
-  contact_person?: string;
-  contact_phone?: string;
-  contact_email?: string;
-  verification_status?: string;
+  nickname?: string;
+  avatar_url?: string;
+  company_name?: string;
 }
-
-// 消息数据
-interface Message {
-  id: string;
-  senderId: string;
-  senderName: string;
-  content: string;
-  timestamp: string;
-  type: "text" | "quotation" | "order" | "file" | "order_list_reference";
-  metadata?: any;
-}
-
-// 空的消息数据，按需加载
-const initialMessages: { [userId: string]: Message[] } = {};
 
 const QuotationsPage = () => {
   const isMobile = useIsMobile();
-  const [selectedUser, setSelectedUser] = useState<ChatUser | null>(null);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  // URL 参数
+  const toUserId = searchParams.get('to');
+  const productId = searchParams.get('product');
+  
+  // 组件状态
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(toUserId);
   const [searchQuery, setSearchQuery] = useState("");
   const [newMessage, setNewMessage] = useState("");
-  const [messages, setMessages] = useState(initialMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [showChatView, setShowChatView] = useState(false);
   const [showOrderListSelector, setShowOrderListSelector] = useState(false);
-  const [suppliers, setSuppliers] = useState<ChatUser[]>([]);
+  const [showUserSelector, setShowUserSelector] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState<UserProfile[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [temporaryUserSession, setTemporaryUserSession] = useState<ChatSession | null>(null);
+  const hasPrefilledMessage = useRef(false);
+  
+  // 获取商品信息（用于预填充询价消息）
+  const { data: product } = useProduct(productId || "");
 
-  // 加载供应商列表（集成统一供应商搜索功能）
-  const loadSuppliers = async (query?: string) => {
+  // 加载聊天会话列表
+  const loadChatSessions = async () => {
+    if (!user) return;
+    
     setLoading(true);
     try {
-      // 使用统一的供应商API进行搜索
-      const supplierData = await supplierApi.getAllSuppliers(query);
-      const chatUsers: ChatUser[] = supplierData.map(supplier => ({
-        id: supplier.id,
-        name: supplier.display_name,
-        company: supplier.company_name || '个人供应商',
-        avatar: supplier.avatar_url || undefined,
-        category: "supplier" as const,
-        contact_person: supplier.contact_person,
-        contact_phone: supplier.contact_phone,
-        contact_email: supplier.contact_email,
-        verification_status: supplier.is_verified ? 'verified' : 'unverified',
-        online: Math.random() > 0.5, // 随机在线状态，实际应用中可从其他源获取
-        lastMessage: "点击开始对话",
-        lastMessageTime: "现在",
-        unreadCount: 0
-      }));
-      setSuppliers(chatUsers);
+      const { data, error } = await chatService.getChatSessions();
+      if (error) {
+        console.error('Error loading chat sessions:', error);
+        toast.error('加载聊天列表失败');
+        return;
+      }
+      setChatSessions(data || []);
     } catch (error) {
-      console.error('Error loading suppliers:', error);
+      console.error('Error loading chat sessions:', error);
+      toast.error('加载聊天列表失败');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadSuppliers();
-  }, []);
+  // 加载聊天消息
+  const loadMessages = async (userId: string) => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await chatService.getChatMessages(userId);
+      if (error) {
+        console.error('Error loading messages:', error);
+        toast.error('加载消息失败');
+        return;
+      }
+      setMessages(data || []);
+      
+      // 标记消息为已读
+      await chatService.markConversationAsRead(userId);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      toast.error('加载消息失败');
+    }
+  };
 
-  // 搜索过滤
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadSuppliers(searchQuery);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  // 加载可用用户列表
+  const loadAvailableUsers = async () => {
+    if (!user) return;
+    
+    setLoadingUsers(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, nickname, avatar_url, company_name')
+        .neq('id', user.id) // 排除当前用户
+        .limit(50);
 
-  const filteredUsers = suppliers;
+      if (error) {
+        console.error('Error loading users:', error);
+        toast.error('加载用户列表失败');
+        return;
+      }
+      setAvailableUsers(data || []);
+    } catch (error) {
+      console.error('Error loading users:', error);
+      toast.error('加载用户列表失败');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
-  const currentMessages = selectedUser ? messages[selectedUser.id] || [] : [];
-
-  const handleSelectUser = (user: ChatUser) => {
-    setSelectedUser(user);
+  // 处理选择用户开始对话
+  const handleSelectNewUser = async (selectedUser: UserProfile) => {
+    setSelectedUserId(selectedUser.id);
+    setShowUserSelector(false);
+    
     if (isMobile) {
       setShowChatView(true);
     }
+    
+    // 加载与该用户的消息记录
+    await loadMessages(selectedUser.id);
+    
+    // 如果还没有聊天记录，添加到会话列表
+    const existingSession = chatSessions.find(s => s.user_id === selectedUser.id);
+    if (!existingSession) {
+      const newSession: ChatSession = {
+        user_id: selectedUser.id,
+        user_nickname: selectedUser.nickname,
+        user_avatar: selectedUser.avatar_url,
+        last_message: "开始对话...",
+        last_message_time: new Date().toISOString(),
+        unread_count: 0
+      };
+      setChatSessions(prev => [newSession, ...prev]);
+    }
+  };
+
+  // 初始化
+  useEffect(() => {
+    if (user) {
+      loadChatSessions();
+    }
+  }, [user]);
+  
+  // 在聊天会话加载完成后，如果没有选中用户但有会话，自动选择第一个
+  useEffect(() => {
+    if (chatSessions.length > 0 && !selectedUserId && !toUserId) {
+      // 自动选择第一个聊天会话（最近的对话）
+      const firstSession = chatSessions[0];
+      setSelectedUserId(firstSession.user_id);
+      loadMessages(firstSession.user_id);
+    }
+  }, [chatSessions, selectedUserId, toUserId]);
+  
+  // 处理 URL 参数
+  useEffect(() => {
+    const handleUrlParams = async () => {
+      if (toUserId && user) {
+        setSelectedUserId(toUserId);
+        if (isMobile) {
+          setShowChatView(true);
+        }
+        loadMessages(toUserId);
+        
+        // 检查用户是否在现有会话中，如果不在，获取用户信息创建临时会话
+        const existingSession = chatSessions.find(s => s.user_id === toUserId);
+        if (!existingSession) {
+          try {
+            const { data: targetUserProfile } = await supabase
+              .from('profiles')
+              .select('id, nickname, avatar_url')
+              .eq('id', toUserId)
+              .single();
+
+            if (targetUserProfile) {
+              const tempSession: ChatSession = {
+                user_id: toUserId,
+                user_nickname: targetUserProfile.nickname,
+                user_avatar: targetUserProfile.avatar_url,
+                last_message: "开始对话...",
+                last_message_time: new Date().toISOString(),
+                unread_count: 0
+              };
+              setTemporaryUserSession(tempSession);
+            }
+          } catch (error) {
+            console.error('Error fetching target user profile:', error);
+          }
+        }
+        
+        // 如果有商品ID，预填充询价消息（只执行一次）
+        if (product && !hasPrefilledMessage.current) {
+          hasPrefilledMessage.current = true;
+          const inquiryMessage = `您好，我对您的 ${product.standard_chinese_name || product.standard_english_name || product.sku} 感兴趣，请问详细的规格和价格如何？`;
+          setNewMessage(inquiryMessage);
+        }
+      }
+    };
+
+    handleUrlParams();
+  }, [toUserId, productId, product, user, isMobile, chatSessions]);
+
+  // 过滤聊天会话（包含临时用户会话）
+  const allSessions = [...chatSessions];
+  
+  // 如果有临时用户会话且不在正式会话列表中，添加到列表头部
+  if (temporaryUserSession && !chatSessions.find(s => s.user_id === temporaryUserSession.user_id)) {
+    allSessions.unshift(temporaryUserSession);
+  }
+  
+  const filteredSessions = allSessions.filter(session => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (session.user_nickname?.toLowerCase().includes(query));
+  });
+  
+  const selectedUser = chatSessions.find(session => session.user_id === selectedUserId) || 
+                      (temporaryUserSession?.user_id === selectedUserId ? temporaryUserSession : null);
+
+  const handleSelectUser = (session: ChatSession) => {
+    setSelectedUserId(session.user_id);
+    if (isMobile) {
+      setShowChatView(true);
+    }
+    loadMessages(session.user_id);
+    
+    // 更新URL参数以保持状态，便于页面刷新或切换后恢复
+    const currentParams = new URLSearchParams(searchParams);
+    currentParams.set('to', session.user_id);
+    navigate(`/quotations?${currentParams.toString()}`, { replace: true });
   };
 
   const handleBackToContacts = () => {
     setShowChatView(false);
   };
 
-  const handleSendMessage = () => {
-    if (!newMessage.trim() || !selectedUser) return;
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedUserId || !user) return;
 
-    const newMsg: Message = {
-      id: `msg_${Date.now()}`,
-      senderId: "me",
-      senderName: "我",
-      content: newMessage,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      type: "text"
-    };
-
-    setMessages(prev => ({
-      ...prev,
-      [selectedUser.id]: [...(prev[selectedUser.id] || []), newMsg]
-    }));
-
-    setNewMessage("");
+    setSendingMessage(true);
+    try {
+      const { data, error } = await chatService.sendTextMessage(selectedUserId, newMessage);
+      if (error) {
+        console.error('Error sending message:', error);
+        toast.error('发送消息失败');
+        return;
+      }
+      
+      if (data) {
+        setMessages(prev => [...prev, data]);
+        setNewMessage("");
+        
+        // 更新聊天会话列表
+        setChatSessions(prev => {
+          const existingIndex = prev.findIndex(s => s.user_id === selectedUserId);
+          const updatedSession: ChatSession = {
+            user_id: selectedUserId,
+            user_nickname: selectedUser?.user_nickname,
+            user_avatar: selectedUser?.user_avatar,
+            last_message: newMessage,
+            last_message_time: data.created_at,
+            unread_count: 0
+          };
+          
+          if (existingIndex >= 0) {
+            const newSessions = [...prev];
+            newSessions[existingIndex] = updatedSession;
+            return newSessions;
+          } else {
+            return [updatedSession, ...prev];
+          }
+        });
+        
+        // 清理临时用户会话，因为现在已经有正式的会话记录了
+        if (temporaryUserSession?.user_id === selectedUserId) {
+          setTemporaryUserSession(null);
+        }
+        
+        // 确保URL状态保持更新
+        if (!toUserId || toUserId !== selectedUserId) {
+          const currentParams = new URLSearchParams(searchParams);
+          currentParams.set('to', selectedUserId);
+          navigate(`/quotations?${currentParams.toString()}`, { replace: true });
+        }
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('发送消息失败');
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -147,40 +329,85 @@ const QuotationsPage = () => {
     }
   };
 
-  const handleSelectOrderList = (orderList: any) => {
-    if (!selectedUser) return;
+  const handleSelectOrderList = async (orderList: any) => {
+    if (!selectedUserId || !user) return;
 
-    const newMsg: Message = {
-      id: `msg_${Date.now()}`,
-      senderId: "me",
-      senderName: "我",
-      content: `引用了货单: ${orderList.name}`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      type: "order_list_reference",
-      metadata: {
-        orderListId: orderList.id,
-        orderListName: orderList.name,
+    setSendingMessage(true);
+    try {
+      const listSummary: ProductListSummary = {
+        name: orderList.name,
+        total_amount: orderList.total_amount || 0,
+        status: orderList.status || 'shared',
+        created_at: orderList.created_at || new Date().toISOString(),
         description: orderList.description,
-        totalAmount: orderList.total_amount,
-        deliveryLocation: orderList.delivery_location,
-        expectedDeliveryDate: orderList.expected_delivery_date,
-        specialRequirements: orderList.special_requirements,
-        itemsCount: orderList.product_list_items?.length || 0
+        delivery_location: orderList.delivery_location,
+        item_count: orderList.product_list_items?.length || 0,
+        special_requirements: orderList.special_requirements
+      };
+      
+      const { data, error } = await chatService.sendProductListReference(
+        selectedUserId,
+        orderList.id,
+        listSummary,
+        `我想与您分享这个货单：${orderList.name}`
+      );
+      
+      if (error) {
+        console.error('Error sending product list reference:', error);
+        toast.error('发送货单引用失败');
+        return;
       }
-    };
-
-    setMessages(prev => ({
-      ...prev,
-      [selectedUser.id]: [...(prev[selectedUser.id] || []), newMsg]
-    }));
+      
+      if (data) {
+        setMessages(prev => [...prev, data]);
+        
+        // 更新聊天会话列表
+        setChatSessions(prev => {
+          const existingIndex = prev.findIndex(s => s.user_id === selectedUserId);
+          const updatedSession: ChatSession = {
+            user_id: selectedUserId,
+            user_nickname: selectedUser?.user_nickname,
+            user_avatar: selectedUser?.user_avatar,
+            last_message: `引用了货单：${orderList.name}`,
+            last_message_time: data.created_at,
+            unread_count: 0
+          };
+          
+          if (existingIndex >= 0) {
+            const newSessions = [...prev];
+            newSessions[existingIndex] = updatedSession;
+            return newSessions;
+          } else {
+            return [updatedSession, ...prev];
+          }
+        });
+        
+        // 清理临时用户会话，因为现在已经有正式的会话记录了
+        if (temporaryUserSession?.user_id === selectedUserId) {
+          setTemporaryUserSession(null);
+        }
+        
+        // 确保URL状态保持更新
+        if (!toUserId || toUserId !== selectedUserId) {
+          const currentParams = new URLSearchParams(searchParams);
+          currentParams.set('to', selectedUserId);
+          navigate(`/quotations?${currentParams.toString()}`, { replace: true });
+        }
+      }
+    } catch (error) {
+      console.error('Error sending product list reference:', error);
+      toast.error('发送货单引用失败');
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
-  const renderMessage = (message: Message) => {
-    const isMyMessage = message.senderId === "me";
+  const renderMessage = (message: ChatMessage) => {
+    const isMyMessage = message.sender_id === user?.id;
     
-    if (message.type === "order_list_reference") {
+    if (message.message_type === "product_list_reference" && message.referenced_list_summary) {
       return (
-        <div className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'} mb-4`}>
+        <div key={message.id} className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'} mb-4`}>
           <div className={`max-w-md px-4 py-3 rounded-lg ${
             isMyMessage 
               ? 'bg-primary text-primary-foreground' 
@@ -192,18 +419,19 @@ const QuotationsPage = () => {
                 <span className="text-sm font-medium">货单引用</span>
               </div>
               <div className="text-sm space-y-1">
-                <p><strong>货单名称：</strong>{message.metadata.orderListName}</p>
-                {message.metadata.description && (
-                  <p><strong>描述：</strong>{message.metadata.description}</p>
+                <p><strong>货单名称：</strong>{message.referenced_list_summary.name}</p>
+                {message.referenced_list_summary.description && (
+                  <p><strong>描述：</strong>{message.referenced_list_summary.description}</p>
                 )}
-                <p><strong>商品数量：</strong>{message.metadata.itemsCount} 种商品</p>
-                <p><strong>总金额：</strong><span className="text-lg font-bold">¥{message.metadata.totalAmount?.toLocaleString()}</span></p>
-                <p><strong>交付地点：</strong>{message.metadata.deliveryLocation}</p>
-                {message.metadata.expectedDeliveryDate && (
-                  <p><strong>期望交付：</strong>{new Date(message.metadata.expectedDeliveryDate).toLocaleDateString()}</p>
+                {message.referenced_list_summary.item_count && (
+                  <p><strong>商品数量：</strong>{message.referenced_list_summary.item_count} 种商品</p>
                 )}
-                {message.metadata.specialRequirements && (
-                  <p><strong>特殊要求：</strong>{message.metadata.specialRequirements}</p>
+                <p><strong>总金额：</strong><span className="text-lg font-bold">¥{message.referenced_list_summary.total_amount?.toLocaleString()}</span></p>
+                {message.referenced_list_summary.delivery_location && (
+                  <p><strong>交付地点：</strong>{message.referenced_list_summary.delivery_location}</p>
+                )}
+                {message.referenced_list_summary.special_requirements && (
+                  <p><strong>特殊要求：</strong>{message.referenced_list_summary.special_requirements}</p>
                 )}
               </div>
               <div className="flex space-x-2 mt-3">
@@ -218,52 +446,16 @@ const QuotationsPage = () => {
               </div>
             </div>
             <div className="text-xs mt-2 opacity-70">
-              {message.timestamp}
+              {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
           </div>
         </div>
       );
     }
     
-    if (message.type === "quotation") {
-      return (
-        <div className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'} mb-4`}>
-          <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
-            isMyMessage 
-              ? 'bg-primary text-primary-foreground' 
-              : 'bg-muted'
-          }`}>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-success rounded-full"></div>
-                <span className="text-sm font-medium">报价单</span>
-              </div>
-              <div className="text-sm space-y-1">
-                <p><strong>商品：</strong>{message.metadata.productName}</p>
-                <p><strong>数量：</strong>{message.metadata.quantity}</p>
-                <p><strong>单价：</strong>{message.metadata.unitPrice}</p>
-                <p><strong>总价：</strong><span className="text-lg font-bold">{message.metadata.totalAmount}</span></p>
-                <p><strong>有效期：</strong>{message.metadata.validUntil}</p>
-              </div>
-              <div className="flex space-x-2 mt-3">
-                <Button size="sm" variant={isMyMessage ? "secondary" : "default"}>
-                  接受报价
-                </Button>
-                <Button size="sm" variant="outline">
-                  还价
-                </Button>
-              </div>
-            </div>
-            <div className="text-xs mt-2 opacity-70">
-              {message.timestamp}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
+    // 文本消息
     return (
-      <div className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'} mb-4`}>
+      <div key={message.id} className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'} mb-4`}>
         <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
           isMyMessage 
             ? 'bg-primary text-primary-foreground' 
@@ -271,12 +463,30 @@ const QuotationsPage = () => {
         }`}>
           <p className="text-sm">{message.content}</p>
           <div className="text-xs mt-1 opacity-70">
-            {message.timestamp}
+            {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
       </div>
     );
   };
+
+  // 如果用户未登录，显示登录提示
+  if (!user) {
+    return (
+      <Layout>
+        <div className="h-[calc(100vh-4rem)] flex items-center justify-center">
+          <div className="text-center">
+            <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">请先登录</h3>
+            <p className="text-muted-foreground mb-4">登录后即可开始与供应商进行询价对话</p>
+            <Button onClick={() => navigate('/login')}>
+              前往登录
+            </Button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -292,17 +502,17 @@ const QuotationsPage = () => {
                     <h1 className="text-xl font-bold">询价对话</h1>
                     <Button 
                       size="sm" 
-                      onClick={() => setShowOrderListSelector(true)}
+                      onClick={() => setShowUserSelector(true)}
                       className="text-xs"
                     >
                       <Plus className="h-4 w-4 mr-1" />
-                      新建询价
+                      开始新对话
                     </Button>
                   </div>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="搜索供应商或公司"
+                      placeholder="搜索联系人"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-10"
@@ -317,40 +527,35 @@ const QuotationsPage = () => {
                         <Loader2 className="h-6 w-6 animate-spin" />
                         <span className="ml-2">加载中...</span>
                       </div>
-                    ) : filteredUsers.length === 0 ? (
+                    ) : filteredSessions.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
-                        {searchQuery ? '未找到匹配的供应商' : '暂无供应商'}
+                        {searchQuery ? '未找到匹配的联系人' : '暂无聊天记录'}
                       </div>
                     ) : (
-                      filteredUsers.map((user) => (
+                      filteredSessions.map((session) => (
                         <div
-                          key={user.id}
-                          onClick={() => handleSelectUser(user)}
+                          key={session.user_id}
+                          onClick={() => handleSelectUser(session)}
                           className="flex items-center space-x-3 p-4 border-b cursor-pointer hover:bg-muted transition-colors active:bg-muted"
                         >
-                          <div className="relative">
-                            <Avatar className="h-12 w-12">
-                              <AvatarImage src={user.avatar} />
-                              <AvatarFallback>{user.name?.[0] || user.company?.[0] || 'S'}</AvatarFallback>
-                            </Avatar>
-                            {user.online && (
-                              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-success rounded-full border-2 border-background"></div>
-                            )}
-                          </div>
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage src={session.user_avatar} />
+                            <AvatarFallback>{session.user_nickname?.[0] || 'U'}</AvatarFallback>
+                          </Avatar>
                           
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
-                              <h3 className="font-medium truncate">{user.name || user.company}</h3>
-                              {user.verification_status === 'verified' && (
-                                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                                  已认证
+                              <h3 className="font-medium truncate">{session.user_nickname || '未知用户'}</h3>
+                              {session.unread_count > 0 && (
+                                <Badge variant="destructive" className="text-xs">
+                                  {session.unread_count}
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground truncate">{user.company}</p>
-                            {user.contact_phone && (
-                              <p className="text-xs text-muted-foreground truncate">📞 {user.contact_phone}</p>
-                            )}
+                            <p className="text-sm text-muted-foreground truncate">{session.last_message}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(session.last_message_time).toLocaleString()}
+                            </p>
                           </div>
                         </div>
                       ))
@@ -374,22 +579,11 @@ const QuotationsPage = () => {
                         <ArrowLeft className="h-5 w-5" />
                       </Button>
                       <Avatar className="h-10 w-10">
-                        <AvatarImage src={selectedUser.avatar} />
-                        <AvatarFallback>{selectedUser.name?.[0] || selectedUser.company?.[0] || 'S'}</AvatarFallback>
+                        <AvatarImage src={selectedUser.user_avatar} />
+                        <AvatarFallback>{selectedUser.user_nickname?.[0] || 'U'}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
-                        <h2 className="font-semibold">{selectedUser.name || selectedUser.company}</h2>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm text-muted-foreground truncate">{selectedUser.company}</p>
-                          {selectedUser.verification_status === 'verified' && (
-                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                              已认证
-                            </Badge>
-                          )}
-                          {selectedUser.online && (
-                            <Badge variant="outline" className="text-xs">在线</Badge>
-                          )}
-                        </div>
+                        <h2 className="font-semibold">{selectedUser.user_nickname || '未知用户'}</h2>
                       </div>
                     </div>
                   </div>
@@ -397,7 +591,7 @@ const QuotationsPage = () => {
                   {/* 消息区域 - 移动端 */}
                   <ScrollArea className="flex-1 p-4 bg-muted/20">
                     <div className="space-y-4">
-                      {currentMessages.map((message) => renderMessage(message))}
+                      {messages.map((message) => renderMessage(message))}
                     </div>
                   </ScrollArea>
 
@@ -427,8 +621,16 @@ const QuotationsPage = () => {
                       <Button variant="ghost" size="icon" className="mb-1">
                         <Smile className="h-4 w-4" />
                       </Button>
-                      <Button onClick={handleSendMessage} disabled={!newMessage.trim()} className="mb-1">
-                        <Send className="h-4 w-4" />
+                      <Button 
+                        onClick={handleSendMessage} 
+                        disabled={!newMessage.trim() || sendingMessage} 
+                        className="mb-1"
+                      >
+                        {sendingMessage ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -447,17 +649,17 @@ const QuotationsPage = () => {
                   <h2 className="font-semibold">询价对话</h2>
                   <Button 
                     size="sm" 
-                    onClick={() => setShowOrderListSelector(true)}
+                    onClick={() => setShowUserSelector(true)}
                     className="text-xs"
                   >
                     <Plus className="h-4 w-4 mr-1" />
-                    新建询价
+                    开始新对话
                   </Button>
                 </div>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="搜索供应商或公司"
+                    placeholder="搜索联系人"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
@@ -473,42 +675,37 @@ const QuotationsPage = () => {
                       <Loader2 className="h-6 w-6 animate-spin" />
                       <span className="ml-2">加载中...</span>
                     </div>
-                  ) : filteredUsers.length === 0 ? (
+                  ) : filteredSessions.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
-                      {searchQuery ? '未找到匹配的供应商' : '暂无供应商'}
+                      {searchQuery ? '未找到匹配的联系人' : '暂无聊天记录'}
                     </div>
                   ) : (
-                    filteredUsers.map((user) => (
+                    filteredSessions.map((session) => (
                       <div
-                        key={user.id}
-                        onClick={() => handleSelectUser(user)}
+                        key={session.user_id}
+                        onClick={() => handleSelectUser(session)}
                         className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer hover:bg-muted transition-colors ${
-                          selectedUser?.id === user.id ? 'bg-muted' : ''
+                          selectedUserId === session.user_id ? 'bg-muted' : ''
                         }`}
                       >
-                        <div className="relative">
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage src={user.avatar} />
-                            <AvatarFallback>{user.name?.[0] || user.company?.[0] || 'S'}</AvatarFallback>
-                          </Avatar>
-                          {user.online && (
-                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-success rounded-full border-2 border-background"></div>
-                          )}
-                        </div>
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={session.user_avatar} />
+                          <AvatarFallback>{session.user_nickname?.[0] || 'U'}</AvatarFallback>
+                        </Avatar>
                         
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
-                            <h3 className="font-medium truncate">{user.name || user.company}</h3>
-                            {user.verification_status === 'verified' && (
-                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                                已认证
+                            <h3 className="font-medium truncate">{session.user_nickname || '未知用户'}</h3>
+                            {session.unread_count > 0 && (
+                              <Badge variant="destructive" className="text-xs">
+                                {session.unread_count}
                               </Badge>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground truncate">{user.company}</p>
-                          {user.contact_phone && (
-                            <p className="text-xs text-muted-foreground truncate">📞 {user.contact_phone}</p>
-                          )}
+                          <p className="text-sm text-muted-foreground truncate">{session.last_message}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(session.last_message_time).toLocaleString()}
+                          </p>
                         </div>
                       </div>
                     ))
@@ -525,25 +722,11 @@ const QuotationsPage = () => {
                   <div className="p-4 border-b bg-card">
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-10 w-10">
-                        <AvatarImage src={selectedUser.avatar} />
-                        <AvatarFallback>{selectedUser.name?.[0] || selectedUser.company?.[0] || 'S'}</AvatarFallback>
+                        <AvatarImage src={selectedUser.user_avatar} />
+                        <AvatarFallback>{selectedUser.user_nickname?.[0] || 'U'}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
-                        <h2 className="font-semibold">{selectedUser.name || selectedUser.company}</h2>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm text-muted-foreground">{selectedUser.company}</p>
-                          {selectedUser.verification_status === 'verified' && (
-                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                              已认证
-                            </Badge>
-                          )}
-                          {selectedUser.online && (
-                            <Badge variant="outline" className="text-xs">在线</Badge>
-                          )}
-                        </div>
-                        {selectedUser.contact_phone && (
-                          <p className="text-xs text-muted-foreground">📞 {selectedUser.contact_phone}</p>
-                        )}
+                        <h2 className="font-semibold">{selectedUser.user_nickname || '未知用户'}</h2>
                       </div>
                     </div>
                   </div>
@@ -551,7 +734,7 @@ const QuotationsPage = () => {
                   {/* 消息区域 */}
                   <ScrollArea className="flex-1 p-4">
                     <div className="space-y-4">
-                      {currentMessages.map((message) => renderMessage(message))}
+                      {messages.map((message) => renderMessage(message))}
                     </div>
                   </ScrollArea>
 
@@ -581,8 +764,15 @@ const QuotationsPage = () => {
                       <Button variant="ghost" size="icon">
                         <Smile className="h-4 w-4" />
                       </Button>
-                      <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
-                        <Send className="h-4 w-4" />
+                      <Button 
+                        onClick={handleSendMessage} 
+                        disabled={!newMessage.trim() || sendingMessage}
+                      >
+                        {sendingMessage ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -611,6 +801,71 @@ const QuotationsPage = () => {
         title="引用货单到对话"
         description="选择一个货单分享给对方，用于询价或协商"
       />
+
+      {/* 用户选择器 */}
+      <Dialog open={showUserSelector} onOpenChange={setShowUserSelector}>
+        <DialogContent className="max-w-md max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>开始新对话</DialogTitle>
+            <DialogDescription>
+              选择一个用户开始聊天
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="搜索用户..."
+                className="pl-10"
+                onFocus={() => {
+                  if (availableUsers.length === 0) {
+                    loadAvailableUsers();
+                  }
+                }}
+              />
+            </div>
+
+            <ScrollArea className="h-[400px]">
+              {loadingUsers ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                  <span className="ml-2">加载中...</span>
+                </div>
+              ) : availableUsers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  暂无可联系的用户
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {availableUsers.map((userItem) => (
+                    <div
+                      key={userItem.id}
+                      onClick={() => handleSelectNewUser(userItem)}
+                      className="flex items-center space-x-3 p-3 rounded-lg cursor-pointer hover:bg-muted transition-colors"
+                    >
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={userItem.avatar_url} />
+                        <AvatarFallback>{userItem.nickname?.[0] || userItem.company_name?.[0] || 'U'}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium truncate">
+                          {userItem.nickname || userItem.company_name || '未知用户'}
+                        </h3>
+                        {userItem.company_name && userItem.nickname && (
+                          <p className="text-sm text-muted-foreground truncate">
+                            {userItem.company_name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
