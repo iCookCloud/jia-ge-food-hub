@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   MessageCircle,
@@ -142,6 +143,14 @@ export const QuotationChat = ({
               <MessageCircle className="h-5 w-5" />
               <span>询价沟通</span>
             </DialogTitle>
+          </div>
+          <DialogDescription>
+            与供应商 {supplierName} 就报价 "{quotationTitle}" 进行沟通
+          </DialogDescription>
+          <div className="flex items-center justify-end">
+            <span className="text-sm text-muted-foreground">
+              供应商: {supplierName}
+            </span>
             <Button 
               variant="ghost" 
               size="icon-sm"

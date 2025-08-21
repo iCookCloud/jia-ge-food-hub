@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, FileText, Calendar, MapPin, Package, Loader2 } from 'lucide-react';
@@ -101,7 +101,9 @@ export const OrderListSelector: React.FC<OrderListSelectorProps> = ({
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+          <DialogDescription>
+            {description || '选择一个货单进行操作'}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col space-y-4">

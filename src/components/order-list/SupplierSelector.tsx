@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Search, Building2, CheckCircle2, Clock, Loader2 } from 'lucide-react';
 import { orderListShareService, ShareSupplier } from '@/services/orderListShareService';
 import { notificationService } from '@/services/notificationService';
@@ -136,6 +136,9 @@ export const SupplierSelector: React.FC<SupplierSelectorProps> = ({
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>分享货单 - 选择用户/供应商</DialogTitle>
+          <DialogDescription>
+            选择您想要分享货单的用户或供应商，可以添加分享消息来说明您的需求
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col space-y-4">

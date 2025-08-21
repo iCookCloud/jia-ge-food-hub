@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -213,6 +213,9 @@ export const AIChat = ({ open, onOpenChange, supplier }: AIChatProps) => {
               )}
             </div>
           </div>
+          <DialogDescription>
+            与 {supplier?.company_name || supplier?.nickname || '供应商'} 的AI助手进行智能对话
+          </DialogDescription>
         </DialogHeader>
 
         {/* 供应商信息卡片 */}

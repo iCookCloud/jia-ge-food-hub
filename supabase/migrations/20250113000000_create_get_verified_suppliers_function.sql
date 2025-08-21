@@ -66,3 +66,4 @@ ON public.supplier_credentials(company_name);
 CREATE INDEX IF NOT EXISTS idx_supplier_credentials_contact_person 
 ON public.supplier_credentials(contact_person);
 
+

@@ -18,6 +18,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { 
@@ -471,6 +472,9 @@ export const UserManagementPage: React.FC = () => {
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>用户详情</DialogTitle>
+                <DialogDescription>
+                  查看用户的详细信息和认证状态
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="flex items-center space-x-4">
@@ -557,6 +561,9 @@ export const UserManagementPage: React.FC = () => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>编辑用户信息</DialogTitle>
+                <DialogDescription>
+                  修改用户的基本信息和角色权限
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
@@ -593,5 +600,6 @@ export const UserManagementPage: React.FC = () => {
     </Layout>
   );
 };
+
 
 

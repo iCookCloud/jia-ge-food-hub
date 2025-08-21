@@ -147,6 +147,28 @@ export const productListService = {
 
   // 获取单个货单详情
   getProductList: async (id: string) => {
+    if (!id || typeof id !== 'string') {
+      return { 
+        data: null, 
+        error: { 
+          message: '货单ID无效', 
+          code: 'INVALID_ID' 
+        } 
+      };
+    }
+
+    // 检查用户认证状态
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { 
+        data: null, 
+        error: { 
+          message: '用户未登录，无法访问货单', 
+          code: 'UNAUTHENTICATED' 
+        } 
+      };
+    }
+
     try {
       const { data, error } = await supabase
         .from('product_lists')
@@ -161,11 +183,23 @@ export const productListService = {
         .single();
 
       if (error) {
+        console.error('Supabase error in getProductList:', error);
         return { data: null, error };
+      }
+
+      if (!data) {
+        return { 
+          data: null, 
+          error: { 
+            message: '货单不存在', 
+            code: 'NOT_FOUND' 
+          } 
+        };
       }
 
       return { data, error: null };
     } catch (error) {
+      console.error('Unexpected error in getProductList:', error);
       return { data: null, error: error as any };
     }
   },

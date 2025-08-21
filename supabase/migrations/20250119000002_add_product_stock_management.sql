@@ -228,3 +228,4 @@ CREATE TRIGGER trigger_log_stock_change
 -- 完成提示
 SELECT 'Product stock management system created successfully' as status;
 
+

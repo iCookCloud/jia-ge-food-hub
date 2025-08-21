@@ -21,7 +21,8 @@ import {
   Package,
   Calendar,
   MapPin,
-  X
+  X,
+  AlertTriangle
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { OrderListSelector } from "@/components/order-list/OrderListSelector";
@@ -150,18 +151,42 @@ const QuotationsPage = () => {
 
   // 加载货单详情
   const loadOrderListDetail = async (orderListId: string) => {
+    if (!orderListId) {
+      toast.error('货单ID无效');
+      return;
+    }
+
     setLoadingOrderListDetail(true);
     try {
       const { data, error } = await productListService.getProductList(orderListId);
       if (error) {
         console.error('Error loading order list detail:', error);
-        toast.error('加载货单详情失败');
+        
+        // 根据错误类型提供更具体的错误信息
+        if (error.code === 'PGRST116') {
+          toast.error('货单不存在或已被删除');
+        } else if (error.code === 'PGRST403') {
+          toast.error('没有权限访问此货单');
+        } else {
+          toast.error('加载货单详情失败');
+        }
+        
+        // 清空货单详情，避免显示错误数据
+        setOrderListDetail(null);
         return;
       }
+      
+      if (!data) {
+        toast.error('货单数据为空');
+        setOrderListDetail(null);
+        return;
+      }
+      
       setOrderListDetail(data);
     } catch (error) {
       console.error('Error loading order list detail:', error);
       toast.error('加载货单详情失败');
+      setOrderListDetail(null);
     } finally {
       setLoadingOrderListDetail(false);
     }
@@ -467,11 +492,14 @@ const QuotationsPage = () => {
                   size="sm" 
                   variant={isMyMessage ? "secondary" : "default"}
                   onClick={() => {
+                    if (!message.referenced_order_list_id) {
+                      toast.error('此消息未关联货单');
+                      return;
+                    }
+                    
                     setSelectedOrderListId(message.referenced_order_list_id);
                     setShowOrderListDetail(true);
-                    if (message.referenced_order_list_id) {
-                      loadOrderListDetail(message.referenced_order_list_id);
-                    }
+                    loadOrderListDetail(message.referenced_order_list_id);
                   }}
                 >
                   预览
@@ -913,6 +941,9 @@ const QuotationsPage = () => {
               <FileText className="h-5 w-5" />
               货单详情
             </DialogTitle>
+            <DialogDescription>
+              查看货单的商品清单和采购要求详情
+            </DialogDescription>
           </DialogHeader>
 
           <ScrollArea className="max-h-[60vh]">
@@ -1010,7 +1041,18 @@ const QuotationsPage = () => {
               </div>
             ) : (
               <div className="text-center py-12 text-muted-foreground">
-                货单详情加载失败
+                <div className="flex flex-col items-center gap-3">
+                  <AlertTriangle className="h-12 w-12 text-muted-foreground" />
+                  <p>货单详情加载失败</p>
+                  <p className="text-sm">可能的原因：货单不存在、已被删除或权限不足</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowOrderListDetail(false)}
+                  >
+                    关闭
+                  </Button>
+                </div>
               </div>
             )}
           </ScrollArea>
