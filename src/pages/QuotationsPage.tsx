@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -17,13 +18,17 @@ import {
   ArrowLeft,
   FileText,
   Loader2,
-  Package
+  Package,
+  Calendar,
+  MapPin,
+  X
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { OrderListSelector } from "@/components/order-list/OrderListSelector";
 import { chatService, ChatMessage, ChatSession, ProductListSummary } from "@/services/chatService";
 import { useAuth } from "@/hooks/useAuth";
 import { useProduct } from "@/hooks/useProducts";
+import { productListService } from "@/services/productListService";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -67,6 +72,10 @@ const QuotationsPage = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [temporaryUserSession, setTemporaryUserSession] = useState<ChatSession | null>(null);
   const hasPrefilledMessage = useRef(false);
+  const [showOrderListDetail, setShowOrderListDetail] = useState(false);
+  const [selectedOrderListId, setSelectedOrderListId] = useState<string | null>(null);
+  const [orderListDetail, setOrderListDetail] = useState<any>(null);
+  const [loadingOrderListDetail, setLoadingOrderListDetail] = useState(false);
   
   // 获取商品信息（用于预填充询价消息）
   const { data: product } = useProduct(productId || "");
@@ -136,6 +145,25 @@ const QuotationsPage = () => {
       toast.error('加载用户列表失败');
     } finally {
       setLoadingUsers(false);
+    }
+  };
+
+  // 加载货单详情
+  const loadOrderListDetail = async (orderListId: string) => {
+    setLoadingOrderListDetail(true);
+    try {
+      const { data, error } = await productListService.getProductList(orderListId);
+      if (error) {
+        console.error('Error loading order list detail:', error);
+        toast.error('加载货单详情失败');
+        return;
+      }
+      setOrderListDetail(data);
+    } catch (error) {
+      console.error('Error loading order list detail:', error);
+      toast.error('加载货单详情失败');
+    } finally {
+      setLoadingOrderListDetail(false);
     }
   };
 
@@ -435,8 +463,18 @@ const QuotationsPage = () => {
                 )}
               </div>
               <div className="flex space-x-2 mt-3">
-                <Button size="sm" variant={isMyMessage ? "secondary" : "default"}>
-                  查看详情
+                <Button 
+                  size="sm" 
+                  variant={isMyMessage ? "secondary" : "default"}
+                  onClick={() => {
+                    setSelectedOrderListId(message.referenced_order_list_id);
+                    setShowOrderListDetail(true);
+                    if (message.referenced_order_list_id) {
+                      loadOrderListDetail(message.referenced_order_list_id);
+                    }
+                  }}
+                >
+                  预览
                 </Button>
                 {!isMyMessage && (
                   <Button size="sm" variant="outline">
@@ -864,6 +902,135 @@ const QuotationsPage = () => {
               )}
             </ScrollArea>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 货单详情弹框 */}
+      <Dialog open={showOrderListDetail} onOpenChange={setShowOrderListDetail}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              货单详情
+            </DialogTitle>
+          </DialogHeader>
+
+          <ScrollArea className="max-h-[60vh]">
+            {loadingOrderListDetail ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <span className="ml-3">加载货单详情...</span>
+              </div>
+            ) : orderListDetail ? (
+              <div className="space-y-6 p-1">
+                {/* 基本信息 */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>{orderListDetail.name}</span>
+                      <Badge variant={orderListDetail.status === 'shared' ? 'default' : 'secondary'}>
+                        {orderListDetail.status === 'shared' ? '已分享' : orderListDetail.status}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {orderListDetail.description && (
+                      <div>
+                        <Label className="text-sm font-medium">描述</Label>
+                        <p className="text-sm text-muted-foreground mt-1">{orderListDetail.description}</p>
+                      </div>
+                    )}
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <Label className="text-xs text-muted-foreground">创建时间</Label>
+                          <p className="text-sm">{new Date(orderListDetail.created_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <Label className="text-xs text-muted-foreground">交付地点</Label>
+                          <p className="text-sm">{orderListDetail.delivery_location}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <Label className="text-xs text-muted-foreground">总金额</Label>
+                          <p className="text-sm font-bold text-primary">¥{orderListDetail.total_amount?.toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {orderListDetail.special_requirements && (
+                      <div>
+                        <Label className="text-sm font-medium">特殊要求</Label>
+                        <p className="text-sm text-muted-foreground mt-1 p-3 bg-muted rounded">
+                          {orderListDetail.special_requirements}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* 商品列表 */}
+                {orderListDetail.product_list_items && orderListDetail.product_list_items.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Package className="h-5 w-5" />
+                        商品清单 ({orderListDetail.product_list_items.length} 个商品)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {orderListDetail.product_list_items.map((item: any, index: number) => (
+                          <div key={item.id || index} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div className="flex-1">
+                              <h4 className="font-medium">{item.product_name || item.product_sku}</h4>
+                              {item.product_sku && <p className="text-sm text-muted-foreground">SKU: {item.product_sku}</p>}
+                            </div>
+                            <div className="text-right space-y-1">
+                              <p className="text-sm">数量: {item.quantity}</p>
+                              {item.unit_price && (
+                                <p className="text-sm font-medium">¥{item.unit_price.toLocaleString()}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                货单详情加载失败
+              </div>
+            )}
+          </ScrollArea>
+          
+          {/* 弹框底部操作按钮 */}
+          {orderListDetail && (
+            <div className="flex justify-center pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowOrderListDetail(false);
+                  navigate(`/order-lists/${orderListDetail.id}`);
+                }}
+                className="flex items-center gap-2"
+              >
+                <FileText className="h-4 w-4" />
+                跳转完整详情
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </Layout>
