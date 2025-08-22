@@ -67,3 +67,6 @@ CREATE INDEX IF NOT EXISTS idx_supplier_credentials_contact_person
 ON public.supplier_credentials(contact_person);
 
 
+
+
+

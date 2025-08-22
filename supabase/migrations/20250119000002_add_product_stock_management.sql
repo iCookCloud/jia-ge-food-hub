@@ -229,3 +229,6 @@ CREATE TRIGGER trigger_log_stock_change
 SELECT 'Product stock management system created successfully' as status;
 
 
+
+
+

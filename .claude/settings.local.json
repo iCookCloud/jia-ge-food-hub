@@ -22,7 +22,8 @@
       "WebFetch(domain:trade.icook.cloud)",
       "Bash(supabase db reset:*)",
       "mcp__ide__getDiagnostics",
-      "mcp__supabase__get_logs"
+      "mcp__supabase__get_logs",
+      "Bash(git add:*)"
     ],
     "defaultMode": "acceptEdits"
   },
