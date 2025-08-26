@@ -7,8 +7,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Search, Package, X, ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react';
-import { productService } from '@/services/api';
+import { supabase } from '@/integrations/supabase/client';
 import { Product } from '@/hooks/useProducts';
+import { productService } from '@/services/api';
 
 interface ProductSelectorProps {
   selectedProductIds: string[];
@@ -55,11 +56,17 @@ export const ProductSelector: React.FC<ProductSelectorProps> = ({
     }
 
     try {
-      const result = await productService.getAll({}, { page: 1, limit: 100 });
-      if (result.data) {
-        const selected = result.data.filter(product => productIds.includes(product.id));
-        setSelectedProducts(selected);
+      const { data, error } = await supabase
+        .from('products_with_categories')
+        .select('*')
+        .in('id', productIds);
+      
+      if (error) {
+        console.warn('Failed to load selected products:', error);
+        return;
       }
+      
+      setSelectedProducts(data || []);
     } catch (error) {
       console.warn('Failed to load selected products:', error);
     }

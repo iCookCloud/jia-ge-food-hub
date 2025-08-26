@@ -23,7 +23,9 @@
       "Bash(supabase db reset:*)",
       "mcp__ide__getDiagnostics",
       "mcp__supabase__get_logs",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "defaultMode": "acceptEdits"
   },

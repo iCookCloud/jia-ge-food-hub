@@ -13,8 +13,6 @@ import { Upload, X, Video, Clock, Package, Tag, Loader2, Images } from 'lucide-r
 import { cloudflareStreamService, VideoUploadResult } from '@/services/cloudflareStreamService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { productService } from '@/services/api';
-import { Product } from '@/hooks/useProducts';
 import { ProductSelector } from '@/components/product/ProductSelector';
 import { storageService } from '@/services/storageService';
 
@@ -83,14 +81,25 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     if (productIds.length === 0) return [];
     
     try {
-      const result = await productService.getAll({}, { page: 1, limit: 100 });
-      if (result.data) {
-        return result.data.filter((p: Product) => productIds.includes(p.id));
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, sku, standard_chinese_name, price, product_image, specifications')
+        .in('id', productIds);
+      
+      if (error) {
+        console.warn('Failed to load products for association:', error);
+        return [];
       }
+      
+      // 映射字段名以匹配现有代码期望
+      return (data || []).map(product => ({
+        ...product,
+        unit_price: product.price  // 字段名映射
+      }));
     } catch (error) {
       console.warn('Failed to load products for association:', error);
+      return [];
     }
-    return [];
   };
 
   // 创建视频产品关联（带快照）
