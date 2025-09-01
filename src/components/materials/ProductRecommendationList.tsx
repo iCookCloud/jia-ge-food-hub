@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { 
   Package, 
   Plus,
@@ -9,10 +10,13 @@ import {
   Loader2,
   ShoppingCart,
   Image as ImageIcon,
-  Save
+  Save,
+  X,
+  UserPlus
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { ProductSelectorWithQuantity, ProductWithQuantity } from '@/components/product/ProductSelectorWithQuantity';
 
 interface ProductAssociation {
   id: string;
@@ -46,6 +50,7 @@ export const ProductRecommendationList: React.FC<ProductRecommendationListProps>
 }) => {
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
 
   // 更新推荐数量（仅更新本地状态，不保存到数据库）
   const updateQuantity = (product: ProductAssociation, newQuantity: number) => {
@@ -112,6 +117,99 @@ export const ProductRecommendationList: React.FC<ProductRecommendationListProps>
     }
   };
 
+  // 删除关联商品
+  const removeProductAssociation = async (product: ProductAssociation) => {
+    setDeletingProductId(product.id);
+    try {
+      const tableName = materialType === 'video' ? 'video_product_associations' : 'image_product_associations';
+      
+      const { error } = await supabase
+        .from(tableName)
+        .delete()
+        .eq('id', product.id);
+
+      if (error) throw error;
+
+      // 更新本地状态
+      const updatedProducts = products.filter(p => p.id !== product.id);
+      onUpdate(updatedProducts);
+      
+      toast.success('关联商品已删除');
+    } catch (error) {
+      console.error('删除关联商品失败:', error);
+      toast.error('删除失败，请重试');
+    } finally {
+      setDeletingProductId(null);
+    }
+  };
+
+  // 添加新的关联商品
+  const addProductAssociations = async (newProducts: ProductWithQuantity[]) => {
+    if (newProducts.length === 0) return;
+
+    try {
+      const tableName = materialType === 'video' ? 'video_product_associations' : 'image_product_associations';
+      const materialIdField = materialType === 'video' ? 'video_id' : 'image_id';
+      
+      // 检查是否已存在关联
+      const existingProductIds = products.map(p => p.original_product_id);
+      const filteredProducts = newProducts.filter(p => !existingProductIds.includes(p.id));
+      
+      if (filteredProducts.length === 0) {
+        toast.error('所选商品已经关联过了');
+        return;
+      }
+
+      const associations = [];
+      
+      for (const product of filteredProducts) {
+        associations.push({
+          [materialIdField]: materialId,
+          original_product_id: product.id,
+          product_snapshot: {
+            id: product.id,
+            sku: product.sku,
+            standard_chinese_name: product.name,
+            price: product.price,
+            main_image_url: product.image,
+            specification: product.specifications,
+            source: 'local_products',
+            snapshot_time: new Date().toISOString()
+          },
+          product_sku: product.sku,
+          product_name: product.name,
+          snapshot_source: 'local_products',
+          recommended_quantity: product.recommendedQuantity,
+          quantity_note: product.quantityNote
+        });
+      }
+
+      const { data, error } = await supabase
+        .from(tableName)
+        .insert(associations)
+        .select('*');
+
+      if (error) throw error;
+
+      // 转换为 ProductAssociation 格式并更新本地状态
+      const newAssociations: ProductAssociation[] = data.map(item => ({
+        id: item.id,
+        original_product_id: item.original_product_id,
+        product_sku: item.product_sku,
+        product_name: item.product_name,
+        recommended_quantity: item.recommended_quantity,
+        quantity_note: item.quantity_note,
+        product_snapshot: item.product_snapshot
+      }));
+
+      onUpdate([...products, ...newAssociations]);
+      toast.success(`已添加 ${filteredProducts.length} 个关联商品`);
+    } catch (error) {
+      console.error('添加关联商品失败:', error);
+      toast.error('添加失败，请重试');
+    }
+  };
+
   const formatPrice = (price: string) => {
     return `¥${parseInt(price).toLocaleString()}`;
   };
@@ -125,20 +223,33 @@ export const ProductRecommendationList: React.FC<ProductRecommendationListProps>
             关联商品推荐数量设置
             <Badge variant="secondary">{products.length} 个商品</Badge>
           </CardTitle>
-          {products.length > 0 && (
-            <Button
-              onClick={saveAllChanges}
-              disabled={saving}
-              className="flex items-center gap-2"
-            >
-              {saving ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              {saving ? '保存中...' : '保存更改'}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <ProductSelectorWithQuantity
+              selectedProducts={[]}
+              onSelectionChange={addProductAssociations}
+              maxSelection={999}
+              trigger={
+                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  <UserPlus className="w-4 h-4" />
+                  添加商品
+                </Button>
+              }
+            />
+            {products.length > 0 && (
+              <Button
+                onClick={saveAllChanges}
+                disabled={saving}
+                className="flex items-center gap-2"
+              >
+                {saving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {saving ? '保存中...' : '保存更改'}
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -146,7 +257,18 @@ export const ProductRecommendationList: React.FC<ProductRecommendationListProps>
           {products.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>该展示案例暂未关联任何商品</p>
+              <p className="mb-4">该展示案例暂未关联任何商品</p>
+              <ProductSelectorWithQuantity
+                selectedProducts={[]}
+                onSelectionChange={addProductAssociations}
+                maxSelection={999}
+                trigger={
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <UserPlus className="w-4 h-4" />
+                    添加关联商品
+                  </Button>
+                }
+              />
             </div>
           ) : (
             products.map((product) => (
@@ -183,6 +305,20 @@ export const ProductRecommendationList: React.FC<ProductRecommendationListProps>
                         </span>
                       </div>
                     </div>
+                    {/* 删除按钮 */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 hover:bg-destructive/20"
+                      onClick={() => removeProductAssociation(product)}
+                      disabled={deletingProductId === product.id}
+                    >
+                      {deletingProductId === product.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <X className="h-3 w-3" />
+                      )}
+                    </Button>
                   </div>
                   
                   {product.product_snapshot.specification && (
@@ -218,13 +354,23 @@ export const ProductRecommendationList: React.FC<ProductRecommendationListProps>
                           <Minus className="w-3 h-3" />
                         </Button>
                         
-                        <div className="flex items-center justify-center min-w-[40px] h-8 px-2 text-sm font-medium bg-gray-50">
-                          {loadingProductId === product.id ? (
+                        {loadingProductId === product.id ? (
+                          <div className="flex items-center justify-center min-w-[40px] h-8 px-2 text-sm font-medium bg-gray-50">
                             <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            product.recommended_quantity || 1
-                          )}
-                        </div>
+                          </div>
+                        ) : (
+                          <Input
+                            type="number"
+                            min="1"
+                            max="99999"
+                            value={product.recommended_quantity || 1}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value) || 1;
+                              updateQuantity(product, Math.max(1, Math.min(99999, value)));
+                            }}
+                            className="w-20 h-8 text-center text-sm border-0 bg-gray-50"
+                          />
+                        )}
                         
                         <Button
                           size="sm"

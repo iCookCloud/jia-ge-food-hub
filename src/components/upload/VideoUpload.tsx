@@ -13,7 +13,7 @@ import { Upload, X, Video, Clock, Package, Tag, Loader2, Images } from 'lucide-r
 import { cloudflareStreamService, VideoUploadResult } from '@/services/cloudflareStreamService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { ProductSelector } from '@/components/product/ProductSelector';
+import { ProductSelectorWithQuantity, ProductWithQuantity } from '@/components/product/ProductSelectorWithQuantity';
 import { storageService } from '@/services/storageService';
 
 type UploadMode = 'video' | 'images';
@@ -38,7 +38,7 @@ interface UploadingVideo {
   description: string;
   content: string;
   tags: string[];
-  selectedProducts: string[];
+  selectedProducts: ProductWithQuantity[];
   category: string;
 }
 
@@ -57,7 +57,7 @@ interface ImageCollectionDraft {
   description: string;
   content: string;
   tags: string[];
-  selectedProducts: string[];
+  selectedProducts: ProductWithQuantity[];
   category: string;
   // 整体状态
   isCreating: boolean;
@@ -75,57 +75,32 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
   const { toast } = useToast();
   const { user } = useAuth();
 
-  
-  // 加载产品详情用于创建关联
-  const loadProductsForAssociation = async (productIds: string[]) => {
-    if (productIds.length === 0) return [];
-    
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, sku, standard_chinese_name, price, product_image, specifications')
-        .in('id', productIds);
-      
-      if (error) {
-        console.warn('Failed to load products for association:', error);
-        return [];
-      }
-      
-      // 映射字段名以匹配现有代码期望
-      return (data || []).map(product => ({
-        ...product,
-        unit_price: product.price  // 字段名映射
-      }));
-    } catch (error) {
-      console.warn('Failed to load products for association:', error);
-      return [];
-    }
-  };
 
-  // 创建视频产品关联（带快照）
-  const createVideoProductAssociations = async (videoId: string, selectedProducts: string[]) => {
+  // 创建视频产品关联（带快照和推荐数量）
+  const createVideoProductAssociations = async (videoId: string, selectedProducts: ProductWithQuantity[]) => {
     if (selectedProducts.length === 0) return;
     
-    const productData = await loadProductsForAssociation(selectedProducts);
     const associations = [];
     
-    for (const product of productData) {
+    for (const product of selectedProducts) {
       associations.push({
         video_id: videoId,
         original_product_id: product.id,
         product_snapshot: {
           id: product.id,
           sku: product.sku,
-          standard_chinese_name: product.standard_chinese_name,
-          price: product.unit_price,
-          main_image_url: product.product_image,
+          standard_chinese_name: product.name,
+          price: product.price,
+          main_image_url: product.image,
           specification: product.specifications,
           source: 'local_products',
           snapshot_time: new Date().toISOString()
         },
         product_sku: product.sku,
-        product_name: product.standard_chinese_name,
-        snapshot_source: 'local_products'
+        product_name: product.name,
+        snapshot_source: 'local_products',
+        recommended_quantity: product.recommendedQuantity,
+        quantity_note: product.quantityNote
       });
     }
     
@@ -140,30 +115,31 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     }
   };
 
-  // 创建图片产品关联（带快照）
-  const createImageProductAssociations = async (imageId: string, selectedProducts: string[]) => {
+  // 创建图片产品关联（带快照和推荐数量）
+  const createImageProductAssociations = async (imageId: string, selectedProducts: ProductWithQuantity[]) => {
     if (selectedProducts.length === 0) return;
     
-    const productData = await loadProductsForAssociation(selectedProducts);
     const associations = [];
     
-    for (const product of productData) {
+    for (const product of selectedProducts) {
       associations.push({
         image_id: imageId,
         original_product_id: product.id,
         product_snapshot: {
           id: product.id,
           sku: product.sku,
-          standard_chinese_name: product.standard_chinese_name,
-          price: product.unit_price,
-          main_image_url: product.product_image,
+          standard_chinese_name: product.name,
+          price: product.price,
+          main_image_url: product.image,
           specification: product.specifications,
           source: 'local_products',
           snapshot_time: new Date().toISOString()
         },
         product_sku: product.sku,
-        product_name: product.standard_chinese_name,
-        snapshot_source: 'local_products'
+        product_name: product.name,
+        snapshot_source: 'local_products',
+        recommended_quantity: product.recommendedQuantity,
+        quantity_note: product.quantityNote
       });
     }
     
@@ -411,7 +387,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
           )
         );
 
-        // 创建视频与产品的关联（带快照）
+        // 创建视频与产品的关联（带快照和推荐数量）
         if (result.databaseVideoId && uploadingVideo.selectedProducts && uploadingVideo.selectedProducts.length > 0) {
           await createVideoProductAssociations(result.databaseVideoId, uploadingVideo.selectedProducts);
         }
@@ -529,10 +505,10 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     );
   };
 
-  const updateVideoProducts = (file: File, productIds: string[]) => {
+  const updateVideoProducts = (file: File, products: ProductWithQuantity[]) => {
     setUploadingVideos(prev =>
       prev.map(uv => 
-        uv.file === file ? { ...uv, selectedProducts: productIds } : uv
+        uv.file === file ? { ...uv, selectedProducts: products } : uv
       )
     );
   };
@@ -587,9 +563,9 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     setImageCollection(prev => prev ? { ...prev, [field]: value } : null);
   };
 
-  const updateCollectionProducts = (productIds: string[]) => {
+  const updateCollectionProducts = (products: ProductWithQuantity[]) => {
     if (!imageCollection) return;
-    setImageCollection(prev => prev ? { ...prev, selectedProducts: productIds } : null);
+    setImageCollection(prev => prev ? { ...prev, selectedProducts: products } : null);
   };
 
   const addCollectionTag = (tag: string) => {
@@ -1074,9 +1050,9 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
                       </div>
 
                       {/* 关联产品 */}
-                      <ProductSelector
-                        selectedProductIds={uploadingVideo.selectedProducts}
-                        onSelectionChange={(productIds) => updateVideoProducts(uploadingVideo.file, productIds)}
+                      <ProductSelectorWithQuantity
+                        selectedProducts={uploadingVideo.selectedProducts}
+                        onSelectionChange={(products) => updateVideoProducts(uploadingVideo.file, products)}
                         maxSelection={999}
                       />
 
@@ -1358,8 +1334,8 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
               </div>
 
               {/* 关联产品 */}
-              <ProductSelector
-                selectedProductIds={imageCollection.selectedProducts}
+              <ProductSelectorWithQuantity
+                selectedProducts={imageCollection.selectedProducts}
                 onSelectionChange={updateCollectionProducts}
                 maxSelection={999}
               />

@@ -33,7 +33,6 @@ import {
   Plus,
   Minus
 } from "lucide-react";
-import { ProductRelatedCases } from "@/components/product/ProductRelatedCases";
 import { ProductSupplierInfo } from "@/components/product/ProductSupplierInfo";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
@@ -461,25 +460,9 @@ const ProductDetailPage = () => {
             </TabsContent>
 
             <TabsContent value="cases" className="p-6">
-              {product.id ? (
-                <ErrorBoundary fallback={
-                  <div className="text-center py-8 text-muted-foreground">
-                    案例信息加载失败，但不影响商品浏览
-                  </div>
-                }>
-                  <ProductRelatedCases
-                    productId={product.id}
-                    productCategory={product.category_chinese || product.category_english}
-                    maxCases={6}
-                    showTitle={false}
-                    layout="grid"
-                  />
-                </ErrorBoundary>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  商品信息加载中...
-                </div>
-              )}
+              <div className="text-center py-8 text-muted-foreground">
+                案例功能已迁移到素材管理中
+              </div>
             </TabsContent>
 
             <TabsContent value="supplier" className="p-6">

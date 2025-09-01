@@ -22,12 +22,18 @@ import {
   Image, 
   Package,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Upload,
+  X,
+  RefreshCw
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatDateTime } from '@/lib/utils';
 import ProductRecommendationList from '@/components/materials/ProductRecommendationList';
+import { ProductSelectorWithQuantity, ProductWithQuantity } from '@/components/product/ProductSelectorWithQuantity';
+import { storageService } from '@/services/storageService';
+import { cloudflareStreamService } from '@/services/cloudflareStreamService';
 
 interface MaterialData {
   id: string;
@@ -76,13 +82,16 @@ const MaterialEditPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [associatedProducts, setAssociatedProducts] = useState<ProductAssociation[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   
   // 表单状态
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     content: '',
-    category: ''
+    category: '',
+    vr_360_url: ''
   });
 
   // 加载材料数据
@@ -107,7 +116,8 @@ const MaterialEditPage: React.FC = () => {
           title: data.title || '',
           description: data.description || '',
           content: data.content || '',
-          category: data.category || ''
+          category: data.category || '',
+          vr_360_url: data.vr_360_url || ''
         });
         
         // 加载关联的商品
@@ -162,6 +172,7 @@ const MaterialEditPage: React.FC = () => {
           description: formData.description,
           content: formData.content,
           category: formData.category,
+          vr_360_url: formData.vr_360_url,
           updated_at: new Date().toISOString()
         })
         .eq('id', material.id);
@@ -186,6 +197,157 @@ const MaterialEditPage: React.FC = () => {
       ...prev,
       [field]: value
     }));
+  };
+
+  // 处理文件上传
+  const handleFileUpload = async (file: File) => {
+    if (!material) return;
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      if (material.type === 'video') {
+        // 处理视频文件上传
+        const validVideoTypes = ['video/mp4', 'video/mov', 'video/avi', 'video/wmv', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
+        const validVideoExtensions = ['.mp4', '.mov', '.avi', '.wmv', '.webm', '.qt'];
+        
+        const hasValidType = validVideoTypes.includes(file.type);
+        const hasValidExtension = validVideoExtensions.some(ext => 
+          file.name.toLowerCase().endsWith(ext)
+        );
+        
+        if (!hasValidType && !hasValidExtension) {
+          throw new Error('请上传 MP4、MOV、AVI、WMV 或 WebM 格式的视频文件');
+        }
+
+        const maxVideoSize = 500 * 1024 * 1024; // 500MB
+        if (file.size > maxVideoSize) {
+          throw new Error('视频文件大小不能超过 500MB');
+        }
+
+        // 模拟进度
+        const progressInterval = setInterval(() => {
+          setUploadProgress(prev => Math.min(prev + 5, 85));
+        }, 1000);
+
+        // 上传到 Cloudflare Stream
+        const result = await cloudflareStreamService.uploadVideo(
+          file, 
+          formData.title || material.title, 
+          formData.description || material.description || ''
+        );
+
+        clearInterval(progressInterval);
+        setUploadProgress(90);
+
+        // 轮询处理状态
+        const processingResult = await cloudflareStreamService.pollVideoStatus(
+          result.videoId,
+          {
+            maxAttempts: 30,
+            intervalMs: 10000,
+            onProgress: (progressResult) => {
+              setUploadProgress(progressResult.readyToStream ? 100 : 95);
+            }
+          }
+        );
+
+        // 更新数据库中的视频信息
+        const { error: updateError } = await supabase
+          .from('product_videos')
+          .update({
+            video_id: result.videoId,
+            video_url: processingResult.videoUrl,
+            thumbnail_url: processingResult.thumbnailUrl,
+            duration_seconds: processingResult.duration,
+            file_size: file.size,
+            mime_type: file.type,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', material.id);
+
+        if (updateError) throw updateError;
+
+        // 更新本地状态
+        setMaterial(prev => prev ? {
+          ...prev,
+          public_url: processingResult.videoUrl,
+          thumbnail_url: processingResult.thumbnailUrl,
+          duration_seconds: processingResult.duration
+        } : null);
+
+        toast.success('视频文件已更新');
+
+      } else {
+        // 处理图片文件上传
+        const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        const validImageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+        
+        const hasValidType = validImageTypes.includes(file.type);
+        const hasValidExtension = validImageExtensions.some(ext => 
+          file.name.toLowerCase().endsWith(ext)
+        );
+        
+        if (!hasValidType && !hasValidExtension) {
+          throw new Error('请上传 JPG、PNG、GIF 或 WebP 格式的图片文件');
+        }
+
+        const maxImageSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxImageSize) {
+          throw new Error('图片文件大小不能超过 10MB');
+        }
+
+        // 模拟进度
+        const progressInterval = setInterval(() => {
+          setUploadProgress(prev => Math.min(prev + 10, 90));
+        }, 200);
+
+        // 上传到 Supabase Storage
+        const result = await storageService.uploadFile(file, {
+          bucket: 'product-images',
+          folder: 'upload-images',
+          allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+          maxSize: 10
+        });
+
+        clearInterval(progressInterval);
+
+        if (result.error) {
+          throw new Error(result.error);
+        }
+
+        // 更新数据库中的图片信息
+        const { error: updateError } = await supabase
+          .from('uploaded_images')
+          .update({
+            file_path: result.data!.path,
+            public_url: result.data!.publicUrl,
+            file_size: file.size,
+            mime_type: file.type,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', material.id);
+
+        if (updateError) throw updateError;
+
+        // 更新本地状态
+        setMaterial(prev => prev ? {
+          ...prev,
+          public_url: result.data!.publicUrl
+        } : null);
+
+        setUploadProgress(100);
+        toast.success('图片文件已更新');
+      }
+
+    } catch (error) {
+      console.error('文件上传失败:', error);
+      toast.error(error instanceof Error ? error.message : '文件上传失败');
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   // 获取类型标识
@@ -295,7 +457,7 @@ const MaterialEditPage: React.FC = () => {
               <CardContent>
                 <div className="space-y-4">
                   {/* 媒体预览 */}
-                  <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                  <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden group">
                     {material.type === 'video' ? (
                       material.thumbnail_url ? (
                         <img
@@ -321,6 +483,49 @@ const MaterialEditPage: React.FC = () => {
                         </div>
                       )
                     )}
+                    
+                    {/* 文件替换按钮 */}
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="space-y-2">
+                        <Button
+                          size="sm"
+                          className="bg-white text-black hover:bg-gray-100"
+                          onClick={() => document.getElementById('file-input')?.click()}
+                          disabled={uploading}
+                        >
+                          {uploading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              上传中...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="w-4 h-4 mr-2" />
+                              更换{material.type === 'video' ? '视频' : '图片'}
+                            </>
+                          )}
+                        </Button>
+                        {uploading && (
+                          <div className="text-white text-xs text-center">
+                            {uploadProgress}%
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 隐藏的文件输入 */}
+                    <input
+                      id="file-input"
+                      type="file"
+                      accept={material.type === 'video' ? 'video/*' : 'image/*'}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleFileUpload(file);
+                        }
+                      }}
+                      className="hidden"
+                    />
                   </div>
 
                   {/* 基本信息 */}
@@ -407,6 +612,19 @@ const MaterialEditPage: React.FC = () => {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  <div>
+                    <Label htmlFor="vr_360_url">360度展示链接</Label>
+                    <Input
+                      id="vr_360_url"
+                      value={formData.vr_360_url}
+                      onChange={(e) => handleInputChange('vr_360_url', e.target.value)}
+                      placeholder="https://vr.3d66.com/vr/index_detail_xxxxx.asp"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      输入360度VR展示页面的完整URL链接，将在详情页面的幻灯片下方显示
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -440,6 +658,9 @@ const MaterialEditPage: React.FC = () => {
 };
 
 export default MaterialEditPage;
+
+
+
 
 
 

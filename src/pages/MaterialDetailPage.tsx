@@ -26,7 +26,8 @@ import {
   Image as ImageIcon,
   Tag,
   FileImage,
-  ShoppingCart
+  ShoppingCart,
+  View
 } from "lucide-react";
 
 // 统一的素材数据类型
@@ -38,6 +39,7 @@ interface MaterialDetailItem {
   category?: string;
   tags?: string[];
   type: 'video' | 'image';
+  vr_360_url?: string;
   
   // 视频特有属性
   cloudflare_video_id?: string;
@@ -436,6 +438,20 @@ const MaterialDetailPage = () => {
           <div className="lg:col-span-3 space-y-4 sm:space-y-6">
             {/* Material Viewer */}
             <MaterialViewer material={material} />
+
+            {/* 360度展示按钮 */}
+            {material.vr_360_url && (
+              <div className="flex justify-center">
+                <Button
+                  onClick={() => window.open(material.vr_360_url, '_blank', 'width=1200,height=800')}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <View className="h-4 w-4" />
+                  360度沉浸体验
+                </Button>
+              </div>
+            )}
 
             {/* Material Info */}
             <Card>
