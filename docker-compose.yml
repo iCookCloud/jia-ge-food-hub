@@ -10,3 +10,9 @@ services:
     volumes:
       - ./dist:/usr/share/nginx/html:ro  # 直接挂载构建好的 dist 目录
       - ./nginx.conf:/etc/nginx/nginx.conf:ro  # 挂载 nginx 配置
+    networks:
+      - web-shared
+
+networks:
+  web-shared:
+    external: true
